@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
-const config = require('../config');
+const config = require('../config/config');
 
-const authenticateToken = (req, res, next) => {
+const verifyToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
@@ -14,4 +14,22 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-module.exports = authenticateToken;
+const checkRole = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.sendStatus(401);
+    }
+    
+    const hasRole = roles.some(role => req.user.role === role);
+    if (!hasRole) {
+      return res.sendStatus(403);
+    }
+    
+    next();
+  };
+};
+
+module.exports = {
+  verifyToken,
+  checkRole
+};
