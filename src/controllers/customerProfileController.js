@@ -60,11 +60,14 @@ class CustomerProfileController {
   }
 
   static async createProfile(req, res, next) {
+    console.log(req.body);
     try {
       const newProfile = await CustomerProfile.create({
-        ...req.body,
-        created_by: req.user?.username || 'system',
-        updated_by: req.user?.username || 'system'
+        u_id: req.body.u_id,
+        tier_status: 'Bronze',
+        loyalty_points: 0,
+        default_address: '',
+        
       });
 
       const profileWithUser = await CustomerProfile.findByPk(newProfile.cp_id, {

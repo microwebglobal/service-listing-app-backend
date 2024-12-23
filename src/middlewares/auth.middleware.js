@@ -1,15 +1,22 @@
 const jwt = require('jsonwebtoken');
-const config = require('../config/config');
+
+require('dotenv').config();
 
 const verifyToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
-  if (token == null) return res.sendStatus(401);
+  if (token == null) {
+    return res.status(401).json({ message: 'Authorization token is missing' });
+  }
 
-  jwt.verify(token, config.ACCESS_TOKEN_SECRET, (err, user) => {
-    if (err) return res.sendStatus(403);
-    req.user = user;
+  // Verify token
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    if (err) {
+      console.error('JWT Error:', err.message);
+      return res.status(403).json({ message: 'Token is invalid or expired' });
+    }
+    req.user = user; 
     next();
   });
 };
@@ -17,15 +24,15 @@ const verifyToken = (req, res, next) => {
 const checkRole = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {
-      return res.sendStatus(401);
+      return res.status(401).json({ message: 'User authentication required' });
     }
-    
+
     const hasRole = roles.some(role => req.user.role === role);
     if (!hasRole) {
-      return res.sendStatus(403);
+      return res.status(403).json({ message: 'You do not have the required permissions' });
     }
-    
-    next();
+
+    next(); 
   };
 };
 

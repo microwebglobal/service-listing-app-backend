@@ -16,8 +16,7 @@ module.exports = {
       },
       email: {
         type: Sequelize.STRING(100),
-        allowNull: false,
-        unique: true
+        allowNull: true,
       },
       mobile: {
         type: Sequelize.STRING(15),
@@ -30,46 +29,29 @@ module.exports = {
       },
       pw: {
         type: Sequelize.STRING(255),
-        allowNull: false
+        allowNull: true
       },
       role: {
-        type: Sequelize.ENUM('admin', 'customer'),
+        type: Sequelize.ENUM('admin', 'customer', "service_provider"),
         defaultValue: 'customer',
         allowNull: false
       },
-      is_active: {
-        type: Sequelize.BOOLEAN,
-        defaultValue: true,
-        allowNull: false
-      },
-      created_by: {
-        type: Sequelize.STRING(100),
+      last_updated: {
+        type: Sequelize.DATE,
         allowNull: false,
-        defaultValue: 'system'
-      },
-      updated_by: {
-        type: Sequelize.STRING(100),
-        allowNull: false,
-        defaultValue: 'system'
+        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+        onUpdate: Sequelize.literal('CURRENT_TIMESTAMP')
       },
       created_at: {
         type: Sequelize.DATE,
         allowNull: false,
         defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
       },
-      updated_at: {
-        type: Sequelize.DATE,
-        allowNull: false,
-        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
-        onUpdate: Sequelize.literal('CURRENT_TIMESTAMP')
-      }
+      
     }, {
       timestamps: true,
       indexes: [
-        {
-          unique: true,
-          fields: ['email']
-        },
+        
         {
           unique: true,
           fields: ['mobile']

@@ -11,15 +11,12 @@ module.exports = {
     return queryInterface.bulkInsert('users', [
       {
         name: 'Admin User',
-        email: 'admin@example.com',
+        email: '',
         mobile: '1234567890',
         pw: hashedPassword,
-        role: 'admin',
-        is_active: true,
-        created_by: 'system',
-        updated_by: 'system',
+        role: 'customer',
+        last_updated: currentDate,
         created_at: currentDate,
-        updated_at: currentDate
       }
     ]);
   },

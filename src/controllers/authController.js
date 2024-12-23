@@ -5,6 +5,54 @@ const bcrypt = require('bcryptjs');
 const { generateToken, generateRefreshToken } = require('../utils/jwt');
 
 class AuthController {
+  static async register(req, res, next) {
+    try {
+      const { name, mobile, role} = req.body;
+
+      // Validate input
+      if (!name ||!mobile) {
+        throw createError(400, 'Name and mobile are required');
+      }
+
+      const existingUser = await User.findOne({
+        where: { mobile }
+      });
+  
+      if (existingUser) {
+        throw createError(409, 'Mobile number is already in use');
+      }
+
+      // Create user
+      const newUser = await User.create({
+        name: name,
+        email: '',
+        mobile: mobile,
+        photo: '',
+        pw: '1234',
+        role: role || 'customer', // Default to 'customer' if role is not provided
+      });
+
+      // Automatically log the user in after successful registration
+      const accessToken = generateToken(newUser);
+      const refreshToken = generateRefreshToken(newUser);
+
+      res.status(201).json({
+        message: 'Registration successful',
+        accessToken,
+        refreshToken,
+        user: {
+          id: newUser.u_id,
+          email: newUser.email,
+          name: newUser.name,
+          role: newUser.role,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+
   static async login(req, res, next) {
     try {
       const { email, password } = req.body;
@@ -55,6 +103,7 @@ class AuthController {
       next(error);
     }
   }
+  
 
   static async refreshToken(req, res, next) {
     try {
