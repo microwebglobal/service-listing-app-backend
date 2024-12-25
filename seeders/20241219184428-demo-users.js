@@ -12,7 +12,7 @@ module.exports = {
       {
         name: 'Admin User',
         email: '',
-        mobile: '1234567890',
+        mobile: '112345678',
         pw: hashedPassword,
         role: 'customer',
         last_updated: currentDate,

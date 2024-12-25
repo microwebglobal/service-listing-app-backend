@@ -3,9 +3,9 @@ const router = express.Router();
 const AuthController = require('../../controllers/authController');
 
 // Define authentication routes
-router.post('/login', AuthController.login);
-
-router.post('/register', AuthController.register);
-
+router.post('/send-otp', AuthController.sendLoginOTP);
+router.post('/verify-otp', AuthController.verifyOTP);
+router.post('/refresh-token', AuthController.refreshToken);
+router.post('/logout', AuthController.logout);
 
 module.exports = router;

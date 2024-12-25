@@ -1,4 +1,3 @@
-// models/User.js
 "use strict";
 
 const { Model } = require("sequelize");
@@ -6,12 +5,10 @@ const bcrypt = require("bcryptjs");
 
 module.exports = (sequelize, DataTypes) => {
   class User extends Model {
-    // Define any class methods here
     static associate(models) {
-      // define associations here if needed
+      // define associations here, e.g.
     }
 
-    // Instance method to compare password
     async validatePassword(password) {
       return bcrypt.compare(password, this.pw);
     }
@@ -41,7 +38,6 @@ module.exports = (sequelize, DataTypes) => {
       email: {
         type: DataTypes.STRING(100),
         allowNull: true,
-        
       },
       mobile: {
         type: DataTypes.STRING(15),
@@ -67,6 +63,23 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.ENUM("admin", "customer", "service_provider"),
         defaultValue: "customer",
         allowNull: false,
+      },
+      otp: {
+        type: DataTypes.STRING(6),
+        allowNull: true,
+      },
+      otp_expires: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
+      tokenVersion: {
+        type: DataTypes.INTEGER,
+        defaultValue: 0,
+        allowNull: false,
+      },
+      last_login: {
+        type: DataTypes.DATE,
+        allowNull: true,
       },
       last_updated: {
         type: DataTypes.DATE,

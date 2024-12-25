@@ -7,6 +7,10 @@ const authRoutes = require('./userRoutes/authRoutes');
 const customerProfileRoutes = require('./customerProfileRoutes');
 const userAddressRoutes = require("./userRoutes/userAddress")
 const otpRoutes = require("./userRoutes/otpRoutes")
+
+const serviceRoutes = require('./serviceRoutes');
+
+
 const { verifyToken, checkRole } = require('../middlewares/auth.middleware');
 
 // Define route paths
@@ -14,6 +18,8 @@ router.use('/users', userRoutes);
 router.use('/auth', authRoutes);
 router.use('/otp', otpRoutes);
 router.use('/adress', userAddressRoutes);
+
+router.use('/', serviceRoutes);  // This will handle both /services and /categories
 
 
 // For protected routes, apply the middleware before using the routes

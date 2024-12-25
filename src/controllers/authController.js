@@ -1,115 +1,132 @@
-// src/controllers/authController.js
 const { User } = require('../models');
 const createError = require('http-errors');
-const bcrypt = require('bcryptjs');
-const { generateToken, generateRefreshToken } = require('../utils/jwt');
+const jwt = require('jsonwebtoken');
+const otpHandler = require('../utils/otp');
+const { Op } = require('sequelize');
 
-class AuthController {
-  static async register(req, res, next) {
+const AuthController = {
+  async sendLoginOTP(req, res, next) {
     try {
-      const { name, mobile, role} = req.body;
+      const { mobile } = req.body;
 
-      // Validate input
-      if (!name ||!mobile) {
-        throw createError(400, 'Name and mobile are required');
+      if (!mobile) {
+        throw createError(400, 'Mobile number is required');
       }
 
-      const existingUser = await User.findOne({
-        where: { mobile }
-      });
-  
-      if (existingUser) {
-        throw createError(409, 'Mobile number is already in use');
-      }
-
-      // Create user
-      const newUser = await User.create({
-        name: name,
-        email: '',
-        mobile: mobile,
-        photo: '',
-        pw: '1234',
-        role: role || 'customer', // Default to 'customer' if role is not provided
+      const [user] = await User.findOrCreate({
+        where: { mobile },
+        defaults: {
+          name: `User-${mobile.slice(-4)}`,
+          role: 'customer',
+        }
       });
 
-      // Automatically log the user in after successful registration
-      const accessToken = generateToken(newUser);
-      const refreshToken = generateRefreshToken(newUser);
+      const otp = await otpHandler.sendOTP(mobile);
 
-      res.status(201).json({
-        message: 'Registration successful',
-        accessToken,
-        refreshToken,
-        user: {
-          id: newUser.u_id,
-          email: newUser.email,
-          name: newUser.name,
-          role: newUser.role,
-        },
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
-
-
-  static async login(req, res, next) {
-    try {
-      const { email, password } = req.body;
-
-      // Validate input
-      if (!email || !password) {
-        throw createError(400, 'Email and password are required');
-      }
-
-      // Find user
-      const user = await User.findOne({ where: { email } });
-      if (!user) {
-        throw createError(401, 'Invalid credentials');
-      }
-
-      // Check password
-      const isValidPassword = await bcrypt.compare(password, user.pw);
-      if (!isValidPassword) {
-        throw createError(401, 'Invalid credentials');
-      }
-
-      // Check if user is active
-      if (!user.is_active) {
-        throw createError(403, 'Account is deactivated');
-      }
-
-      // Generate tokens
-      const accessToken = generateToken(user);
-      const refreshToken = generateRefreshToken(user);
-
-      // Update last login
       await user.update({
-        last_login: new Date(),
+        otp,
+        otp_expires: new Date(Date.now() + 5 * 60 * 1000),
         updated_by: 'system'
       });
 
       res.json({
-        accessToken,
-        refreshToken,
-        user: {
-          id: user.u_id,
-          email: user.email,
-          name: user.name,
-          role: user.role
+        success: true,
+        message: 'OTP sent successfully'
+      });
+    } catch (error) {
+      if (error.message.includes('Please wait')) {
+        return res.status(429).json({
+          success: false,
+          message: error.message
+        });
+      }
+      next(error);
+    }
+  },
+
+  async verifyOTP(req, res, next) {
+    try {
+      const { mobile, otp } = req.body;
+
+      if (!mobile || !otp) {
+        throw createError(400, 'Mobile and OTP are required');
+      }
+
+      const isValid = otpHandler.verifyOTP(mobile, otp);
+      
+      if (!isValid) {
+        throw createError(401, 'Invalid OTP');
+      }
+
+      const user = await User.findOne({
+        where: {
+          mobile,
+          otp,
+          otp_expires: {
+            [Op.gt]: new Date()
+          }
         }
+      });
+
+      if (!user) {
+        throw createError(401, 'Invalid or expired OTP');
+      }
+
+      await user.update({
+        otp: null,
+        otp_expires: null,
+        last_login: new Date(),
+        updated_by: 'system'
+      });
+
+      const accessToken = jwt.sign(
+        {
+          id: user.u_id,
+          role: user.role
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: '1d' }
+      );
+
+      const refreshToken = jwt.sign(
+        {
+          id: user.u_id,
+          tokenVersion: user.tokenVersion
+        },
+        process.env.JWT_REFRESH_SECRET,
+        { expiresIn: '14d' }
+      );
+
+      res.cookie('accessToken', accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 24 * 60 * 60 * 1000
+      });
+
+      res.cookie('refreshToken', refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 14 * 24 * 60 * 60 * 1000
+      });
+
+      res.json({
+        success: true,
+        role: user.role,
+        uId: user.u_id
       });
     } catch (error) {
       next(error);
     }
-  }
-  
+  },
 
-  static async refreshToken(req, res, next) {
+  async refreshToken(req, res, next) {
     try {
-      const { refreshToken } = req.body;
+      const { refreshToken } = req.cookies;
+
       if (!refreshToken) {
-        throw createError(400, 'Refresh token is required');
+        throw createError(401, 'Refresh token required');
       }
 
       const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
@@ -119,33 +136,44 @@ class AuthController {
         throw createError(401, 'Invalid refresh token');
       }
 
-      const accessToken = generateToken(user);
-      const newRefreshToken = generateRefreshToken(user);
-
-      res.json({ accessToken, refreshToken: newRefreshToken });
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  static async logout(req, res, next) {
-    try {
-      // Increment token version to invalidate all existing refresh tokens
-      await User.update(
+      const accessToken = jwt.sign(
         {
-          tokenVersion: sequelize.literal('tokenVersion + 1'),
-          updated_by: req.user.username
+          id: user.u_id,
+          role: user.role
         },
-        {
-          where: { u_id: req.user.id }
-        }
+        process.env.JWT_SECRET,
+        { expiresIn: '1d' }
       );
 
-      res.json({ message: 'Logged out successfully' });
+      res.cookie('accessToken', accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 24 * 60 * 60 * 1000
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async logout(req, res, next) {
+    try {
+      res.clearCookie('accessToken');
+      res.clearCookie('refreshToken');
+
+      if (req.user) {
+        await User.increment('tokenVersion', {
+          where: { u_id: req.user.id }
+        });
+      }
+
+      res.json({ success: true });
     } catch (error) {
       next(error);
     }
   }
-}
+};
 
 module.exports = AuthController;

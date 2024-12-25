@@ -16,7 +16,7 @@ module.exports = {
       },
       email: {
         type: Sequelize.STRING(100),
-        allowNull: true,
+        allowNull: true
       },
       mobile: {
         type: Sequelize.STRING(15),
@@ -32,9 +32,26 @@ module.exports = {
         allowNull: true
       },
       role: {
-        type: Sequelize.ENUM('admin', 'customer', "service_provider"),
+        type: Sequelize.ENUM('admin', 'customer', 'service_provider'),
         defaultValue: 'customer',
         allowNull: false
+      },
+      otp: {
+        type: Sequelize.STRING(6),
+        allowNull: true
+      },
+      otp_expires: {
+        type: Sequelize.DATE,
+        allowNull: true
+      },
+      tokenVersion: {
+        type: Sequelize.INTEGER,
+        defaultValue: 0,
+        allowNull: false
+      },
+      last_login: {
+        type: Sequelize.DATE,
+        allowNull: true
       },
       last_updated: {
         type: Sequelize.DATE,
@@ -46,12 +63,10 @@ module.exports = {
         type: Sequelize.DATE,
         allowNull: false,
         defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
-      },
-      
+      }
     }, {
       timestamps: true,
       indexes: [
-        
         {
           unique: true,
           fields: ['mobile']
