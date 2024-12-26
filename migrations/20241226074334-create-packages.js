@@ -3,24 +3,24 @@
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable('ServiceItems', {
-      item_id: {
+    await queryInterface.createTable('packages', {
+      package_id: {
         type: Sequelize.STRING,
         primaryKey: true,
         allowNull: false
       },
-      service_id: {
+      type_id: {
         type: Sequelize.STRING,
         allowNull: false,
         references: {
-          model: 'Services',
-          key: 'service_id'
+          model: 'service_types',
+          key: 'type_id'
         },
         onUpdate: 'CASCADE',
         onDelete: 'CASCADE'
       },
       name: {
-        type: Sequelize.STRING,
+        type: Sequelize.STRING(100),
         allowNull: false
       },
       description: Sequelize.TEXT,
@@ -28,20 +28,21 @@ module.exports = {
         type: Sequelize.DECIMAL(10, 2),
         allowNull: false
       },
+      display_order: {
+        type: Sequelize.INTEGER,
+        defaultValue: 0
+      },
       created_at: {
         type: Sequelize.DATE,
-        allowNull: false,
-        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
+        allowNull: false
       },
       updated_at: {
         type: Sequelize.DATE,
-        allowNull: false,
-        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
+        allowNull: false
       }
     });
   },
   down: async (queryInterface) => {
-    await queryInterface.dropTable('ServiceItems');
+    await queryInterface.dropTable('packages');
   }
 };
-

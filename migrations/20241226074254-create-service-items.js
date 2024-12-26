@@ -3,51 +3,44 @@
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable('SubCategories', {
-      sub_category_id: {
+    await queryInterface.createTable('service_items', {
+      item_id: {
         type: Sequelize.STRING,
         primaryKey: true,
         allowNull: false
       },
-      category_id: {
+      service_id: {
         type: Sequelize.STRING,
         allowNull: false,
         references: {
-          model: 'ServiceCategories',
-          key: 'category_id'
+          model: 'services',
+          key: 'service_id'
         },
         onUpdate: 'CASCADE',
         onDelete: 'CASCADE'
       },
       name: {
-        type: Sequelize.STRING,
+        type: Sequelize.STRING(100),
         allowNull: false
       },
-      slug: {
-        type: Sequelize.STRING,
+      description: Sequelize.TEXT,
+      base_price: {
+        type: Sequelize.DECIMAL(10, 2),
         allowNull: false
-      },
-      display_order: {
-        type: Sequelize.INTEGER,
-        defaultValue: 0
-      },
-      status: {
-        type: Sequelize.ENUM('active', 'inactive'),
-        defaultValue: 'active'
       },
       created_at: {
         type: Sequelize.DATE,
         allowNull: false,
-        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
+        defaultValue: Sequelize.fn('NOW')
       },
       updated_at: {
         type: Sequelize.DATE,
         allowNull: false,
-        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
+        defaultValue: Sequelize.fn('NOW')
       }
     });
   },
   down: async (queryInterface) => {
-    await queryInterface.dropTable('SubCategories');
+    await queryInterface.dropTable('service_items');
   }
 };

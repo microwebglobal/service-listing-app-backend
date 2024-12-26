@@ -1,27 +1,11 @@
-const { ServiceCategory, SubCategory, Service, City } = require('../models');
-const slugify = require('slugify');
+const { ServiceCategory, SubCategory } = require('../models');
 
 class ServiceCategoryController {
   static async getAllCategories(req, res, next) {
     try {
       const categories = await ServiceCategory.findAll({
-        include: [{
-          model: SubCategory,
-          as: 'subcategories',
-          include: [{
-            model: Service,
-            as: 'services'
-          }]
-        }, {
-          model: City,
-          as: 'cities',
-          attributes: ['city_id', 'name']
-        }],
-        order: [
-          ['display_order', 'ASC'],
-          [{ model: SubCategory, as: 'subcategories' }, 'display_order', 'ASC'],
-          [{ model: SubCategory, as: 'subcategories' }, { model: Service, as: 'services' }, 'display_order', 'ASC']
-        ]
+        include: [SubCategory],
+        order: [['display_order', 'ASC']]
       });
       res.status(200).json(categories);
     } catch (error) {
@@ -29,30 +13,30 @@ class ServiceCategoryController {
     }
   }
 
+  static async getCategoryById(req, res, next) {
+    try {
+      const category = await ServiceCategory.findByPk(req.params.id, {
+        include: [SubCategory]
+      });
+      if (!category) {
+        return res.status(404).json({ error: "Category not found" });
+      }
+      res.status(200).json(category);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async createCategory(req, res, next) {
     try {
-      // Generate slug from name
-      const slug = slugify(req.body.name, { lower: true });
-      
-      const category = await ServiceCategory.create({
-        ...req.body,
-        slug
+      const newCategory = await ServiceCategory.create({
+        category_id: req.body.category_id,
+        name: req.body.name,
+        slug: req.body.slug,
+        icon_url: req.body.icon_url,
+        display_order: req.body.display_order
       });
-
-      if (req.body.available_cities) {
-        await category.setCities(req.body.available_cities);
-      }
-
-      // Fetch the created category with its relationships
-      const completeCategory = await ServiceCategory.findByPk(category.category_id, {
-        include: [{
-          model: City,
-          as: 'cities',
-          attributes: ['city_id', 'name']
-        }]
-      });
-
-      res.status(201).json(completeCategory);
+      res.status(201).json(newCategory);
     } catch (error) {
       next(error);
     }
@@ -60,34 +44,28 @@ class ServiceCategoryController {
 
   static async updateCategory(req, res, next) {
     try {
-      // Update slug if name is being updated
-      if (req.body.name) {
-        req.body.slug = slugify(req.body.name, { lower: true });
-      }
-
       const [updated] = await ServiceCategory.update(req.body, {
         where: { category_id: req.params.id }
       });
-
       if (!updated) {
         return res.status(404).json({ error: "Category not found" });
       }
+      const updatedCategory = await ServiceCategory.findByPk(req.params.id);
+      res.status(200).json(updatedCategory);
+    } catch (error) {
+      next(error);
+    }
+  }
 
-      const category = await ServiceCategory.findByPk(req.params.id);
-      if (req.body.available_cities) {
-        await category.setCities(req.body.available_cities);
-      }
-
-      // Fetch the updated category with its relationships
-      const completeCategory = await ServiceCategory.findByPk(req.params.id, {
-        include: [{
-          model: City,
-          as: 'cities',
-          attributes: ['city_id', 'name']
-        }]
+  static async deleteCategory(req, res, next) {
+    try {
+      const deleted = await ServiceCategory.destroy({
+        where: { category_id: req.params.id }
       });
-
-      res.status(200).json(completeCategory);
+      if (!deleted) {
+        return res.status(404).json({ error: "Category not found" });
+      }
+      res.status(200).json({ message: "Category deleted successfully" });
     } catch (error) {
       next(error);
     }

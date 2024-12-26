@@ -1,5 +1,15 @@
+const { Model } = require("sequelize");
+
 module.exports = (sequelize, DataTypes) => {
-  const CitySpecificPricing = sequelize.define('CitySpecificPricing', {
+  class CitySpecificPricing extends Model {
+    static associate(models) {
+      CitySpecificPricing.belongsTo(models.City, {
+        foreignKey: 'city_id'
+      });
+    }
+  }
+
+  CitySpecificPricing.init({
     id: {
       type: DataTypes.INTEGER,
       primaryKey: true,
@@ -7,34 +17,39 @@ module.exports = (sequelize, DataTypes) => {
     },
     city_id: {
       type: DataTypes.STRING,
+      allowNull: false,
+      references: {
+        model: 'cities',
+        key: 'city_id'
+      }
+    },
+    item_id: {
+      type: DataTypes.STRING,
       allowNull: false
     },
-    service_id: DataTypes.STRING,
-    item_id: DataTypes.STRING,
+    item_type: {
+      type: DataTypes.ENUM('service_item', 'package', 'package_item'),
+      allowNull: false
+    },
     price: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false
     }
   }, {
-    tableName: 'CitySpecificPricings',
+    sequelize,
+    modelName: 'CitySpecificPricing',
+    tableName: 'city_specific_pricing',
     timestamps: true,
-    underscored: true  
+    createdAt: 'created_at',
+    updatedAt: 'updated_at',
+    underscored: true,
+      indexes: [
+      {
+        unique: true,
+        fields: ['city_id', 'item_id', 'item_type']
+      }
+    ]
   });
-
-  CitySpecificPricing.associate = (models) => {
-    CitySpecificPricing.belongsTo(models.City, { 
-      foreignKey: 'city_id',
-      as: 'city'
-    });
-    CitySpecificPricing.belongsTo(models.Service, { 
-      foreignKey: 'service_id',
-      as: 'service'
-    });
-    CitySpecificPricing.belongsTo(models.ServiceItem, { 
-      foreignKey: 'item_id',
-      as: 'serviceItem'
-    });
-  };
 
   return CitySpecificPricing;
 };

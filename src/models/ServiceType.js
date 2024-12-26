@@ -1,33 +1,32 @@
 const { Model } = require("sequelize");
 
 module.exports = (sequelize, DataTypes) => {
-  class ServiceItem extends Model {
+  class ServiceType extends Model {
     static associate(models) {
-      ServiceItem.belongsTo(models.Service, {
-        foreignKey: 'service_id'
+      ServiceType.belongsTo(models.SubCategory, {
+        foreignKey: 'sub_category_id'
       });
-      ServiceItem.hasMany(models.CitySpecificPricing, {
-        foreignKey: 'item_id',
-        constraints: false,
-        scope: {
-          item_type: 'service_item'
-        }
+      ServiceType.hasMany(models.Service, {
+        foreignKey: 'type_id'
+      });
+      ServiceType.hasMany(models.Package, {
+        foreignKey: 'type_id'
       });
     }
   }
 
-  ServiceItem.init({
-    item_id: {
+  ServiceType.init({
+    type_id: {
       type: DataTypes.STRING,
       primaryKey: true,
       allowNull: false
     },
-    service_id: {
+    sub_category_id: {
       type: DataTypes.STRING,
       allowNull: false,
       references: {
-        model: 'services',
-        key: 'service_id'
+        model: 'sub_categories',
+        key: 'sub_category_id'
       }
     },
     name: {
@@ -35,19 +34,19 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false
     },
     description: DataTypes.TEXT,
-    base_price: {
-      type: DataTypes.DECIMAL(10, 2),
-      allowNull: false
+    display_order: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0
     }
   }, {
     sequelize,
-    modelName: 'ServiceItem',
-    tableName: 'service_items',
+    modelName: 'ServiceType',
+    tableName: 'service_types',
     timestamps: true,
     createdAt: 'created_at',
     updatedAt: 'updated_at',
     underscored: true
   });
 
-  return ServiceItem;
+  return ServiceType;
 };

@@ -1,16 +1,14 @@
 'use strict';
 
-/** @type {import('sequelize-cli').Migration} */
 module.exports = {
-  up: async (queryInterface) => {
-    await queryInterface.bulkInsert('ServiceCategories', [
+  up: async (queryInterface, Sequelize) => {
+    await queryInterface.bulkInsert('service_categories', [
       {
         category_id: 'CAT001',
         name: 'Salon for Women',
         slug: 'salon-for-women',
         icon_url: 'salon-icon.png',
         display_order: 1,
-        status: 'active',
         created_at: new Date(),
         updated_at: new Date()
       },
@@ -20,13 +18,13 @@ module.exports = {
         slug: 'ac-appliance-repair',
         icon_url: 'ac-repair-icon.png',
         display_order: 2,
-        status: 'active',
         created_at: new Date(),
         updated_at: new Date()
       }
-    ]);
+    ], {});
 
-    await queryInterface.bulkInsert('CategoryCityAvailability', [
+    // Insert category-city relationships
+    await queryInterface.bulkInsert('category_cities', [
       {
         category_id: 'CAT001',
         city_id: 'CTY001',
@@ -45,10 +43,11 @@ module.exports = {
         created_at: new Date(),
         updated_at: new Date()
       }
-    ]);
+    ], {});
   },
-  down: async (queryInterface) => {
-    await queryInterface.bulkDelete('CategoryCityAvailability', null, {});
-    await queryInterface.bulkDelete('ServiceCategories', null, {});
+
+  down: async (queryInterface, Sequelize) => {
+    await queryInterface.bulkDelete('category_cities', null, {});
+    await queryInterface.bulkDelete('service_categories', null, {});
   }
 };

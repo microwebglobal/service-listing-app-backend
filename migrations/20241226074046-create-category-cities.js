@@ -3,7 +3,7 @@
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable('CategoryCityAvailability', {
+    await queryInterface.createTable('category_cities', {
       id: {
         type: Sequelize.INTEGER,
         primaryKey: true,
@@ -13,7 +13,7 @@ module.exports = {
         type: Sequelize.STRING,
         allowNull: false,
         references: {
-          model: 'ServiceCategories',
+          model: 'service_categories',
           key: 'category_id'
         },
         onUpdate: 'CASCADE',
@@ -23,7 +23,7 @@ module.exports = {
         type: Sequelize.STRING,
         allowNull: false,
         references: {
-          model: 'Cities',
+          model: 'cities',
           key: 'city_id'
         },
         onUpdate: 'CASCADE',
@@ -31,17 +31,19 @@ module.exports = {
       },
       created_at: {
         type: Sequelize.DATE,
-        allowNull: false,
-        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
+        allowNull: false
       },
       updated_at: {
         type: Sequelize.DATE,
-        allowNull: false,
-        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
+        allowNull: false
       }
+    });
+
+    await queryInterface.addIndex('category_cities', ['category_id', 'city_id'], {
+      unique: true
     });
   },
   down: async (queryInterface) => {
-    await queryInterface.dropTable('CategoryCityAvailability');
+    await queryInterface.dropTable('category_cities');
   }
 };

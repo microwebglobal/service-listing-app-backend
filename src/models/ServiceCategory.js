@@ -1,47 +1,47 @@
+const { Model } = require("sequelize");
+
 module.exports = (sequelize, DataTypes) => {
-  const ServiceCategory = sequelize.define('ServiceCategory', {
+  class ServiceCategory extends Model {
+    static associate(models) {
+      ServiceCategory.belongsToMany(models.City, {
+        through: 'CategoryCities',
+        foreignKey: 'category_id'
+      });
+      ServiceCategory.hasMany(models.SubCategory, {
+        foreignKey: 'category_id'
+      });
+    }
+  }
+
+  ServiceCategory.init({
     category_id: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.STRING,
       primaryKey: true,
-      autoIncrement: true
+      allowNull: false
     },
     name: {
-      type: DataTypes.STRING,
+      type: DataTypes.STRING(100),
       allowNull: false
     },
     slug: {
-      type: DataTypes.STRING,
+      type: DataTypes.STRING(100),
       allowNull: false,
       unique: true
     },
-    description: {
-      type: DataTypes.TEXT,
-      allowNull: true
-    },
+    icon_url: DataTypes.STRING(255),
     display_order: {
       type: DataTypes.INTEGER,
       defaultValue: 0
-    },
-    is_active: {
-      type: DataTypes.BOOLEAN,
-      defaultValue: true
     }
   }, {
-    tableName: 'ServiceCategories',
-    timestamps: true
+    sequelize,
+    modelName: 'ServiceCategory',
+    tableName: 'service_categories',
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at',
+    underscored: true
   });
-
-  ServiceCategory.associate = (models) => {
-    ServiceCategory.hasMany(models.SubCategory, {
-      foreignKey: 'category_id',
-      as: 'subcategories'
-    });
-    ServiceCategory.belongsToMany(models.City, {
-      through: 'category_cities',
-      foreignKey: 'category_id',
-      as: 'cities'
-    });
-  };
 
   return ServiceCategory;
 };

@@ -1,52 +1,49 @@
+const { Model } = require("sequelize");
+
 module.exports = (sequelize, DataTypes) => {
-  const Service = sequelize.define('Service', {
+  class Service extends Model {
+    static associate(models) {
+      Service.belongsTo(models.ServiceType, {
+        foreignKey: 'type_id'
+      });
+      Service.hasMany(models.ServiceItem, {
+        foreignKey: 'service_id'
+      });
+    }
+  }
+
+  Service.init({
     service_id: {
       type: DataTypes.STRING,
       primaryKey: true,
       allowNull: false
     },
-    sub_category_id: {
+    type_id: {
       type: DataTypes.STRING,
-      allowNull: false
+      allowNull: false,
+      references: {
+        model: 'service_types',
+        key: 'type_id'
+      }
     },
     name: {
-      type: DataTypes.STRING,
+      type: DataTypes.STRING(100),
       allowNull: false
     },
     description: DataTypes.TEXT,
-    base_price: {
-      type: DataTypes.DECIMAL(10, 2),
-      allowNull: false
-    },
     display_order: {
       type: DataTypes.INTEGER,
       defaultValue: 0
-    },
-    status: {
-      type: DataTypes.ENUM('active', 'inactive'),
-      defaultValue: 'active'
     }
   }, {
-    tableName: 'Services',
+    sequelize,
+    modelName: 'Service',
+    tableName: 'services',
     timestamps: true,
-    underscored: true // Use snake_case for attributes
+    createdAt: 'created_at',
+    updatedAt: 'updated_at',
+    underscored: true
   });
-
-  Service.associate = (models) => {
-    Service.belongsTo(models.SubCategory, { 
-      foreignKey: 'sub_category_id',
-      as: 'subCategory'
-    });
-    Service.hasMany(models.ServiceItem, { 
-      foreignKey: 'service_id',
-      as: 'serviceItems'
-    });
-    Service.hasMany(models.CitySpecificPricing, { 
-      foreignKey: 'service_id',
-      as: 'cityPricings'
-    });
-    
-  };
 
   return Service;
 };

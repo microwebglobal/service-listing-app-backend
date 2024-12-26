@@ -1,9 +1,8 @@
 'use strict';
 
-/** @type {import('sequelize-cli').Migration} */
 module.exports = {
-  up: async (queryInterface) => {
-    await queryInterface.bulkInsert('Cities', [
+  up: async (queryInterface, Sequelize) => {
+    await queryInterface.bulkInsert('cities', [
       {
         city_id: 'CTY001',
         name: 'Mumbai',
@@ -24,9 +23,10 @@ module.exports = {
         created_at: new Date(),
         updated_at: new Date()
       }
-    ]);
+    ], {});
   },
-  down: async (queryInterface) => {
-    await queryInterface.bulkDelete('Cities', null, {});
+
+  down: async (queryInterface, Sequelize) => {
+    await queryInterface.bulkDelete('cities', null, {});
   }
 };

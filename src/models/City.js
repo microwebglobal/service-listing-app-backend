@@ -1,33 +1,50 @@
+const { Model } = require("sequelize");
+
 module.exports = (sequelize, DataTypes) => {
-  const City = sequelize.define('City', {
+  class City extends Model {
+    static associate(models) {
+      City.belongsToMany(models.ServiceCategory, {
+        through: 'CategoryCities',
+        foreignKey: 'city_id'
+      });
+      City.hasMany(models.CitySpecificPricing, {
+        foreignKey: 'city_id'
+      });
+    }
+  }
+
+  City.init({
     city_id: {
       type: DataTypes.STRING,
       primaryKey: true,
       allowNull: false
     },
     name: {
-      type: DataTypes.STRING,
+      type: DataTypes.STRING(100),
       allowNull: false
     },
-    state: DataTypes.STRING,
+    state: {
+      type: DataTypes.STRING(100),
+      allowNull: false
+    },
     status: {
       type: DataTypes.ENUM('active', 'inactive'),
       defaultValue: 'active'
     },
-    latitude: DataTypes.DECIMAL(10, 7),
-    longitude: DataTypes.DECIMAL(10, 7)
+    latitude: {
+      type: DataTypes.DECIMAL(10, 8),
+      allowNull: false
+    },
+    longitude: {
+      type: DataTypes.DECIMAL(11, 8),
+      allowNull: false
+    }
   }, {
+    sequelize,
+    modelName: 'City',
     tableName: 'cities',
     timestamps: true
   });
-
-  City.associate = (models) => {
-   
-    City.hasMany(models.CitySpecificPricing, { 
-      foreignKey: 'city_id',
-      as: 'cityPricings'
-    });
-  };
 
   return City;
 };
