@@ -26,7 +26,7 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         references: {
           model: 'users',
-          key: 'id',
+          key: 'u_id',
         },
       },
       address_type: {

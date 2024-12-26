@@ -81,6 +81,18 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.DATE,
         allowNull: true,
       },
+      gender: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+      },
+      nic: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+      },
+      dob: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+      },
       last_updated: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW,

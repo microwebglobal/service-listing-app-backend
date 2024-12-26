@@ -36,22 +36,17 @@ module.exports = {
         defaultValue: 'customer',
         allowNull: false
       },
-      otp: {
-        type: Sequelize.STRING(6),
-        allowNull: true
+      gender: {
+        type: Sequelize.STRING(100),
+        allowNull: true,
       },
-      otp_expires: {
-        type: Sequelize.DATE,
-        allowNull: true
+      nic: {
+        type: Sequelize.STRING(100),
+        allowNull: true,
       },
-      tokenVersion: {
-        type: Sequelize.INTEGER,
-        defaultValue: 0,
-        allowNull: false
-      },
-      last_login: {
-        type: Sequelize.DATE,
-        allowNull: true
+      dob: {
+        type: Sequelize.STRING(100),
+        allowNull: true,
       },
       last_updated: {
         type: Sequelize.DATE,
@@ -65,7 +60,6 @@ module.exports = {
         defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
       }
     }, {
-      timestamps: true,
       indexes: [
         {
           unique: true,

@@ -6,16 +6,26 @@ const router = express.Router();
 const userRoutes = require('./userRoutes/userRoutes');
 const authRoutes = require('./userRoutes/authRoutes');
 const customerProfileRoutes = require('./customerProfileRoutes');
-const userAddressRoutes = require('./userRoutes/userAddress');
-const otpRoutes = require('./userRoutes/otpRoutes');
-const ServiceManagement = require('./serviceManagement');
-const PackageRoutes = require('./packageRoutes');
-
-// Import middlewares
+const userAddressRoutes = require("./userRoutes/userAddress")
+const otpRoutes = require("./userRoutes/otpRoutes")
+const serviceProviderProfileRoutes = require("./serviceProvider/serviceProviderProfile")
 const { verifyToken, checkRole } = require('../middlewares/auth.middleware');
 
-// Health check route
-router.get('/health', (req, res) => {
+// Define route paths
+router.use('/users', userRoutes);
+router.use('/auth', authRoutes);
+router.use('/otp', otpRoutes);
+router.use('/adress', userAddressRoutes);
+router.use('/provider_profile', serviceProviderProfileRoutes);
+
+
+// For protected routes, apply the middleware before using the routes
+router.use('/customer-profiles', verifyToken);
+// router.use('/customer-profiles', checkRole('admin', 'customer'));
+router.use('/customer-profiles', customerProfileRoutes);
+
+// Base route for API health check
+router.get('/', (req, res) => {
   res.json({ 
     status: 'success',
     message: 'API is running',

@@ -37,6 +37,9 @@ class UserController {
         photo: req.body.photo,
         pw: req.body.pw || '1234',
         role: req.body.role || 'customer',
+        gender: req.body.gender,
+        nic: req.body.nic,
+        dob: req.body.dob
       });
       res.status(201).json(newUser);
     } catch (error) {
