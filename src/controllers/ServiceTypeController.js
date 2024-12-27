@@ -28,6 +28,20 @@ class ServiceTypeController {
       next(error);
     }
   }
+
+  static async deleteServiceType(req, res, next) {
+    try {
+      const deleted = await ServiceType.destroy({
+        where: { type_id: req.params.id }
+      });
+      if (!deleted) {
+        return res.status(404).json({ error: "Service Type not found" });
+      }
+      res.status(200).json({ message: "Service Type deleted successfully" });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = ServiceTypeController;
