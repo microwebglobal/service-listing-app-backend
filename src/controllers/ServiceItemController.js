@@ -47,6 +47,18 @@ class ServiceItemController {
     }
   }
 
+  static async getServiceItemByService(req, res, next) {
+    try {
+      const items = await ServiceItem.findAll({
+        where: { service_id: req.params.serviceId },
+        include: [CitySpecificPricing]
+      });
+      res.status(200).json(items);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async getAllServiceItems(req, res, next) {
     try {
       const items = await ServiceItem.findAll({
