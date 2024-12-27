@@ -9,6 +9,7 @@ const customerProfileRoutes = require('./customerProfileRoutes');
 const userAddressRoutes = require('./userRoutes/userAddress');
 const otpRoutes = require('./userRoutes/otpRoutes');
 const ServiceManagement = require('./serviceManagement');
+const PackageRoutes = require('./packageRoutes');
 
 // Import middlewares
 const { verifyToken, checkRole } = require('../middlewares/auth.middleware');
@@ -33,6 +34,8 @@ router.use('/users/address', userAddressRoutes); // User address routes
 
 // Service related routes
 router.use('/', ServiceManagement);
+router.use('/', PackageRoutes);
+
 // Protected routes
 router.use('/customer-profiles', [
   verifyToken,

@@ -50,7 +50,9 @@ module.exports = (sequelize, DataTypes) => {
       sequelize,
       modelName: 'Package',
       tableName: 'packages',
-      timestamps: true
+      timestamps: true,
+      createdAt: 'created_at',
+      updatedAt: 'updated_at'
     });
   
     return Package;
