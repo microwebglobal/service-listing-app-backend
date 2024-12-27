@@ -25,7 +25,7 @@ router.delete('/types/:id', ServiceTypeController.deleteServiceType)
 
 // Service routes
 router.get('/services', ServiceController.getAllServices);
-router.get('/services/itm/:typeId', ServiceController.getServiceByType);
+router.get('/services/items/:typeId', ServiceController.getServiceByType);
 router.post('/services', ServiceController.createService);
 router.get('/services/:id', ServiceController.getServiceById);
 router.delete('/services/:id', ServiceController.deleteService)
@@ -35,5 +35,6 @@ router.post('/items', ServiceItemController.createServiceItem);
 router.get('/items', ServiceItemController.getAllServiceItems);
 router.get('/items/:id', ServiceItemController.getServiceItem);
 router.get('/items/serv/:serviceId', ServiceItemController.getServiceItemByService)
-
+router.put('/items/:id', ServiceItemController.updateServiceItem)
+router.delete('/items/:id', ServiceItemController.deleteServiceItem)
 module.exports = router;

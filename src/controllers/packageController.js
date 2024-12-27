@@ -1,4 +1,5 @@
 const { Package, PackageItem, ServiceType } = require('../models');
+const IdGenerator = require('../utils/helper');
 
 class PackageController {
   // Get all packages
@@ -70,8 +71,17 @@ class PackageController {
   // Create new package
   static async createPackage(req, res, next) {
     try {
+
+      const existingPackages = await Package.findAll({
+        attributes: ['package_id']
+      });
+      const existingIds = existingPackages.map(pack => pack.package_id);
+      
+      // Generate new ID
+      const newPackageID = IdGenerator.generateId('PKG', existingIds);
+
       const newPackage = await Package.create({
-        package_id: req.body.package_id,
+        package_id: newPackageID,
         type_id: req.body.type_id,
         name: req.body.name,
         description: req.body.description,
@@ -88,6 +98,7 @@ class PackageController {
   // Update package
   static async updatePackage(req, res, next) {
     try {
+      const { package_id, ...updateData } = req.body; 
       const [updated] = await Package.update(req.body, {
         where: { package_id: req.params.id }
       });

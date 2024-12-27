@@ -5,6 +5,7 @@ const router = express.Router();
 // Import route modules
 const userRoutes = require('./userRoutes/userRoutes');
 const authRoutes = require('./userRoutes/authRoutes');
+const cityRoutes = require('./cityRoutes');
 const customerProfileRoutes = require('./customerProfileRoutes');
 const userAddressRoutes = require('./userRoutes/userAddress');
 const otpRoutes = require('./userRoutes/otpRoutes');
@@ -27,7 +28,7 @@ router.get('/health', (req, res) => {
 // Auth related routes (public)
 router.use('/auth', authRoutes);
 router.use('/otp', otpRoutes);
-
+router.use('/cities', cityRoutes);
 // User related routes
 router.use('/users', userRoutes);
 router.use('/users/address', userAddressRoutes); // User address routes

@@ -1,4 +1,7 @@
+
+
 const { ServiceCategory, SubCategory } = require('../models');
+const IdGenerator = require('../utils/helper');
 
 class ServiceCategoryController {
   static async getAllCategories(req, res, next) {
@@ -29,8 +32,17 @@ class ServiceCategoryController {
 
   static async createCategory(req, res, next) {
     try {
+      // Get all existing category IDs
+      const existingCategories = await ServiceCategory.findAll({
+        attributes: ['category_id']
+      });
+      const existingIds = existingCategories.map(cat => cat.category_id);
+      
+      // Generate new ID
+      const newCategoryId = IdGenerator.generateId('CAT', existingIds);
+
       const newCategory = await ServiceCategory.create({
-        category_id: req.body.category_id,
+        category_id: newCategoryId,
         name: req.body.name,
         slug: req.body.slug,
         icon_url: req.body.icon_url,
@@ -44,7 +56,8 @@ class ServiceCategoryController {
 
   static async updateCategory(req, res, next) {
     try {
-      const [updated] = await ServiceCategory.update(req.body, {
+      const { category_id, ...updateData } = req.body; // Remove category_id from update data
+      const [updated] = await ServiceCategory.update(updateData, {
         where: { category_id: req.params.id }
       });
       if (!updated) {
