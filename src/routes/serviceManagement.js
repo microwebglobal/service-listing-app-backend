@@ -57,11 +57,14 @@ router.post(
 router.delete("/types/:id", ServiceTypeController.deleteServiceType);
 
 // Service routes
+
 router.get("/services", ServiceController.getAllServices);
 router.get("/services/items/:typeId", ServiceController.getServiceByType);
 router.post("/services", ServiceController.createService);
 router.get("/services/:id", ServiceController.getServiceById);
 router.delete("/services/:id", ServiceController.deleteService);
+
+router.get("/services/itm/:typeId", ServiceController.getServiceByType);
 
 // ServiceItem routes
 router.post("/items", ServiceItemController.createServiceItem);
@@ -73,6 +76,7 @@ router.get(
 );
 router.put("/items/:id", ServiceItemController.updateServiceItem);
 router.delete("/items/:id", ServiceItemController.deleteServiceItem);
+
 // SpecialPricing routes
 router.post("/special-pricing", SpecialPricingController.createSpecialPricing);
 router.get(

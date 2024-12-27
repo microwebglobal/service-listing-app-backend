@@ -42,6 +42,7 @@ class ServiceTypeController {
   }
 
   static async createServiceType(req, res, next) {
+    console.log(req.body);
     try {
       console.log('File:', req.file); // Debugging
       console.log('Body:', req.body); // Debugging

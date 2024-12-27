@@ -163,63 +163,6 @@ class ServiceItemController {
     }
   }
 
-  static async getServiceItemByService(req, res, next) {
-    try {
-      const { cityId } = req.query;
-      const isCityIdUndefined = cityId === "undefined" || cityId === undefined;
-
-      const items = await ServiceItem.findAll({
-        where: { service_id: req.params.serviceId },
-        include: [
-          CitySpecificPricing,
-          {
-            model: SpecialPricing,
-            where: {
-              status: "active",
-              ...(isCityIdUndefined
-                ? {}
-                : {
-                    city_id: cityId,
-                    start_date: { [Op.lte]: new Date() },
-                    end_date: { [Op.gte]: new Date() },
-                  }),
-            },
-            required: false,
-          },
-        ],
-      });
-
-      if (!items || items.length === 0) {
-        return res
-          .status(404)
-          .json({ message: "No service items found for the given service" });
-      }
-
-      const transformedItems = items.map((item) => {
-        let basePrice = item.base_price;
-
-        if (cityId) {
-          const cityPricing = item.CitySpecificPricings.find(
-            (pricing) => pricing.city_id === cityId
-          );
-          if (cityPricing) {
-            basePrice = cityPricing.price;
-          }
-        }
-
-        return {
-          ...item.toJSON(),
-          base_price: basePrice,
-        };
-      });
-
-      res.status(200).json(transformedItems);
-    } catch (error) {
-      console.error("Error fetching service items by service:", error);
-      next(error);
-    }
-  }
-
   static async getAllServiceItems(req, res, next) {
     try {
       const items = await ServiceItem.findAll({
