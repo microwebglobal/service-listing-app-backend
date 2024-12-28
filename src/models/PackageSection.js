@@ -1,26 +1,29 @@
 const { Model } = require("sequelize");
 
 module.exports = (sequelize, DataTypes) => {
-  class PackageItem extends Model {
+  class PackageSection extends Model {
     static associate(models) {
-      PackageItem.belongsTo(models.PackageSection, {
+      PackageSection.belongsTo(models.Package, {
+        foreignKey: 'package_id'
+      });
+      PackageSection.hasMany(models.PackageItem, {
         foreignKey: 'section_id'
       });
     }
   }
 
-  PackageItem.init({
-    item_id: {
+  PackageSection.init({
+    section_id: {
       type: DataTypes.STRING,
       primaryKey: true,
       allowNull: false
     },
-    section_id: {
+    package_id: {
       type: DataTypes.STRING,
       allowNull: false,
       references: {
-        model: 'package_sections',
-        key: 'section_id'
+        model: 'packages',
+        key: 'package_id'
       }
     },
     name: {
@@ -28,30 +31,18 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false
     },
     description: DataTypes.TEXT,
-    price: {
-      type: DataTypes.DECIMAL(10, 2),
-      allowNull: false
-    },
-    is_default: {
-      type: DataTypes.BOOLEAN,
-      defaultValue: false
-    },
-    is_none_option: {
-      type: DataTypes.BOOLEAN,
-      defaultValue: false
-    },
     display_order: {
       type: DataTypes.INTEGER,
       defaultValue: 0
     }
   }, {
     sequelize,
-    modelName: 'PackageItem',
-    tableName: 'package_items',
+    modelName: 'PackageSection',
+    tableName: 'package_sections',
     timestamps: true,
     createdAt: 'created_at',
     updatedAt: 'updated_at'
   });
 
-  return PackageItem;
+  return PackageSection;
 };

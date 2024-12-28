@@ -1,4 +1,5 @@
 const { City, ServiceCategory, CitySpecificPricing } = require('../models');
+const IdGenerator = require('../utils/helper');
 
 class CityController {
   static async getAllCities(req, res, next) {
@@ -35,14 +36,24 @@ class CityController {
 
   static async createCity(req, res, next) {
     try {
+      // Get all existing city IDs
+      const existingCities = await City.findAll({
+        attributes: ['city_id']
+      });
+      const existingIds = existingCities.map(city => city.city_id);
+
+      // Generate a unique city ID with prefix 'CTY'
+      const cityId = await IdGenerator.verifyUniqueId('CTY', City, 'city_id', existingIds);
+
       const newCity = await City.create({
-        city_id: req.body.city_id,
+        city_id: cityId,
         name: req.body.name,
         state: req.body.state,
-        status: req.body.status,
+        status: req.body.status || 'active', // Default status
         latitude: req.body.latitude,
         longitude: req.body.longitude
       });
+
       res.status(201).json(newCity);
     } catch (error) {
       next(error);
@@ -51,12 +62,17 @@ class CityController {
 
   static async updateCity(req, res, next) {
     try {
-      const [updated] = await City.update(req.body, {
+      // Prevent city_id from being updated
+      const { city_id, ...updateData } = req.body;
+      
+      const [updated] = await City.update(updateData, {
         where: { city_id: req.params.id }
       });
+      
       if (!updated) {
         return res.status(404).json({ error: "City not found" });
       }
+      
       const updatedCity = await City.findByPk(req.params.id);
       res.status(200).json(updatedCity);
     } catch (error) {
@@ -69,15 +85,16 @@ class CityController {
       const deleted = await City.destroy({
         where: { city_id: req.params.id }
       });
+      
       if (!deleted) {
         return res.status(404).json({ error: "City not found" });
       }
+      
       res.status(200).json({ message: "City deleted successfully" });
     } catch (error) {
       next(error);
     }
   }
 }
-
 
 module.exports = CityController;

@@ -3,18 +3,18 @@
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable('packages', {
-      package_id: {
+    await queryInterface.createTable('package_sections', {
+      section_id: {
         type: Sequelize.STRING,
         primaryKey: true,
         allowNull: false
       },
-      type_id: {
+      package_id: {
         type: Sequelize.STRING,
         allowNull: false,
         references: {
-          model: 'service_types',
-          key: 'type_id'
+          model: 'packages',
+          key: 'package_id'
         },
         onUpdate: 'CASCADE',
         onDelete: 'CASCADE'
@@ -23,16 +23,8 @@ module.exports = {
         type: Sequelize.STRING(100),
         allowNull: false
       },
-      description: Sequelize.TEXT,
-      duration_hours: {
-        type: Sequelize.INTEGER,
-        allowNull: false,
-        defaultValue: 0
-      },
-      duration_minutes: {
-        type: Sequelize.INTEGER,
-        allowNull: false,
-        defaultValue: 0
+      description: {
+        type: Sequelize.TEXT
       },
       display_order: {
         type: Sequelize.INTEGER,
@@ -48,10 +40,11 @@ module.exports = {
       }
     });
 
-    // Add index for type_id
-    await queryInterface.addIndex('packages', ['type_id']);
+    // Add indexes
+    await queryInterface.addIndex('package_sections', ['package_id']);
   },
-  down: async (queryInterface) => {
-    await queryInterface.dropTable('packages');
+
+  down: async (queryInterface, Sequelize) => {
+    await queryInterface.dropTable('package_sections');
   }
 };

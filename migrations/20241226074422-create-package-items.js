@@ -9,12 +9,12 @@ module.exports = {
         primaryKey: true,
         allowNull: false
       },
-      package_id: {
+      section_id: {
         type: Sequelize.STRING,
         allowNull: false,
         references: {
-          model: 'packages',
-          key: 'package_id'
+          model: 'package_sections',
+          key: 'section_id'
         },
         onUpdate: 'CASCADE',
         onDelete: 'CASCADE'
@@ -26,11 +26,22 @@ module.exports = {
       description: Sequelize.TEXT,
       price: {
         type: Sequelize.DECIMAL(10, 2),
-        allowNull: false
+        allowNull: false,
+        defaultValue: 0.00
       },
-      quantity: {
+      is_default: {
+        type: Sequelize.BOOLEAN,
+        allowNull: false,
+        defaultValue: false
+      },
+      is_none_option: {
+        type: Sequelize.BOOLEAN,
+        allowNull: false,
+        defaultValue: false
+      },
+      display_order: {
         type: Sequelize.INTEGER,
-        defaultValue: 1
+        defaultValue: 0
       },
       created_at: {
         type: Sequelize.DATE,
@@ -41,6 +52,11 @@ module.exports = {
         allowNull: false
       }
     });
+
+    // Add indexes for section_id and item lookup
+    await queryInterface.addIndex('package_items', ['section_id']);
+    await queryInterface.addIndex('package_items', ['is_default']);
+    await queryInterface.addIndex('package_items', ['is_none_option']);
   },
   down: async (queryInterface) => {
     await queryInterface.dropTable('package_items');
