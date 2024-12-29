@@ -9,11 +9,13 @@ const ServiceItemController = require('../controllers/ServiceItemController');
 // Category routes
 router.get('/categories', ServiceCategoryController.getAllCategories);
 router.post('/categories', ServiceCategoryController.createCategory);
+router.get('/categories/slugs/:slug', ServiceCategoryController.getCategoryBySlug);
 router.get('/categories/:id', ServiceCategoryController.getCategoryById);
 router.delete('/categories/:id', ServiceCategoryController.deleteCategory)
 
 // SubCategory routes
 router.get('/subcategories', SubCategoryController.getAllSubCategories);
+router.get('/subcategories/slugs/:slug', SubCategoryController.getSubCategoryBySlug);
 router.get('/categories/:categoryId/subcategories', SubCategoryController.getSubCategoriesByCategory);
 router.post('/subcategories', SubCategoryController.createSubCategory);
 router.delete('/subcategories/:id', SubCategoryController.deleteSubCategory)

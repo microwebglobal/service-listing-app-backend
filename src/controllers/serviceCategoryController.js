@@ -1,5 +1,3 @@
-
-
 const { ServiceCategory, SubCategory } = require('../models');
 const IdGenerator = require('../utils/helper');
 
@@ -19,6 +17,21 @@ class ServiceCategoryController {
   static async getCategoryById(req, res, next) {
     try {
       const category = await ServiceCategory.findByPk(req.params.id, {
+        include: [SubCategory]
+      });
+      if (!category) {
+        return res.status(404).json({ error: "Category not found" });
+      }
+      res.status(200).json(category);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getCategoryBySlug(req, res, next) {
+    try {
+      const category = await ServiceCategory.findOne({
+        where: { slug: req.params.slug },
         include: [SubCategory]
       });
       if (!category) {

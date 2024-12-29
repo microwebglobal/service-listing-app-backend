@@ -28,6 +28,21 @@ class SubCategoryController {
     }
   }
 
+  static async getSubCategoryBySlug(req, res, next) {
+    try {
+      const subCategory = await SubCategory.findOne({
+        where: { slug: req.params.slug },
+        include: [ServiceType]
+      });
+      if (!subCategory) {
+        return res.status(404).json({ error: "Sub Category not found" });
+      }
+      res.status(200).json(subCategory);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async getSubCategoriesByCategory(req, res, next) {
     try {
       const subCategories = await SubCategory.findAll({
