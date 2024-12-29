@@ -6,6 +6,13 @@ module.exports = (sequelize, DataTypes) => {
       PackageItem.belongsTo(models.PackageSection, {
         foreignKey: 'section_id'
       });
+      PackageItem.hasMany(models.CitySpecificPricing, {
+        foreignKey: 'item_id',
+        constraints: false,
+        scope: {
+          item_type: 'package_item'
+        }
+      });
     }
   }
 

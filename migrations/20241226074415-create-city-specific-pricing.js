@@ -3,11 +3,6 @@
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    // First create the ENUM type
-    await queryInterface.sequelize.query(
-      'CREATE TYPE enum_city_specific_pricing_item_type AS ENUM (\'service_item\', \'package\', \'package_item\')'
-    );
-
     await queryInterface.createTable('city_specific_pricing', {
       id: {
         type: Sequelize.INTEGER,
@@ -29,7 +24,7 @@ module.exports = {
         allowNull: false
       },
       item_type: {
-        type: 'enum_city_specific_pricing_item_type',
+        type: Sequelize.ENUM('service_item', 'package', 'package_item'),
         allowNull: false
       },
       price: {
@@ -46,20 +41,15 @@ module.exports = {
       }
     });
 
-    // Add unique constraint
-    await queryInterface.addIndex('city_specific_pricing', 
-      ['city_id', 'item_id', 'item_type'], 
-      {
-        unique: true,
-        name: 'city_specific_pricing_unique_constraint'
-      }
-    );
+    // Add indexes
+    await queryInterface.addIndex('city_specific_pricing', ['city_id']);
+    await queryInterface.addIndex('city_specific_pricing', ['item_id', 'item_type']);
+    await queryInterface.addIndex('city_specific_pricing', ['item_type']);
   },
-  down: async (queryInterface) => {
+
+  down: async (queryInterface, Sequelize) => {
     await queryInterface.dropTable('city_specific_pricing');
-    // Drop the ENUM type
-    await queryInterface.sequelize.query(
-      'DROP TYPE enum_city_specific_pricing_item_type'
-    );
+    // Drop the enum type
+    await queryInterface.sequelize.query('DROP TYPE IF EXISTS enum_city_specific_pricing_item_type;');
   }
 };

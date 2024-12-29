@@ -17,6 +17,8 @@ router.get('/package-items/package/:id', PackageItemController.getPackageItems);
 router.post('/package-items', PackageItemController.createPackageItem);
 router.put('/package-items/:id', PackageItemController.updatePackageItem);
 router.delete('/package-items/:id', PackageItemController.deletePackageItem);
+router.get('/package-items/section/:sectionId', PackageItemController.getItemsBySectionId);
+
 // Package Section routes
 router.get('/sections/package/:packageId', PackageSectionController.getSectionsByPackage);
 router.post('/sections', PackageSectionController.createSection);

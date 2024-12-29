@@ -2,7 +2,7 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    // First insert packages
+    // Insert packages
     await queryInterface.bulkInsert('packages', [
       {
         package_id: 'PKG001',
@@ -47,11 +47,30 @@ module.exports = {
         display_order: 1,
         created_at: new Date(),
         updated_at: new Date()
+      },
+      {
+        section_id: 'SECT003',
+        package_id: 'PKG001',
+        name: 'Legs Services',
+        description: 'Waxing services for legs',
+        display_order: 2,
+        created_at: new Date(),
+        updated_at: new Date()
+      },
+      {
+        section_id: 'SECT004',
+        package_id: 'PKG002',
+        name: 'Legs Services',
+        description: 'Rica waxing services for legs',
+        display_order: 2,
+        created_at: new Date(),
+        updated_at: new Date()
       }
     ], {});
 
-    // Then insert package items
+    // Insert package items
     await queryInterface.bulkInsert('package_items', [
+      // Arms Section Items - Regular Package
       {
         item_id: 'PITEM001',
         section_id: 'SECT001',
@@ -76,6 +95,7 @@ module.exports = {
         created_at: new Date(),
         updated_at: new Date()
       },
+      // Arms Section Items - Rica Package
       {
         item_id: 'PITEM003',
         section_id: 'SECT002',
@@ -99,13 +119,64 @@ module.exports = {
         display_order: 2,
         created_at: new Date(),
         updated_at: new Date()
+      },
+      // Legs Section Items - Regular Package
+      {
+        item_id: 'PITEM005',
+        section_id: 'SECT003',
+        name: 'Half Legs Regular Wax',
+        description: 'Half legs waxing service',
+        price: 349,
+        is_default: true,
+        is_none_option: false,
+        display_order: 1,
+        created_at: new Date(),
+        updated_at: new Date()
+      },
+      {
+        item_id: 'PITEM006',
+        section_id: 'SECT003',
+        name: 'Full Legs Regular Wax',
+        description: 'Full legs waxing service',
+        price: 599,
+        is_default: true,
+        is_none_option: false,
+        display_order: 2,
+        created_at: new Date(),
+        updated_at: new Date()
+      },
+      // Legs Section Items - Rica Package
+      {
+        item_id: 'PITEM007',
+        section_id: 'SECT004',
+        name: 'Half Legs Rica Wax',
+        description: 'Half legs Rica waxing service',
+        price: 499,
+        is_default: true,
+        is_none_option: false,
+        display_order: 1,
+        created_at: new Date(),
+        updated_at: new Date()
+      },
+      {
+        item_id: 'PITEM008',
+        section_id: 'SECT004',
+        name: 'Full Legs Rica Wax',
+        description: 'Full legs Rica waxing service',
+        price: 799,
+        is_default: true,
+        is_none_option: false,
+        display_order: 2,
+        created_at: new Date(),
+        updated_at: new Date()
       }
     ], {});
 
-    // Finally insert city-specific pricing for packages and package items
+    // Insert city-specific pricing for packages and package items
     await queryInterface.bulkInsert('city_specific_pricing', [
+      // Package pricing for different cities
       {
-        city_id: 'CTY001',
+        city_id: 'CTY001', // Mumbai
         item_id: 'PKG001',
         item_type: 'package',
         price: 1199,
@@ -113,7 +184,7 @@ module.exports = {
         updated_at: new Date()
       },
       {
-        city_id: 'CTY002',
+        city_id: 'CTY002', // Delhi
         item_id: 'PKG001',
         item_type: 'package',
         price: 999,
@@ -121,10 +192,84 @@ module.exports = {
         updated_at: new Date()
       },
       {
-        city_id: 'CTY001',
+        city_id: 'CTY001', // Mumbai
+        item_id: 'PKG002',
+        item_type: 'package',
+        price: 1899,
+        created_at: new Date(),
+        updated_at: new Date()
+      },
+      {
+        city_id: 'CTY002', // Delhi
+        item_id: 'PKG002',
+        item_type: 'package',
+        price: 1699,
+        created_at: new Date(),
+        updated_at: new Date()
+      },
+      // Package items pricing for different cities - Regular Package
+      {
+        city_id: 'CTY001', // Mumbai
         item_id: 'PITEM001',
         item_type: 'package_item',
         price: 129,
+        created_at: new Date(),
+        updated_at: new Date()
+      },
+      {
+        city_id: 'CTY002', // Delhi
+        item_id: 'PITEM001',
+        item_type: 'package_item',
+        price: 89,
+        created_at: new Date(),
+        updated_at: new Date()
+      },
+      {
+        city_id: 'CTY001', // Mumbai
+        item_id: 'PITEM002',
+        item_type: 'package_item',
+        price: 349,
+        created_at: new Date(),
+        updated_at: new Date()
+      },
+      {
+        city_id: 'CTY002', // Delhi
+        item_id: 'PITEM002',
+        item_type: 'package_item',
+        price: 279,
+        created_at: new Date(),
+        updated_at: new Date()
+      },
+      // Package items pricing for different cities - Rica Package
+      {
+        city_id: 'CTY001', // Mumbai
+        item_id: 'PITEM003',
+        item_type: 'package_item',
+        price: 179,
+        created_at: new Date(),
+        updated_at: new Date()
+      },
+      {
+        city_id: 'CTY002', // Delhi
+        item_id: 'PITEM003',
+        item_type: 'package_item',
+        price: 139,
+        created_at: new Date(),
+        updated_at: new Date()
+      },
+      {
+        city_id: 'CTY001', // Mumbai
+        item_id: 'PITEM004',
+        item_type: 'package_item',
+        price: 499,
+        created_at: new Date(),
+        updated_at: new Date()
+      },
+      {
+        city_id: 'CTY002', // Delhi
+        item_id: 'PITEM004',
+        item_type: 'package_item',
+        price: 429,
         created_at: new Date(),
         updated_at: new Date()
       }
@@ -132,6 +277,7 @@ module.exports = {
   },
 
   down: async (queryInterface, Sequelize) => {
+    // Delete all related data in reverse order
     await queryInterface.bulkDelete('city_specific_pricing', { 
       item_type: { [Sequelize.Op.in]: ['package', 'package_item'] }
     }, {});

@@ -209,7 +209,8 @@ class PackageController {
   static async getPackagesByType(req, res, next) {
     try {
       const { typeId } = req.params;  // Changed from type_id to typeId to match route parameter
-  
+      console.log('Received typeId:', typeId);
+
       if (!typeId) {
         return res.status(400).json({
           message: 'Service type ID is required'
@@ -218,6 +219,8 @@ class PackageController {
   
       // First verify if the service type exists
       const serviceType = await ServiceType.findByPk(typeId);
+      console.log('Found service type:', serviceType);
+
       if (!serviceType) {
         return res.status(404).json({
           message: `Service type with ID ${typeId} not found`
