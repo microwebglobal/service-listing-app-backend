@@ -1,23 +1,13 @@
 'use strict';
 
-/** @type {import('sequelize-cli').Migration} */
 module.exports = {
   up: async (queryInterface, Sequelize) => {
     await queryInterface.createTable('category_cities', {
       id: {
-        type: Sequelize.INTEGER,
-        primaryKey: true,
-        autoIncrement: true
-      },
-      category_id: {
-        type: Sequelize.STRING,
         allowNull: false,
-        references: {
-          model: 'service_categories',
-          key: 'category_id'
-        },
-        onUpdate: 'CASCADE',
-        onDelete: 'CASCADE'
+        autoIncrement: true,
+        primaryKey: true,
+        type: Sequelize.INTEGER
       },
       city_id: {
         type: Sequelize.STRING,
@@ -29,21 +19,38 @@ module.exports = {
         onUpdate: 'CASCADE',
         onDelete: 'CASCADE'
       },
+      category_id: {
+        type: Sequelize.STRING,
+        allowNull: false,
+        references: {
+          model: 'service_categories',
+          key: 'category_id'
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'CASCADE'
+      },
+      status: {
+        type: Sequelize.ENUM('active', 'inactive'),
+        defaultValue: 'active'
+      },
       created_at: {
+        allowNull: false,
         type: Sequelize.DATE,
-        allowNull: false
+        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
       },
       updated_at: {
+        allowNull: false,
         type: Sequelize.DATE,
-        allowNull: false
+        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
       }
     });
 
-    await queryInterface.addIndex('category_cities', ['category_id', 'city_id'], {
+    await queryInterface.addIndex('category_cities', ['city_id', 'category_id'], {
       unique: true
     });
   },
-  down: async (queryInterface) => {
+
+  down: async (queryInterface, Sequelize) => {
     await queryInterface.dropTable('category_cities');
   }
 };

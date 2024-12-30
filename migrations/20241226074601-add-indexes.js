@@ -22,7 +22,6 @@ module.exports = {
     await safeAddIndex('services', ['type_id']);
     await safeAddIndex('service_items', ['service_id']);
     await safeAddIndex('packages', ['type_id']);
-    await safeAddIndex('package_items', ['package_id']);
     await safeAddIndex('city_specific_pricing', ['item_id']);
   },
 

@@ -172,6 +172,104 @@ module.exports = {
       }
     ], {});
 
+    await queryInterface.bulkInsert('special_pricing', [
+      // Global special prices (no city_id)
+      {
+        item_id: 'PITEM001', // Under Arms Regular Wax
+        item_type: 'package_item',
+        city_id: null,
+        special_price: 79.99,
+        start_date: new Date('2024-01-01'),
+        end_date: new Date('2024-02-29'),
+        status: 'active',
+        created_at: new Date(),
+        updated_at: new Date()
+      },
+      {
+        item_id: 'PITEM003', // Under Arms Rica Wax
+        item_type: 'package_item',
+        city_id: null,
+        special_price: 129.99,
+        start_date: new Date('2024-01-01'),
+        end_date: new Date('2024-02-29'),
+        status: 'active',
+        created_at: new Date(),
+        updated_at: new Date()
+      },
+      
+      // Mumbai (CTY001) specific special prices
+      {
+        item_id: 'PITEM002', // Full Arms Regular Wax
+        item_type: 'package_item',
+        city_id: 'CTY001',
+        special_price: 299.99,
+        start_date: new Date('2024-01-01'),
+        end_date: new Date('2024-03-31'),
+        status: 'active',
+        created_at: new Date(),
+        updated_at: new Date()
+      },
+      {
+        item_id: 'PITEM004', // Full Arms Rica Wax
+        item_type: 'package_item',
+        city_id: 'CTY001',
+        special_price: 399.99,
+        start_date: new Date('2024-01-01'),
+        end_date: new Date('2024-03-31'),
+        status: 'active',
+        created_at: new Date(),
+        updated_at: new Date()
+      },
+
+      // Delhi (CTY002) specific special prices
+      {
+        item_id: 'PITEM005', // Half Legs Regular Wax
+        item_type: 'package_item',
+        city_id: 'CTY002',
+        special_price: 299.99,
+        start_date: new Date('2024-01-01'),
+        end_date: new Date('2024-03-31'),
+        status: 'active',
+        created_at: new Date(),
+        updated_at: new Date()
+      },
+      {
+        item_id: 'PITEM007', // Half Legs Rica Wax
+        item_type: 'package_item',
+        city_id: 'CTY002',
+        special_price: 449.99,
+        start_date: new Date('2024-01-01'),
+        end_date: new Date('2024-03-31'),
+        status: 'active',
+        created_at: new Date(),
+        updated_at: new Date()
+      },
+
+      // Future special prices (inactive)
+      {
+        item_id: 'PITEM006', // Full Legs Regular Wax
+        item_type: 'package_item',
+        city_id: null,
+        special_price: 499.99,
+        start_date: new Date('2024-03-01'),
+        end_date: new Date('2024-04-30'),
+        status: 'inactive',
+        created_at: new Date(),
+        updated_at: new Date()
+      },
+      {
+        item_id: 'PITEM008', // Full Legs Rica Wax
+        item_type: 'package_item',
+        city_id: null,
+        special_price: 699.99,
+        start_date: new Date('2024-03-01'),
+        end_date: new Date('2024-04-30'),
+        status: 'inactive',
+        created_at: new Date(),
+        updated_at: new Date()
+      }
+    ], {});
+
     // Insert city-specific pricing for packages and package items
     await queryInterface.bulkInsert('city_specific_pricing', [
       // Package pricing for different cities
@@ -272,8 +370,12 @@ module.exports = {
         price: 429,
         created_at: new Date(),
         updated_at: new Date()
-      }
+      },
+
+      
     ], {});
+
+    
   },
 
   down: async (queryInterface, Sequelize) => {

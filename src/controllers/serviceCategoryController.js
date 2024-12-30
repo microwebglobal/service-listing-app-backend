@@ -1,13 +1,31 @@
-const { ServiceCategory, SubCategory } = require('../models');
+const { ServiceCategory, SubCategory, CategoryCities } = require('../models');
 const IdGenerator = require('../utils/helper');
 
 class ServiceCategoryController {
   static async getAllCategories(req, res, next) {
     try {
+      const cityId = req.query.city_id;
+      if (!cityId) {
+        return res.status(400).json({ error: "city_id is required" });
+      }
+
       const categories = await ServiceCategory.findAll({
-        include: [SubCategory],
+        include: [
+          {
+            model: SubCategory
+          },
+          {
+            model: CategoryCities,
+            where: {
+              city_id: cityId,
+              status: 'active'
+            },
+            required: true
+          }
+        ],
         order: [['display_order', 'ASC']]
       });
+      
       res.status(200).json(categories);
     } catch (error) {
       next(error);
@@ -16,11 +34,29 @@ class ServiceCategoryController {
 
   static async getCategoryById(req, res, next) {
     try {
+      const cityId = req.query.city_id;
+      if (!cityId) {
+        return res.status(400).json({ error: "city_id is required" });
+      }
+
       const category = await ServiceCategory.findByPk(req.params.id, {
-        include: [SubCategory]
+        include: [
+          {
+            model: SubCategory
+          },
+          {
+            model: CategoryCities,
+            where: {
+              city_id: cityId,
+              status: 'active'
+            },
+            required: true
+          }
+        ]
       });
+
       if (!category) {
-        return res.status(404).json({ error: "Category not found" });
+        return res.status(404).json({ error: "Category not found in this city" });
       }
       res.status(200).json(category);
     } catch (error) {
@@ -30,12 +66,30 @@ class ServiceCategoryController {
 
   static async getCategoryBySlug(req, res, next) {
     try {
+      const cityId = req.query.city_id;
+      if (!cityId) {
+        return res.status(400).json({ error: "city_id is required" });
+      }
+
       const category = await ServiceCategory.findOne({
         where: { slug: req.params.slug },
-        include: [SubCategory]
+        include: [
+          {
+            model: SubCategory
+          },
+          {
+            model: CategoryCities,
+            where: {
+              city_id: cityId,
+              status: 'active'
+            },
+            required: true
+          }
+        ]
       });
+
       if (!category) {
-        return res.status(404).json({ error: "Category not found" });
+        return res.status(404).json({ error: "Category not found in this city" });
       }
       res.status(200).json(category);
     } catch (error) {
@@ -45,15 +99,13 @@ class ServiceCategoryController {
 
   static async createCategory(req, res, next) {
     try {
-      // Get all existing category IDs
       const existingCategories = await ServiceCategory.findAll({
         attributes: ['category_id']
       });
       const existingIds = existingCategories.map(cat => cat.category_id);
       
-      // Generate new ID
       const newCategoryId = IdGenerator.generateId('CAT', existingIds);
-
+      
       const newCategory = await ServiceCategory.create({
         category_id: newCategoryId,
         name: req.body.name,
@@ -69,13 +121,15 @@ class ServiceCategoryController {
 
   static async updateCategory(req, res, next) {
     try {
-      const { category_id, ...updateData } = req.body; // Remove category_id from update data
+      const { category_id, ...updateData } = req.body;
       const [updated] = await ServiceCategory.update(updateData, {
         where: { category_id: req.params.id }
       });
+      
       if (!updated) {
         return res.status(404).json({ error: "Category not found" });
       }
+      
       const updatedCategory = await ServiceCategory.findByPk(req.params.id);
       res.status(200).json(updatedCategory);
     } catch (error) {
@@ -88,6 +142,7 @@ class ServiceCategoryController {
       const deleted = await ServiceCategory.destroy({
         where: { category_id: req.params.id }
       });
+      
       if (!deleted) {
         return res.status(404).json({ error: "Category not found" });
       }

@@ -8,6 +8,7 @@ class CityController {
         order: [['name', 'ASC']],
         include: [{
           model: ServiceCategory,
+          as: 'serviceCategories',  // Added alias
           through: { attributes: [] }
         }]
       });
@@ -22,6 +23,7 @@ class CityController {
       const city = await City.findByPk(req.params.id, {
         include: [{
           model: ServiceCategory,
+          as: 'serviceCategories',  // Added alias
           through: { attributes: [] }
         }]
       });
@@ -54,7 +56,16 @@ class CityController {
         longitude: req.body.longitude
       });
 
-      res.status(201).json(newCity);
+      // Fetch the created city with its associations
+      const cityWithAssociations = await City.findByPk(newCity.city_id, {
+        include: [{
+          model: ServiceCategory,
+          as: 'serviceCategories',  // Added alias
+          through: { attributes: [] }
+        }]
+      });
+
+      res.status(201).json(cityWithAssociations);
     } catch (error) {
       next(error);
     }
@@ -73,7 +84,15 @@ class CityController {
         return res.status(404).json({ error: "City not found" });
       }
       
-      const updatedCity = await City.findByPk(req.params.id);
+      // Fetch the updated city with its associations
+      const updatedCity = await City.findByPk(req.params.id, {
+        include: [{
+          model: ServiceCategory,
+          as: 'serviceCategories',  // Added alias
+          through: { attributes: [] }
+        }]
+      });
+      
       res.status(200).json(updatedCity);
     } catch (error) {
       next(error);

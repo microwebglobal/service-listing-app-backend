@@ -3,6 +3,17 @@ const { Model } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
   class CategoryCities extends Model {
     static associate(models) {
+      CategoryCities.belongsTo(models.ServiceCategory, {
+        foreignKey: 'category_id',
+        targetKey: 'category_id',
+        as: 'serviceCategory' // Added unique alias
+      });
+      
+      CategoryCities.belongsTo(models.City, {
+        foreignKey: 'city_id',
+        targetKey: 'city_id',
+        as: 'city' // Added unique alias
+      });
     }
   }
 

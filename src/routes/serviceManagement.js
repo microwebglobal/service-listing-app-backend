@@ -5,6 +5,7 @@ const SubCategoryController = require('../controllers/SubCategoryController');
 const ServiceTypeController = require('../controllers/ServiceTypeController');
 const ServiceController = require('../controllers/serviceController');
 const ServiceItemController = require('../controllers/ServiceItemController');
+const SpecialPricingController = require('../controllers/SpecialPricingController');
 
 // Category routes
 router.get('/categories', ServiceCategoryController.getAllCategories);
@@ -39,6 +40,11 @@ router.get('/items/:id', ServiceItemController.getServiceItem);
 router.get('/items/serv/:serviceId', ServiceItemController.getServiceItemByService)
 router.put('/items/:id', ServiceItemController.updateServiceItem)
 router.delete('/items/:id', ServiceItemController.deleteServiceItem)
+// SpecialPricing routes
+router.post('/special-pricing', SpecialPricingController.createSpecialPricing);
+router.get('/special-pricing', SpecialPricingController.getActiveSpecialPricing);
+router.put('/special-pricing/:id', SpecialPricingController.updateSpecialPricing);
+router.delete('/special-pricing/:id', SpecialPricingController.deleteSpecialPricing);
 
 
 module.exports = router;

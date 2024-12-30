@@ -3,10 +3,21 @@ const { Model } = require("sequelize");
 module.exports = (sequelize, DataTypes) => {
   class City extends Model {
     static associate(models) {
-      City.belongsToMany(models.ServiceCategory, {
-        through: 'CategoryCities',
-        foreignKey: 'city_id'
+      // Direct relationship to CategoryCities
+      City.hasMany(models.CategoryCities, {
+        foreignKey: 'city_id',
+        sourceKey: 'city_id',
+        as: 'cityCategories' // Added unique alias
       });
+      
+      // Many-to-many relationship with ServiceCategory
+      City.belongsToMany(models.ServiceCategory, {
+        through: models.CategoryCities,
+        foreignKey: 'city_id',
+        otherKey: 'category_id',
+        as: 'serviceCategories' // Added unique alias
+      });
+      
       City.hasMany(models.CitySpecificPricing, {
         foreignKey: 'city_id'
       });

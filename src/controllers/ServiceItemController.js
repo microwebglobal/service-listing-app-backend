@@ -93,7 +93,18 @@ class ServiceItemController {
   static async getServiceItem(req, res, next) {
     try {
       const item = await ServiceItem.findByPk(req.params.id, {
-        include: [CitySpecificPricing],
+        include: [
+          CitySpecificPricing,
+          {
+            model: SpecialPricing,
+            where: {
+              status: 'active',
+              start_date: { [Op.lte]: new Date() },
+              end_date: { [Op.gte]: new Date() }
+            },
+            required: false
+          }
+        ],
       });
 
       if (!item) {
@@ -106,6 +117,7 @@ class ServiceItemController {
     }
   }
 
+  
   static async getServiceItemByService(req, res, next) {
     try {
       const items = await ServiceItem.findAll({

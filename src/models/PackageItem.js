@@ -13,6 +13,13 @@ module.exports = (sequelize, DataTypes) => {
           item_type: 'package_item'
         }
       });
+      PackageItem.hasMany(models.SpecialPricing, {
+        foreignKey: 'item_id',
+        constraints: false,
+        scope: {
+          item_type: 'package_item'
+        }
+      });
     }
   }
 
