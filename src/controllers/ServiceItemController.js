@@ -92,26 +92,43 @@ class ServiceItemController {
   
   static async getServiceItem(req, res, next) {
     try {
+      const currentDate = new Date();
       const item = await ServiceItem.findByPk(req.params.id, {
         include: [
-          CitySpecificPricing,
+          {
+            model: CitySpecificPricing,
+            attributes: ['city_id', 'price']
+          },
           {
             model: SpecialPricing,
             where: {
               status: 'active',
-              start_date: { [Op.lte]: new Date() },
-              end_date: { [Op.gte]: new Date() }
+              start_date: { [Op.lte]: currentDate },
+              end_date: { [Op.gte]: currentDate }
             },
             required: false
           }
-        ],
+        ]
       });
-
+  
       if (!item) {
         return res.status(404).json({ message: 'Service item not found' });
       }
-
-      res.status(200).json(item);
+  
+      // Transform the response to include special pricing
+      const transformedItem = {
+        ...item.toJSON(),
+        city_prices: item.CitySpecificPricings.reduce((acc, pricing) => {
+          const specialPrice = item.SpecialPricings?.find(sp => 
+            sp.city_id === pricing.city_id && 
+            sp.status === 'active'
+          );
+          acc[pricing.city_id] = specialPrice ? specialPrice.special_price : pricing.price;
+          return acc;
+        }, {})
+      };
+  
+      res.status(200).json(transformedItem);
     } catch (error) {
       next(error);
     }

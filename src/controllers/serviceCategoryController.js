@@ -1,5 +1,6 @@
-const { ServiceCategory, SubCategory, CategoryCities } = require('../models');
+const { ServiceCategory, SubCategory, CategoryCities ,City } = require('../models');
 const IdGenerator = require('../utils/helper');
+const { Op } = require('sequelize');
 
 class ServiceCategoryController {
   static async getAllCategories(req, res, next) {
@@ -16,6 +17,7 @@ class ServiceCategoryController {
           },
           {
             model: CategoryCities,
+            as: 'categoryMappings', 
             where: {
               city_id: cityId,
               status: 'active'
@@ -46,6 +48,7 @@ class ServiceCategoryController {
           },
           {
             model: CategoryCities,
+            as: 'categoryMappings',  
             where: {
               city_id: cityId,
               status: 'active'
@@ -66,9 +69,22 @@ class ServiceCategoryController {
 
   static async getCategoryBySlug(req, res, next) {
     try {
-      const cityId = req.query.city_id;
-      if (!cityId) {
-        return res.status(400).json({ error: "city_id is required" });
+      // First find the city by name from the params
+      const cityName = req.query.city;
+      if (!cityName) {
+        return res.status(400).json({ error: "city parameter is required" });
+      }
+
+      const city = await City.findOne({
+        where: {
+          name: {
+            [Op.iLike]: cityName // Case-insensitive comparison
+          }
+        }
+      });
+
+      if (!city) {
+        return res.status(404).json({ error: "City not found" });
       }
 
       const category = await ServiceCategory.findOne({
@@ -79,8 +95,9 @@ class ServiceCategoryController {
           },
           {
             model: CategoryCities,
+            as: 'categoryMappings',  
             where: {
-              city_id: cityId,
+              city_id: city.city_id,
               status: 'active'
             },
             required: true

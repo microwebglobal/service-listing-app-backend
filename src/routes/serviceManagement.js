@@ -45,6 +45,6 @@ router.post('/special-pricing', SpecialPricingController.createSpecialPricing);
 router.get('/special-pricing', SpecialPricingController.getActiveSpecialPricing);
 router.put('/special-pricing/:id', SpecialPricingController.updateSpecialPricing);
 router.delete('/special-pricing/:id', SpecialPricingController.deleteSpecialPricing);
-
+router.get('/special-pricing/active/', SpecialPricingController.getActiveSpecialPricing);
 
 module.exports = router;
