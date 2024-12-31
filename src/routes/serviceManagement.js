@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const upload = require('../middlewares/uploadMiddleware.js')
 const ServiceCategoryController = require('../controllers/serviceCategoryController');
 const SubCategoryController = require('../controllers/SubCategoryController');
 const ServiceTypeController = require('../controllers/ServiceTypeController');
@@ -8,7 +9,8 @@ const ServiceItemController = require('../controllers/ServiceItemController');
 const SpecialPricingController = require('../controllers/SpecialPricingController');
 
 // Category routes
-router.get('/categories', ServiceCategoryController.getAllCategories);
+router.get('/categories/', upload, ServiceCategoryController.getAllCategories);
+router.get('/categories/all', ServiceCategoryController.getAllCategoriesWithoutCity);
 router.post('/categories', ServiceCategoryController.createCategory);
 router.get('/categories/slugs/:slug', ServiceCategoryController.getCategoryBySlug);
 router.get('/categories/:id', ServiceCategoryController.getCategoryById);

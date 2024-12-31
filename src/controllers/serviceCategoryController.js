@@ -34,6 +34,18 @@ class ServiceCategoryController {
     }
   }
 
+  static async getAllCategoriesWithoutCity(req, res, next) {
+    try {
+      const categories = await ServiceCategory.findAll({
+        include: [SubCategory],
+        order: [['display_order', 'ASC']]
+      });
+      res.status(200).json(categories);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async getCategoryById(req, res, next) {
     try {
       const cityId = req.query.city_id;
@@ -116,6 +128,14 @@ class ServiceCategoryController {
 
   static async createCategory(req, res, next) {
     try {
+      console.log('File:', req.image); // Debugging
+        console.log('Body:', req.body); // Debugging
+
+        // if (!req.image) {
+        //     return res.status(400).json({ error: 'No file uploaded' });
+        // }
+
+        // const iconUrl = `/uploads/${req.image.filename}`;
       const existingCategories = await ServiceCategory.findAll({
         attributes: ['category_id']
       });
