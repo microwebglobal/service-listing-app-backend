@@ -23,6 +23,7 @@ module.exports = {
         type: Sequelize.STRING(100),
         allowNull: false
       },
+      icon_url: Sequelize.STRING(255),
       description: Sequelize.TEXT,
       display_order: {
         type: Sequelize.INTEGER,

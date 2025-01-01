@@ -58,6 +58,15 @@ class SubCategoryController {
 
   static async createSubCategory(req, res, next) {
     try {
+      console.log('File:', req.file); // Debugging
+      console.log('Body:', req.body); // Debugging
+
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+     }
+
+     const iconUrl = `/uploads/images/${req.file.filename}`;
+
       const existingSubCategories = await SubCategory.findAll({
         attributes: ['sub_category_id']
       });
@@ -71,6 +80,7 @@ class SubCategoryController {
         category_id: req.body.category_id,
         name: req.body.name,
         slug: req.body.slug,
+        icon_url: iconUrl || "",
         display_order: req.body.display_order
       });
 

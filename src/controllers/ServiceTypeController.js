@@ -55,6 +55,7 @@ class ServiceTypeController {
         type_id: newTypeId,
         sub_category_id: req.body.sub_category_id,
         name: req.body.name,
+        icon_url: req.body.icon_url ||"",
         description: req.body.description,
         display_order: req.body.display_order
       });

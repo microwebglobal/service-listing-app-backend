@@ -28,6 +28,7 @@ module.exports = {
         allowNull: false,
         unique: true
       },
+      icon_url: Sequelize.STRING(255),
       display_order: {
         type: Sequelize.INTEGER,
         defaultValue: 0

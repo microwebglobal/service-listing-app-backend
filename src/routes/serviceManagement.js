@@ -9,9 +9,9 @@ const ServiceItemController = require('../controllers/ServiceItemController');
 const SpecialPricingController = require('../controllers/SpecialPricingController');
 
 // Category routes
-router.get('/categories/', upload, ServiceCategoryController.getAllCategories);
+router.get('/categories/', ServiceCategoryController.getAllCategories);
 router.get('/categories/all', ServiceCategoryController.getAllCategoriesWithoutCity);
-router.post('/categories', ServiceCategoryController.createCategory);
+router.post('/categories',upload.single("image"), ServiceCategoryController.createCategory);
 router.get('/categories/slugs/:slug', ServiceCategoryController.getCategoryBySlug);
 router.get('/categories/:id', ServiceCategoryController.getCategoryById);
 router.delete('/categories/:id', ServiceCategoryController.deleteCategory)
@@ -20,7 +20,7 @@ router.delete('/categories/:id', ServiceCategoryController.deleteCategory)
 router.get('/subcategories', SubCategoryController.getAllSubCategories);
 router.get('/subcategories/slugs/:slug', SubCategoryController.getSubCategoryBySlug);
 router.get('/categories/:categoryId/subcategories', SubCategoryController.getSubCategoriesByCategory);
-router.post('/subcategories', SubCategoryController.createSubCategory);
+router.post('/subcategories', upload.single("image"), SubCategoryController.createSubCategory);
 router.delete('/subcategories/:id', SubCategoryController.deleteSubCategory)
 
 // ServiceType routes

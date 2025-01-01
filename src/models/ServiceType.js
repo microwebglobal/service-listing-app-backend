@@ -33,6 +33,7 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING(100),
       allowNull: false
     },
+    icon_url: DataTypes.STRING(255),
     description: DataTypes.TEXT,
     display_order: {
       type: DataTypes.INTEGER,

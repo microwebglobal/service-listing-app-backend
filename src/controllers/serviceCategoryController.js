@@ -128,14 +128,14 @@ class ServiceCategoryController {
 
   static async createCategory(req, res, next) {
     try {
-      console.log('File:', req.image); // Debugging
+      console.log('File:', req.file); // Debugging
         console.log('Body:', req.body); // Debugging
 
-        // if (!req.image) {
-        //     return res.status(400).json({ error: 'No file uploaded' });
-        // }
+       if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+         }
 
-        // const iconUrl = `/uploads/${req.image.filename}`;
+         const iconUrl = `/uploads/images/${req.file.filename}`;
       const existingCategories = await ServiceCategory.findAll({
         attributes: ['category_id']
       });
@@ -147,7 +147,7 @@ class ServiceCategoryController {
         category_id: newCategoryId,
         name: req.body.name,
         slug: req.body.slug,
-        icon_url: req.body.icon_url,
+        icon_url: iconUrl,
         display_order: req.body.display_order
       });
       res.status(201).json(newCategory);

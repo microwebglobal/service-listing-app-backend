@@ -35,6 +35,7 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       unique: true
     },
+    icon_url: DataTypes.STRING(255),
     display_order: {
       type: DataTypes.INTEGER,
       defaultValue: 0
