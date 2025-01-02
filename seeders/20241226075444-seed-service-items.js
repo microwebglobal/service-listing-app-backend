@@ -9,6 +9,7 @@ module.exports = {
         service_id: 'SRV001',
         name: 'Full Arms Wax',
         description: 'Regular waxing for arms',
+        overview: 'Regular waxing for arms',
         base_price: 299,
         created_at: new Date(),
         updated_at: new Date()
@@ -18,6 +19,7 @@ module.exports = {
         service_id: 'SRV002',
         name: 'Full Legs Wax',
         description: 'Regular waxing for legs',
+        overview: 'Regular waxing for arms',
         base_price: 399,
         created_at: new Date(),
         updated_at: new Date()
@@ -27,6 +29,7 @@ module.exports = {
         service_id: 'SRV003',
         name: 'Full Arms Rica Wax',
         description: 'Premium Rica waxing for arms',
+        overview: 'Regular waxing for arms',
         base_price: 499,
         created_at: new Date(),
         updated_at: new Date()

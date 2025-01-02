@@ -15,6 +15,7 @@ class ServiceItemController {
         service_id: req.body.service_id,
         name: req.body.name,
         description: req.body.description,
+        overview: req.body.overview,
         base_price: req.body.base_price,
       });
   

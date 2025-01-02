@@ -24,6 +24,7 @@ module.exports = {
         allowNull: false
       },
       description: Sequelize.TEXT,
+      overview: Sequelize.TEXT,
       base_price: {
         type: Sequelize.DECIMAL(10, 2),
         allowNull: false

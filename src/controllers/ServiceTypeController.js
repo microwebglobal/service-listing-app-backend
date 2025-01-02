@@ -43,6 +43,15 @@ class ServiceTypeController {
 
   static async createServiceType(req, res, next) {
     try {
+      console.log('File:', req.file); // Debugging
+      console.log('Body:', req.body); // Debugging
+
+       if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+         }
+
+      const iconUrl = `/uploads/images/${req.file.filename}`;
+
       const existingTypes = await ServiceType.findAll({
         attributes: ['type_id']
       });
@@ -55,7 +64,7 @@ class ServiceTypeController {
         type_id: newTypeId,
         sub_category_id: req.body.sub_category_id,
         name: req.body.name,
-        icon_url: req.body.icon_url ||"",
+        icon_url: iconUrl ||"",
         description: req.body.description,
         display_order: req.body.display_order
       });

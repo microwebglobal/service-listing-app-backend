@@ -25,7 +25,7 @@ router.delete('/subcategories/:id', SubCategoryController.deleteSubCategory)
 
 // ServiceType routes
 router.get('/subcategories/:subCategoryId/types', ServiceTypeController.getTypesBySubCategory);
-router.post('/types', ServiceTypeController.createServiceType);
+router.post('/types', upload.single("image"), ServiceTypeController.createServiceType);
 router.delete('/types/:id', ServiceTypeController.deleteServiceType)
 
 // Service routes
