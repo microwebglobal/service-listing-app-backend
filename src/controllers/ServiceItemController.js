@@ -1,4 +1,4 @@
-const { ServiceItem, CitySpecificPricing } = require('../models');
+const { ServiceItem, CitySpecificPricing, SpecialPricing } = require('../models');
 const IdGenerator = require('../utils/helper');
 
 class ServiceItemController {
@@ -28,6 +28,22 @@ class ServiceItemController {
               item_id: newItem.item_id,
               item_type: 'service_item',
               price: pricing.price,
+            });
+          })
+        );
+      }
+
+      if (req.body.specialPricing?.length > 0) {
+        await Promise.all(
+          req.body.specialPricing.map(async (pricing) => {
+            return SpecialPricing.create({
+              item_id: newItem.item_id,
+              item_type: 'service_item',
+              city_id: pricing.city_id,
+              special_price: pricing.special_price,
+              start_date: pricing.start_date,
+              end_date: pricing.end_date,
+              status: 'active'
             });
           })
         );
@@ -92,8 +108,10 @@ class ServiceItemController {
   }
   
   static async getServiceItem(req, res, next) {
+   
     try {
       const currentDate = new Date();
+      
       const item = await ServiceItem.findByPk(req.params.id, {
         include: [
           {
@@ -138,15 +156,47 @@ class ServiceItemController {
   
   static async getServiceItemByService(req, res, next) {
     try {
+      const { cityId } = req.query; 
+  
       const items = await ServiceItem.findAll({
         where: { service_id: req.params.serviceId },
-        include: [CitySpecificPricing]
+        include: [CitySpecificPricing, {
+          model: SpecialPricing,
+          where: {
+            status: 'active',
+            city_id: cityId,
+          },
+          required: false
+        }],
       });
-      res.status(200).json(items);
+  
+      if (!items || items.length === 0) {
+        return res.status(404).json({ message: 'No service items found for the given service' });
+      }
+  
+      const transformedItems = items.map((item) => {
+        let basePrice = item.base_price;
+  
+        if (cityId) {
+          const cityPricing = item.CitySpecificPricings.find((pricing) => pricing.city_id === cityId);
+          if (cityPricing) {
+            basePrice = cityPricing.price;
+          }
+        }
+  
+        return {
+          ...item.toJSON(),
+          base_price: basePrice, 
+        };
+      });
+  
+      res.status(200).json(transformedItems);
     } catch (error) {
+      console.error('Error fetching service items by service:', error);
       next(error);
     }
   }
+  
 
   static async getAllServiceItems(req, res, next) {
     try {
