@@ -7,7 +7,7 @@ module.exports = {
         category_id: 'CAT001',
         name: 'Salon for Women',
         slug: 'salon-for-women',
-        icon_url: 'salon-icon.png',
+        icon_url: '/uploads/images/1735813069408.jpg',
         display_order: 1,
         created_at: new Date(),
         updated_at: new Date()
@@ -16,7 +16,7 @@ module.exports = {
         category_id: 'CAT002',
         name: 'AC & Appliance Repair',
         slug: 'ac-appliance-repair',
-        icon_url: 'ac-repair-icon.png',
+        icon_url: '/uploads/images/1735813165476.webp',
         display_order: 2,
         created_at: new Date(),
         updated_at: new Date()
