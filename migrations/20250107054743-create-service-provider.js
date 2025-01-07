@@ -1,0 +1,103 @@
+"use strict";
+
+/** @type {import('sequelize-cli').Migration} */
+module.exports = {
+  up: async (queryInterface, Sequelize) => {
+    await queryInterface.createTable("service_providers", {
+      provider_id: {
+        type: Sequelize.INTEGER,
+        primaryKey: true,
+        autoIncrement: true,
+      },
+      user_id: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+        references: {
+          model: "users",
+          key: "u_id",
+        },
+      },
+      business_type: {
+        type: Sequelize.ENUM("individual", "business"),
+        allowNull: false,
+      },
+      business_name: {
+        type: Sequelize.STRING(100),
+        allowNull: true,
+      },
+      business_registration_number: {
+        type: Sequelize.STRING(100),
+        allowNull: true,
+      },
+      primary_location: {
+        type: Sequelize.GEOMETRY("POINT"),
+        allowNull: false,
+      },
+      service_radius: {
+        type: Sequelize.FLOAT,
+        allowNull: false,
+      },
+      availability_type: {
+        type: Sequelize.ENUM("full_time", "part_time"),
+        allowNull: false,
+      },
+      availability_hours: {
+        type: Sequelize.JSON,
+        allowNull: true,
+      },
+      years_experience: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+      },
+      specializations: {
+        type: Sequelize.TEXT,
+        allowNull: true,
+      },
+      qualification: {
+        type: Sequelize.STRING(255),
+        allowNull: true,
+      },
+      profile_bio: {
+        type: Sequelize.TEXT,
+        allowNull: true,
+      },
+      languages_spoken: {
+        type: Sequelize.JSON,
+        allowNull: false,
+      },
+      social_media_links: {
+        type: Sequelize.JSON,
+        allowNull: true,
+      },
+      payment_method: {
+        type: Sequelize.ENUM("upi", "bank"),
+        allowNull: false,
+      },
+      payment_details: {
+        type: Sequelize.JSON,
+        allowNull: false,
+      },
+      status: {
+        type: Sequelize.ENUM(
+          "pending_approval",
+          "active",
+          "suspended",
+          "inactive"
+        ),
+        defaultValue: "pending_approval",
+      },
+      created_at: {
+        type: Sequelize.DATE,
+        allowNull: false,
+      },
+      updated_at: {
+        type: Sequelize.DATE,
+        allowNull: false,
+      },
+    });
+  },
+
+  down: async (queryInterface) => {
+    await queryInterface.dropTable("service_providers");
+  },
+};

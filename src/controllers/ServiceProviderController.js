@@ -1,15 +1,19 @@
-const { ServiceProvider, User, ProviderServiceCategory, ProviderServiceCity ,ServiceProviderEnquiry} = require('../models');
+const {
+  ServiceProvider,
+  User,
+  City,
+  ServiceCategory,
+  ProviderServiceCategory,
+  ProviderServiceCity,
+  ServiceProviderEnquiry,
+} = require("../models");
 
 class ServiceProviderController {
   static async getAllProviders(req, res, next) {
     try {
       const providers = await ServiceProvider.findAll({
-        include: [
-          { model: User },
-          { model: ServiceCategory },
-          { model: City }
-        ],
-        order: [['provider_id', 'DESC']]
+        include: [{ model: User }, { model: ServiceCategory }, { model: City }],
+        order: [["provider_id", "DESC"]],
       });
       res.status(200).json(providers);
     } catch (error) {
@@ -20,11 +24,20 @@ class ServiceProviderController {
   static async registerProvider(req, res, next) {
     try {
       const {
-        enquiry_id, business_registration_number, service_radius,
-        availability_type, availability_hours, specializations,
-        qualification, profile_bio, languages_spoken,
-        social_media_links, payment_method, payment_details,
-        categories, cities
+        enquiry_id,
+        business_registration_number,
+        service_radius,
+        availability_type,
+        availability_hours,
+        specializations,
+        qualification,
+        profile_bio,
+        languages_spoken,
+        social_media_links,
+        payment_method,
+        payment_details,
+        categories,
+        cities,
       } = req.body;
 
       // Fetch the enquiry
@@ -50,7 +63,7 @@ class ServiceProviderController {
         languages_spoken,
         social_media_links,
         payment_method,
-        payment_details
+        payment_details,
       });
 
       // Add categories with metadata
@@ -59,7 +72,7 @@ class ServiceProviderController {
           provider_id: provider.provider_id,
           category_id: category.id,
           experience_years: category.experience_years,
-          is_primary: category.is_primary
+          is_primary: category.is_primary,
         });
       }
 
@@ -69,13 +82,13 @@ class ServiceProviderController {
           provider_id: provider.provider_id,
           city_id: city.id,
           service_radius: city.service_radius,
-          is_primary: city.is_primary
+          is_primary: city.is_primary,
         });
       }
 
       res.status(201).json({
         message: "Provider registered successfully",
-        provider_id: provider.provider_id
+        provider_id: provider.provider_id,
       });
     } catch (error) {
       next(error);
@@ -104,14 +117,14 @@ class ServiceProviderController {
     try {
       const { categories } = req.body;
       const provider = await ServiceProvider.findByPk(req.params.id);
-      
+
       if (!provider) {
         return res.status(404).json({ error: "Provider not found" });
       }
 
       // Delete existing categories
       await ProviderServiceCategory.destroy({
-        where: { provider_id: provider.provider_id }
+        where: { provider_id: provider.provider_id },
       });
 
       // Add new categories
@@ -120,11 +133,13 @@ class ServiceProviderController {
           provider_id: provider.provider_id,
           category_id: category.id,
           experience_years: category.experience_years,
-          is_primary: category.is_primary
+          is_primary: category.is_primary,
         });
       }
 
-      res.status(200).json({ message: "Service categories updated successfully" });
+      res
+        .status(200)
+        .json({ message: "Service categories updated successfully" });
     } catch (error) {
       next(error);
     }

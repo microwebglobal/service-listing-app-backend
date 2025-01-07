@@ -1,16 +1,17 @@
-const { ServiceProviderEnquiry, User, ServiceCategory, City } = require('../models');
-const { generateRegistrationLink } = require('../utils/helpers.js'); 
+const {
+  ServiceProviderEnquiry,
+  User,
+  ServiceCategory,
+  City,
+} = require("../models");
+const { generateRegistrationLink } = require("../utils/helpers.js");
 
 class ServiceProviderEnquiryController {
   static async getAllEnquiries(req, res, next) {
     try {
       const enquiries = await ServiceProviderEnquiry.findAll({
-        include: [
-          { model: User },
-          { model: ServiceCategory },
-          { model: City }
-        ],
-        order: [['enquiry_id', 'DESC']]
+        include: [{ model: User }, { model: ServiceCategory }, { model: City }],
+        order: [["enquiry_id", "DESC"]],
       });
       res.status(200).json(enquiries);
     } catch (error) {
@@ -21,9 +22,16 @@ class ServiceProviderEnquiryController {
   static async createEnquiry(req, res, next) {
     try {
       const {
-        name, email, mobile, business_type, business_name,
-        years_experience, categories, cities, location,
-        skills
+        name,
+        email,
+        mobile,
+        business_type,
+        business_name,
+        years_experience,
+        categories,
+        cities,
+        location,
+        skills,
       } = req.body;
 
       // First create user
@@ -31,7 +39,10 @@ class ServiceProviderEnquiryController {
         name,
         email,
         mobile,
-        role: business_type === 'business' ? 'business_service_provider' : 'service_provider'
+        role:
+          business_type === "business"
+            ? "business_service_provider"
+            : "service_provider",
       });
 
       // Create enquiry
@@ -41,7 +52,7 @@ class ServiceProviderEnquiryController {
         business_name,
         years_experience,
         primary_location: location,
-        skills
+        skills,
       });
 
       // Add categories and cities
@@ -50,7 +61,7 @@ class ServiceProviderEnquiryController {
 
       res.status(201).json({
         message: "Enquiry submitted successfully",
-        enquiry_id: enquiry.enquiry_id
+        enquiry_id: enquiry.enquiry_id,
       });
     } catch (error) {
       next(error);
@@ -65,16 +76,18 @@ class ServiceProviderEnquiryController {
       }
 
       const registrationLink = await generateRegistrationLink(enquiry);
-      
+
       await enquiry.update({
-        status: 'approved',
+        status: "approved",
         registration_link: registrationLink,
-        registration_link_expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+        registration_link_expires: new Date(
+          Date.now() + 7 * 24 * 60 * 60 * 1000
+        ), // 7 days
       });
 
       res.status(200).json({
         message: "Enquiry approved",
-        registration_link: registrationLink
+        registration_link: registrationLink,
       });
     } catch (error) {
       next(error);

@@ -1,14 +1,11 @@
-const { ServiceProviderEmployee, User } = require('../models');
+const { ServiceCategory, ServiceProviderEmployee, User } = require("../models");
 
 class ServiceProviderEmployeeController {
   static async getAllEmployees(req, res, next) {
     try {
       const employees = await ServiceProviderEmployee.findAll({
         where: { provider_id: req.params.providerId },
-        include: [
-          { model: User },
-          { model: ServiceCategory }
-        ]
+        include: [{ model: User }, { model: ServiceCategory }],
       });
       res.status(200).json(employees);
     } catch (error) {
@@ -19,8 +16,13 @@ class ServiceProviderEmployeeController {
   static async addEmployee(req, res, next) {
     try {
       const {
-        name, email, mobile, role, qualification,
-        years_experience, categories
+        name,
+        email,
+        mobile,
+        role,
+        qualification,
+        years_experience,
+        categories,
       } = req.body;
 
       // Create user account for employee
@@ -28,7 +30,7 @@ class ServiceProviderEmployeeController {
         name,
         email,
         mobile,
-        role: 'service_provider'
+        role: "service_provider",
       });
 
       // Create employee record
@@ -37,7 +39,7 @@ class ServiceProviderEmployeeController {
         user_id: user.u_id,
         role,
         qualification,
-        years_experience
+        years_experience,
       });
 
       // Add service categories
@@ -45,7 +47,7 @@ class ServiceProviderEmployeeController {
 
       res.status(201).json({
         message: "Employee added successfully",
-        employee_id: employee.employee_id
+        employee_id: employee.employee_id,
       });
     } catch (error) {
       next(error);
