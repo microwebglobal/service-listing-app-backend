@@ -6,7 +6,8 @@ const bcrypt = require("bcryptjs");
 module.exports = (sequelize, DataTypes) => {
   class User extends Model {
     static associate(models) {
-      // define associations here, e.g.
+      this.hasOne(models.ServiceProvider, { foreignKey: 'user_id' });
+      this.hasOne(models.ServiceProviderEnquiry, { foreignKey: 'user_id' });
     }
 
     async validatePassword(password) {
@@ -38,6 +39,14 @@ module.exports = (sequelize, DataTypes) => {
       email: {
         type: DataTypes.STRING(100),
         allowNull: true,
+        unique: {
+          msg: "Email already in use!"
+        },
+        validate: {
+          isEmail: {
+            msg: "Invalid email format"
+          }
+        }
       },
       mobile: {
         type: DataTypes.STRING(15),
@@ -60,9 +69,22 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
       },
       role: {
-        type: DataTypes.ENUM("admin", "customer", "service_provider"),
+        type: DataTypes.ENUM("admin", "customer", "service_provider", "business_service_provider"),
         defaultValue: "customer",
         allowNull: false,
+      },
+      account_status: {
+        type: DataTypes.ENUM("pending", "active", "suspended", "inactive"),
+        defaultValue: "pending",
+        allowNull: false
+      },
+      email_verified: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
+      },
+      mobile_verified: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
       },
       otp: {
         type: DataTypes.STRING(6),
@@ -90,7 +112,7 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
       },
       dob: {
-        type: DataTypes.STRING(100),
+        type: DataTypes.DATEONLY,
         allowNull: true,
       },
       last_updated: {
