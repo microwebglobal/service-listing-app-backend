@@ -25,8 +25,10 @@ class ServiceProviderEnquiryController {
         name,
         email,
         mobile,
+        gender,
         business_type,
         business_name,
+        dob,
         years_experience,
         categories,
         cities,
@@ -34,16 +36,23 @@ class ServiceProviderEnquiryController {
         skills,
       } = req.body;
 
+      console.log(req.body);
       // First create user
       const user = await User.create({
-        name,
-        email,
-        mobile,
+        name: name,
+        email: email,
+        mobile: mobile,
+        gender: gender,
+        dob: dob,
+        account_status: "pending",
+        tokenVersion: 1,
         role:
           business_type === "business"
             ? "business_service_provider"
             : "service_provider",
       });
+
+      console.log(user);
 
       // Create enquiry
       const enquiry = await ServiceProviderEnquiry.create({
