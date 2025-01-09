@@ -46,7 +46,7 @@ module.exports = {
         defaultValue: "pending",
       },
       registration_link: {
-        type: Sequelize.STRING(255),
+        type: Sequelize.TEXT,
         allowNull: true,
       },
       registration_link_expires: {

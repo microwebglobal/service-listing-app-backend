@@ -19,6 +19,21 @@ class ServiceProviderEnquiryController {
     }
   }
 
+  static async getEnquirieById(req, res, next) {
+    try {
+      const enquirie = await ServiceProviderEnquiry.findByPk(req.params.id, {
+        include: [{ model: User }, { model: ServiceCategory }, { model: City }],
+        order: [["enquiry_id", "DESC"]],
+      });
+      if (!enquirie) {
+        return res.status(404).json({ error: "enquirie not found" });
+      }
+      res.status(200).json(enquirie);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async createEnquiry(req, res, next) {
     try {
       const {
@@ -44,7 +59,7 @@ class ServiceProviderEnquiryController {
         mobile: mobile,
         gender: gender,
         dob: dob,
-        account_status: "pending",
+        account_status: "active",
         tokenVersion: 1,
         role:
           business_type === "business"
@@ -86,6 +101,7 @@ class ServiceProviderEnquiryController {
 
       const registrationLink = await generateRegistrationLink(enquiry);
 
+      console.log(registrationLink);
       await enquiry.update({
         status: "approved",
         registration_link: registrationLink,

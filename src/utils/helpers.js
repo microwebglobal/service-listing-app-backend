@@ -22,12 +22,16 @@ const generateRegistrationLink = async (enquiry) => {
     tokenData.nonce = randomBytes;
 
     // Sign the token with expiration (7 days)
-    const token = jwt.sign(tokenData, config.registration.secretKey, {
-      expiresIn: "7d",
-    });
+    const token = jwt.sign(
+      tokenData,
+      config.development.registration.secretKey,
+      {
+        expiresIn: "7d",
+      }
+    );
 
     // Create the registration link
-    const registrationLink = `${config.baseUrl}/service-provider/register/${token}`;
+    const registrationLink = `${config.development.baseUrl}/service-provider/register/${token}`;
 
     return registrationLink;
   } catch (error) {

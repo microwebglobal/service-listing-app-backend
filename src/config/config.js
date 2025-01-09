@@ -3,10 +3,10 @@ require("dotenv").config();
 module.exports = {
   development: {
     username: process.env.DB_USERNAME,
-    baseUrl: process.env.BASE_URL || 'http://localhost:3000',
+    baseUrl: process.env.BASE_URL || "http://localhost:3000",
     registration: {
-      secretKey: process.env.REGISTRATION_SECRET_KEY || 'your-secret-key',
-      expiryDays: 7
+      secretKey: process.env.REGISTRATION_SECRET_KEY || "your-secret-key",
+      expiryDays: 7,
     },
     password: process.env.DB_PASSWORD,
     database: process.env.DB_DATABASE,
