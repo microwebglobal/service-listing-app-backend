@@ -75,7 +75,7 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
       },
       specializations: {
-        type: DataTypes.TEXT,
+        type: DataTypes.ARRAY(DataTypes.STRING),
         allowNull: true,
       },
       qualification: {
@@ -87,7 +87,7 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
       },
       languages_spoken: {
-        type: DataTypes.JSON,
+        type: DataTypes.ARRAY(DataTypes.STRING),
         allowNull: false,
       },
       social_media_links: {
@@ -107,7 +107,8 @@ module.exports = (sequelize, DataTypes) => {
           "pending_approval",
           "active",
           "suspended",
-          "inactive"
+          "inactive",
+          
         ),
         defaultValue: "pending_approval",
       },

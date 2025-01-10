@@ -16,7 +16,7 @@ router.put(
 
 // Provider routes
 router.get("/providers", ServiceProviderController.getAllProviders);
-router.post("/register", ServiceProviderController.registerProvider);
+router.post("/provider/register", ServiceProviderController.registerProvider);
 router.put(
   "/providers/:id/status",
   ServiceProviderController.updateProviderStatus

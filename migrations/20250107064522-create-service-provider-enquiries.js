@@ -1,6 +1,5 @@
 "use strict";
 
-/** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.createTable("service_provider_enquiries", {
@@ -19,6 +18,7 @@ module.exports = {
         },
         onUpdate: "CASCADE",
         onDelete: "CASCADE",
+        unique: true
       },
       business_type: {
         type: Sequelize.ENUM("individual", "business"),
@@ -28,22 +28,41 @@ module.exports = {
         type: Sequelize.STRING(100),
         allowNull: true,
       },
+      business_website: {
+        type: Sequelize.STRING(255),
+        allowNull: true,
+      },
+      number_of_employees: {
+        type: Sequelize.INTEGER,
+        allowNull: true,
+      },
+      authorized_person_name: {
+        type: Sequelize.STRING(100),
+        allowNull: true,
+      },
+      authorized_person_contact: {
+        type: Sequelize.STRING(20),
+        allowNull: true,
+      },
       years_experience: {
         type: Sequelize.INTEGER,
-        allowNull: false,
+        allowNull: true,
       },
       primary_location: {
         type: Sequelize.GEOMETRY("POINT"),
         allowNull: false,
-        comment: "Main operating location",
       },
       skills: {
         type: Sequelize.TEXT,
         allowNull: true,
       },
       status: {
-        type: Sequelize.ENUM("pending", "approved", "rejected"),
+        type: Sequelize.ENUM("pending", "approved", "rejected","completed"),
         defaultValue: "pending",
+      },
+      gender: {
+        type: Sequelize.ENUM("Male","Female","Other"),
+        allowNull: true,
       },
       registration_link: {
         type: Sequelize.TEXT,
@@ -62,9 +81,32 @@ module.exports = {
         allowNull: false,
       },
     });
+
+    await queryInterface.addIndex(
+      'service_provider_enquiries',
+      ['business_name'],
+      {
+        unique: true,
+        where: {
+          business_type: 'business'
+        },
+        name: 'unique_business_name'
+      }
+    );
+
+    await queryInterface.addIndex(
+      'service_provider_enquiries',
+      ['user_id'],
+      {
+        unique: true,
+        name: 'unique_user_enquiry'
+      }
+    );
   },
 
   async down(queryInterface, Sequelize) {
+    await queryInterface.removeIndex('service_provider_enquiries', 'unique_business_name');
+    await queryInterface.removeIndex('service_provider_enquiries', 'unique_user_enquiry');
     await queryInterface.dropTable("service_provider_enquiries");
   },
 };

@@ -50,7 +50,7 @@ module.exports = {
         allowNull: false,
       },
       specializations: {
-        type: Sequelize.TEXT,
+        type: Sequelize.ARRAY(Sequelize.STRING),
         allowNull: true,
       },
       qualification: {
@@ -62,7 +62,7 @@ module.exports = {
         allowNull: true,
       },
       languages_spoken: {
-        type: Sequelize.JSON,
+        type: Sequelize.ARRAY(Sequelize.STRING),
         allowNull: false,
       },
       social_media_links: {

@@ -9,6 +9,10 @@ module.exports = {
         user_id: 2,
         business_type: "business",
         business_name: "Home Solutions Ltd.",
+        business_website: "https://homesolutions.com",
+        number_of_employees: 25,
+        authorized_person_name: "John Doe",
+        authorized_person_contact: "+6591234567",
         years_experience: 5,
         primary_location: Sequelize.fn(
           "ST_GeomFromText",
@@ -28,13 +32,16 @@ module.exports = {
         user_id: 3,
         business_type: "individual",
         business_name: "Tech Repairs Ltd.",
+        business_website: null,
+        number_of_employees: null,
+        authorized_person_name: null,
+        authorized_person_contact: null,
         years_experience: 10,
         primary_location: Sequelize.fn(
           "ST_GeomFromText",
           "POINT(80.8198 1.3521)"
         ),
-        skills:
-          "Laptop Repair, Mobile Phone Fixing, Circuit Board Troubleshooting",
+        skills: "Laptop Repair, Mobile Phone Fixing, Circuit Board Troubleshooting",
         status: "pending",
         registration_link: "https://example.com/register/2",
         registration_link_expires: new Date(

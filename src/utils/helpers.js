@@ -2,58 +2,47 @@ const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const config = require("../config/config");
 
-/**
- * Generates a secure registration link for service provider registration
- * @param {Object} enquiry - The service provider enquiry object
- * @returns {Promise<string>} The generated registration link
- */
 const generateRegistrationLink = async (enquiry) => {
   try {
-    // Generate a unique token using enquiry data
     const tokenData = {
-      enquiry_id: enquiry.enquiry_id,
-      user_id: enquiry.user_id,
-      business_type: enquiry.business_type,
-      timestamp: Date.now(),
+      eid: enquiry.enquiry_id,
+      uid: enquiry.user_id,
+      t: enquiry.business_type[0],
+      ts: Math.floor(Date.now() / 1000)
     };
 
-    // Add a random component for additional security
-    const randomBytes = crypto.randomBytes(16).toString("hex");
-    tokenData.nonce = randomBytes;
+    const randomBytes = crypto.randomBytes(8).toString("base64url");
+    tokenData.n = randomBytes;
 
-    // Sign the token with expiration (7 days)
-    const token = jwt.sign(
-      tokenData,
-      config.development.registration.secretKey,
-      {
-        expiresIn: "7d",
-      }
-    );
+    const token = jwt.sign(tokenData, config.development.registration.secretKey, {
+      expiresIn: "7d",
+      algorithm: "HS256",
+      noTimestamp: true
+    });
 
-    // Create the registration link
     const registrationLink = `${config.development.baseUrl}/service-provider/register/${token}`;
 
     return registrationLink;
   } catch (error) {
-    console.error("Error generating registration link:", error);
     throw new Error("Failed to generate registration link");
   }
 };
 
-/**
- * Validates a registration link token
- * @param {string} token - The registration link token
- * @returns {Promise<Object>} The decoded token data
- */
 const validateRegistrationLink = async (token) => {
   try {
-    // Verify and decode the token
     const decoded = jwt.verify(token, config.registration.secretKey);
+    
+    const expandedData = {
+      enquiry_id: decoded.eid,
+      user_id: decoded.uid,
+      business_type: decoded.t === 'b' ? 'business' : 'individual',
+      timestamp: decoded.ts * 1000,
+      nonce: decoded.n
+    };
 
-    // Check if the enquiry still exists and is still valid
     const enquiry = await ServiceProviderEnquiry.findOne({
       where: {
-        enquiry_id: decoded.enquiry_id,
+        enquiry_id: expandedData.enquiry_id,
         status: "approved",
         registration_link_expires: {
           [Op.gt]: new Date(),
@@ -65,16 +54,15 @@ const validateRegistrationLink = async (token) => {
       throw new Error("Invalid or expired registration link");
     }
 
-    // Check if the provider is already registered
     const existingProvider = await ServiceProvider.findOne({
-      where: { user_id: decoded.user_id },
+      where: { user_id: expandedData.user_id },
     });
 
     if (existingProvider) {
       throw new Error("Service provider already registered");
     }
 
-    return decoded;
+    return expandedData;
   } catch (error) {
     if (error.name === "JsonWebTokenError") {
       throw new Error("Invalid registration link");
@@ -86,11 +74,6 @@ const validateRegistrationLink = async (token) => {
   }
 };
 
-/**
- * Invalidates a registration link after successful registration
- * @param {number} enquiryId - The enquiry ID
- * @returns {Promise<void>}
- */
 const invalidateRegistrationLink = async (enquiryId) => {
   try {
     await ServiceProviderEnquiry.update(
@@ -103,7 +86,6 @@ const invalidateRegistrationLink = async (enquiryId) => {
       }
     );
   } catch (error) {
-    console.error("Error invalidating registration link:", error);
     throw new Error("Failed to invalidate registration link");
   }
 };

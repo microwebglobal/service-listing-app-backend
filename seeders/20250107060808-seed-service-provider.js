@@ -21,11 +21,11 @@ module.exports = {
           Tuesday: "9am-6pm",
         }),
         years_experience: 10,
-        specializations: "Wall Painting, Wall Cleaning",
+        specializations: ["Wall Painting", "Wall Cleaning"],
         qualification: "Certificate in interior designing",
         profile_bio:
           "Experienced Home service provider specializing in custom solutions.",
-        languages_spoken: JSON.stringify(["English", "Hindi"]),
+        languages_spoken: ["English", "Hindi"],
         social_media_links: JSON.stringify({
           facebook: "https://facebook.com/homesolutions",
           linkedin: "https://linkedin.com/homesolutions",
