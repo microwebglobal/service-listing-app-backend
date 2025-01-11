@@ -5,7 +5,6 @@ module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.bulkInsert("service_provider_enquiries", [
       {
-        enquiry_id: 1,
         user_id: 2,
         business_type: "business",
         business_name: "Home Solutions Ltd.",
@@ -28,7 +27,6 @@ module.exports = {
         updated_at: new Date(),
       },
       {
-        enquiry_id: 2,
         user_id: 3,
         business_type: "individual",
         business_name: "Tech Repairs Ltd.",
@@ -41,7 +39,8 @@ module.exports = {
           "ST_GeomFromText",
           "POINT(80.8198 1.3521)"
         ),
-        skills: "Laptop Repair, Mobile Phone Fixing, Circuit Board Troubleshooting",
+        skills:
+          "Laptop Repair, Mobile Phone Fixing, Circuit Board Troubleshooting",
         status: "pending",
         registration_link: "https://example.com/register/2",
         registration_link_expires: new Date(

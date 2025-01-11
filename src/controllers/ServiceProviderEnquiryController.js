@@ -42,14 +42,23 @@ class ServiceProviderEnquiryController {
       // Validate provider type
       if (!type || !["individual", "business"].includes(type)) {
         return res.status(400).json({
-          error: "Invalid business_type. Must be either 'individual' or 'business'",
+          error:
+            "Invalid business_type. Must be either 'individual' or 'business'",
         });
       }
 
       if (type === "business") {
-        return await ServiceProviderEnquiryController.createBusinessEnquiry(req, res, next);
+        return await ServiceProviderEnquiryController.createBusinessEnquiry(
+          req,
+          res,
+          next
+        );
       } else {
-        return await ServiceProviderEnquiryController.createIndividualEnquiry(req, res, next);
+        return await ServiceProviderEnquiryController.createIndividualEnquiry(
+          req,
+          res,
+          next
+        );
       }
     } catch (error) {
       next(error);
@@ -58,7 +67,7 @@ class ServiceProviderEnquiryController {
 
   static async createBusinessEnquiry(req, res, next) {
     const t = await sequelize.transaction();
-    
+
     try {
       const {
         business_name,
@@ -69,64 +78,73 @@ class ServiceProviderEnquiryController {
         service_location,
         categories,
         number_of_employees,
-        email
+        email,
+        gender,
       } = req.body;
 
+      console.log(req.body);
+
       const existingBusiness = await ServiceProviderEnquiry.findOne({
-        where: { 
+        where: {
           business_name,
-          business_type: 'business'
+          business_type: "business",
         },
-        transaction: t
+        transaction: t,
       });
 
       if (existingBusiness) {
         await t.rollback();
         return res.status(409).json({
           error: "Business already registered",
-          details: "A business with this name already exists"
+          details: "A business with this name already exists",
         });
       }
 
-      const user = await User.create({
-        name: authorized_person_name,
-        email,
-        mobile: authorized_person_contact,
-        account_status: 'active',
-        tokenVersion: 1,
-        role: 'business_service_provider'
-      }, { transaction: t });
+      const user = await User.create(
+        {
+          name: authorized_person_name,
+          email,
+          mobile: authorized_person_contact,
+          account_status: "active",
+          tokenVersion: 1,
+          gender: gender,
+          account_status: "pending",
+          role: "business_service_provider",
+        },
+        { transaction: t }
+      );
 
       // Create enquiry - without specifying enquiry_id to let it auto-increment
       const enquiryData = {
         user_id: user.u_id,
-        business_type: 'business',
+        business_type: "business",
         business_name,
         business_website,
         primary_location: service_location,
         number_of_employees: Number(number_of_employees),
         authorized_person_name,
+        gender: gender,
         authorized_person_contact,
-        status: 'pending'
+        status: "pending",
       };
 
-      const enquiry = await ServiceProviderEnquiry.create(enquiryData, { 
+      const enquiry = await ServiceProviderEnquiry.create(enquiryData, {
         transaction: t,
-        returning: true
+        returning: true,
       });
 
       // Handle categories
       if (Array.isArray(categories) && categories.length > 0) {
         const validCategories = await ServiceCategory.findAll({
           where: { category_id: categories },
-          transaction: t
+          transaction: t,
         });
 
         if (validCategories.length !== categories.length) {
           await t.rollback();
           return res.status(400).json({
             error: "Invalid categories",
-            details: "One or more category IDs are invalid"
+            details: "One or more category IDs are invalid",
           });
         }
 
@@ -137,28 +155,27 @@ class ServiceProviderEnquiryController {
 
       res.status(201).json({
         message: "Business enquiry created successfully",
-        enquiry_id: enquiry.enquiry_id
+        enquiry_id: enquiry.enquiry_id,
       });
-
     } catch (error) {
       await t.rollback();
-      console.error('Business enquiry creation error:', {
+      console.error("Business enquiry creation error:", {
         name: error.name,
         message: error.message,
-        details: error.original?.detail
+        details: error.original?.detail,
       });
-      
-      if (error.name === 'SequelizeUniqueConstraintError') {
+
+      if (error.name === "SequelizeUniqueConstraintError") {
         return res.status(409).json({
           error: "Duplicate entry",
-          details: error.errors.map(e => e.message)
+          details: error.errors.map((e) => e.message),
         });
       }
 
-      if (error.name === 'SequelizeValidationError') {
+      if (error.name === "SequelizeValidationError") {
         return res.status(400).json({
           error: "Validation error",
-          details: error.errors.map(e => e.message)
+          details: error.errors.map((e) => e.message),
         });
       }
 
@@ -168,7 +185,7 @@ class ServiceProviderEnquiryController {
 
   static async createIndividualEnquiry(req, res, next) {
     const t = await sequelize.transaction();
-    
+
     try {
       const {
         name,
@@ -180,48 +197,52 @@ class ServiceProviderEnquiryController {
         categories,
         cities,
         location,
-        skills
+        skills,
       } = req.body;
 
       // Create user without specifying u_id
-      const user = await User.create({
-        name,
-        email,
-        mobile,
-        gender,
-        dob,
-        account_status: 'active',
-        tokenVersion: 1,
-        role: 'service_provider'
-      }, { transaction: t });
+      const user = await User.create(
+        {
+          name,
+          email,
+          mobile,
+          gender,
+          dob,
+          account_status: "pending",
+          tokenVersion: 1,
+          role: "service_provider",
+        },
+        { transaction: t }
+      );
 
       // Create enquiry without specifying enquiry_id
       const enquiryData = {
         user_id: user.u_id,
-        business_type: 'individual',
+        business_type: "individual",
         years_experience: Number(years_experience),
         primary_location: location,
+        gender: gender,
         skills,
-        status: 'pending'
+        status: "pending",
       };
 
-      const enquiry = await ServiceProviderEnquiry.create(enquiryData, { 
+      const enquiry = await ServiceProviderEnquiry.create(enquiryData, {
         transaction: t,
-        returning: true
+        returning: true,
       });
 
       // Handle categories
       if (Array.isArray(categories) && categories.length > 0) {
         const validCategories = await ServiceCategory.findAll({
           where: { category_id: categories },
-          transaction: t
+          transaction: t,
         });
 
         if (validCategories.length !== categories.length) {
           await t.rollback();
           return res.status(400).json({
             error: "Invalid categories",
-            details: "One or more category IDs are invalid"
+            details: "One or more category IDs are invalid",
           });
         }
 
@@ -232,14 +253,14 @@ class ServiceProviderEnquiryController {
       if (Array.isArray(cities) && cities.length > 0) {
         const validCities = await City.findAll({
           where: { city_id: cities },
-          transaction: t
+          transaction: t,
         });
 
         if (validCities.length !== cities.length) {
           await t.rollback();
           return res.status(400).json({
             error: "Invalid cities",
-            details: "One or more city IDs are invalid"
+            details: "One or more city IDs are invalid",
           });
         }
 
@@ -250,37 +271,33 @@ class ServiceProviderEnquiryController {
 
       res.status(201).json({
         message: "Individual enquiry created successfully",
-        enquiry_id: enquiry.enquiry_id
+        enquiry_id: enquiry.enquiry_id,
       });
-
     } catch (error) {
       await t.rollback();
-      console.error('Individual enquiry creation error:', {
+      console.error("Individual enquiry creation error:", {
         name: error.name,
         message: error.message,
-        details: error.original?.detail
+        details: error.original?.detail,
       });
-      
-      if (error.name === 'SequelizeUniqueConstraintError') {
+
+      if (error.name === "SequelizeUniqueConstraintError") {
         return res.status(409).json({
           error: "Duplicate entry",
-          details: error.errors.map(e => e.message)
+          details: error.errors.map((e) => e.message),
         });
       }
 
-      if (error.name === 'SequelizeValidationError') {
+      if (error.name === "SequelizeValidationError") {
         return res.status(400).json({
           error: "Validation error",
-          details: error.errors.map(e => e.message)
+          details: error.errors.map((e) => e.message),
         });
       }
 
       next(error);
     }
   }
-
-
-
 
   static handleError(error, res, next) {
     if (error.name === "SequelizeValidationError") {
@@ -317,6 +334,7 @@ class ServiceProviderEnquiryController {
 
       const registrationLink = await generateRegistrationLink(enquiry);
 
+      console.log(registrationLink);
       await enquiry.update({
         status: "approved",
         registration_link: registrationLink,

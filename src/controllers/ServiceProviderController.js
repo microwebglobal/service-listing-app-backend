@@ -12,11 +12,7 @@ class ServiceProviderController {
   static async getAllProviders(req, res, next) {
     try {
       const providers = await ServiceProvider.findAll({
-        include: [
-          { model: User }, 
-          { model: ServiceCategory }, 
-          { model: City }
-        ],
+        include: [{ model: User }, { model: ServiceCategory }, { model: City }],
         order: [["provider_id", "DESC"]],
       });
       res.status(200).json(providers);
@@ -28,11 +24,7 @@ class ServiceProviderController {
   static async getProviderById(req, res, next) {
     try {
       const provider = await ServiceProvider.findByPk(req.params.id, {
-        include: [
-          { model: User },
-          { model: ServiceCategory },
-          { model: City }
-        ]
+        include: [{ model: User }, { model: ServiceCategory }, { model: City }],
       });
 
       if (!provider) {
@@ -64,49 +56,55 @@ class ServiceProviderController {
         cities,
       } = req.body;
 
-      console.log('Incoming registration request:', {
+      console.log("Incoming registration request:", {
         enquiry_id,
         service_radius,
         availability_type,
         languages_spoken,
-        payment_method
+        payment_method,
       });
+
+      console.log(req.body);
 
       // Find and validate enquiry
       const enquiry = await ServiceProviderEnquiry.findByPk(enquiry_id);
       if (!enquiry) {
-        return res.status(404).json({ 
+        return res.status(404).json({
           error: "Invalid registration link",
-          message: "This registration link is invalid or has expired"
+          message: "This registration link is invalid or has expired",
         });
       }
 
       // Check enquiry status
-      if (enquiry.status === 'completed') {
-        return res.status(409).json({ 
+      if (enquiry.status === "completed") {
+        return res.status(409).json({
           error: "Registration already completed",
-          message: "This registration has already been completed"
+          message: "This registration has already been completed",
         });
       }
 
       // Check registration link expiration
-      if (enquiry.registration_link_expires && new Date() > new Date(enquiry.registration_link_expires)) {
-        return res.status(410).json({ 
+      if (
+        enquiry.registration_link_expires &&
+        new Date() > new Date(enquiry.registration_link_expires)
+      ) {
+        return res.status(410).json({
           error: "Registration link expired",
-          message: "This registration link has expired. Please request a new one"
+          message:
+            "This registration link has expired. Please request a new one",
         });
       }
 
       // Check for existing provider
       const existingProvider = await ServiceProvider.findOne({
-        where: { user_id: enquiry.user_id }
+        where: { user_id: enquiry.user_id },
       });
 
       if (existingProvider) {
-        return res.status(409).json({ 
+        return res.status(409).json({
           error: "Provider already registered",
           message: "A provider is already registered for this enquiry",
-          provider_id: existingProvider.provider_id
+          provider_id: existingProvider.provider_id,
         });
       }
 
@@ -114,22 +112,29 @@ class ServiceProviderController {
       let parsedData = {};
       try {
         parsedData = {
-          availabilityHours: typeof availability_hours === 'string' ? 
-            JSON.parse(availability_hours) : availability_hours,
-          socialMediaLinks: typeof social_media_links === 'string' ? 
-            JSON.parse(social_media_links) : social_media_links,
-          paymentDetails: typeof payment_details === 'string' ? 
-            JSON.parse(payment_details) : payment_details,
-          categories: typeof categories === 'string' ? 
-            JSON.parse(categories) : categories,
-          cities: typeof cities === 'string' ? 
-            JSON.parse(cities) : cities
+          availabilityHours:
+            typeof availability_hours === "string"
+              ? JSON.parse(availability_hours)
+              : availability_hours,
+          socialMediaLinks:
+            typeof social_media_links === "string"
+              ? JSON.parse(social_media_links)
+              : social_media_links,
+          paymentDetails:
+            typeof payment_details === "string"
+              ? JSON.parse(payment_details)
+              : payment_details,
+          categories:
+            typeof categories === "string"
+              ? JSON.parse(categories)
+              : categories,
+          cities: typeof cities === "string" ? JSON.parse(cities) : cities,
         };
       } catch (parseError) {
-        console.error('JSON parsing error:', parseError);
-        return res.status(400).json({ 
+        console.error("JSON parsing error:", parseError);
+        return res.status(400).json({
           error: "Invalid JSON data in request",
-          details: parseError.message 
+          details: parseError.message,
         });
       }
 
@@ -139,13 +144,17 @@ class ServiceProviderController {
       }
 
       // Process arrays
-      const processedLanguages = Array.isArray(languages_spoken) ? 
-        languages_spoken : 
-        (languages_spoken ? [languages_spoken] : []);
+      const processedLanguages = Array.isArray(languages_spoken)
+        ? languages_spoken
+        : languages_spoken
+        ? [languages_spoken]
+        : [];
 
-      const processedSpecializations = Array.isArray(specializations) ? 
-        specializations : 
-        (specializations ? [specializations] : []);
+      const processedSpecializations = Array.isArray(specializations)
+        ? specializations
+        : specializations
+        ? [specializations]
+        : [];
 
       // Prepare provider data
       const providerData = {
@@ -155,7 +164,7 @@ class ServiceProviderController {
         business_registration_number,
         primary_location: enquiry.primary_location,
         service_radius: Number(service_radius) || 0,
-        availability_type: availability_type || 'full_time',
+        availability_type: availability_type || "full_time",
         availability_hours: parsedData.availabilityHours,
         years_experience: Number(enquiry.years_experience) || 0,
         specializations: processedSpecializations,
@@ -163,9 +172,9 @@ class ServiceProviderController {
         profile_bio,
         languages_spoken: processedLanguages,
         social_media_links: parsedData.socialMediaLinks,
-        payment_method: payment_method || 'upi',
+        payment_method: payment_method || "upi",
         payment_details: parsedData.paymentDetails,
-        status: 'pending_approval'
+        status: "pending_approval",
       };
 
       // Create provider
@@ -173,50 +182,54 @@ class ServiceProviderController {
 
       // Handle categories
       if (parsedData.categories && Array.isArray(parsedData.categories)) {
-        await Promise.all(parsedData.categories.map(async category => {
-          try {
-            await ProviderServiceCategory.create({
-              provider_id: provider.provider_id,
-              category_id: category.id,
-              experience_years: Number(category.experience_years) || 0,
-              is_primary: Boolean(category.is_primary)
-            });
-          } catch (categoryError) {
-            console.error('Error creating category:', categoryError);
-          }
-        }));
+        await Promise.all(
+          parsedData.categories.map(async (category) => {
+            try {
+              await ProviderServiceCategory.create({
+                provider_id: provider.provider_id,
+                category_id: category.id,
+                experience_years: Number(category.experience_years) || 0,
+                is_primary: Boolean(category.is_primary),
+              });
+            } catch (categoryError) {
+              console.error("Error creating category:", categoryError);
+            }
+          })
+        );
       }
 
       // Handle cities
       if (parsedData.cities && Array.isArray(parsedData.cities)) {
-        await Promise.all(parsedData.cities.map(async city => {
-          try {
-            await ProviderServiceCity.create({
-              provider_id: provider.provider_id,
-              city_id: city.id,
-              service_radius: Number(city.service_radius) || 0,
-              is_primary: Boolean(city.is_primary)
-            });
-          } catch (cityError) {
-            console.error('Error creating city:', cityError);
-          }
-        }));
+        await Promise.all(
+          parsedData.cities.map(async (city) => {
+            try {
+              await ProviderServiceCity.create({
+                provider_id: provider.provider_id,
+                city_id: city.id,
+                service_radius: Number(city.service_radius) || 0,
+                is_primary: Boolean(city.is_primary),
+              });
+            } catch (cityError) {
+              console.error("Error creating city:", cityError);
+            }
+          })
+        );
       }
 
       // Handle file uploads
       if (req.files) {
         const fileUpdates = {};
-        Object.keys(req.files).forEach(fieldName => {
+        Object.keys(req.files).forEach((fieldName) => {
           fileUpdates[fieldName] = req.files[fieldName][0].path;
         });
-        
+
         if (Object.keys(fileUpdates).length > 0) {
           try {
             await ServiceProvider.update(fileUpdates, {
-              where: { provider_id: provider.provider_id }
+              where: { provider_id: provider.provider_id },
             });
           } catch (fileError) {
-            console.error('Error updating files:', fileError);
+            console.error("Error updating files:", fileError);
           }
         }
       }
@@ -224,35 +237,35 @@ class ServiceProviderController {
       // Update enquiry status
       await ServiceProviderEnquiry.update(
         {
-          status: 'completed',
+          status: "completed",
           registration_link_expires: new Date(), // Immediately expire the link
-          registration_completed_at: new Date()
+          registration_completed_at: new Date(),
         },
         {
-          where: { enquiry_id }
+          where: { enquiry_id },
         }
       );
 
       res.status(201).json({
         message: "Provider registered successfully",
-        provider_id: provider.provider_id
+        provider_id: provider.provider_id,
       });
     } catch (error) {
-      console.error('Provider registration error:', {
+      console.error("Provider registration error:", {
         message: error.message,
         stack: error.stack,
         name: error.name,
-        details: error.original?.detail || error.original?.message
+        details: error.original?.detail || error.original?.message,
       });
-      
+
       res.status(500).json({
         error: "Provider registration failed",
         details: error.message,
         type: error.name,
-        validation: error.errors?.map(e => ({
+        validation: error.errors?.map((e) => ({
           field: e.path,
-          message: e.message
-        }))
+          message: e.message,
+        })),
       });
     }
   }
@@ -263,17 +276,17 @@ class ServiceProviderController {
       const providerId = req.params.id;
 
       const provider = await ServiceProvider.findByPk(providerId);
-      
+
       if (!provider) {
         return res.status(404).json({ error: "Provider not found" });
       }
 
       await provider.update({ status });
 
-      res.status(200).json({ 
+      res.status(200).json({
         message: "Status updated successfully",
         provider_id: providerId,
-        new_status: status
+        new_status: status,
       });
     } catch (error) {
       next(error);
@@ -297,7 +310,7 @@ class ServiceProviderController {
       });
 
       // Add new categories
-      const categoryPromises = categories.map(category => 
+      const categoryPromises = categories.map((category) =>
         ProviderServiceCategory.create({
           provider_id: providerId,
           category_id: category.id,
@@ -308,10 +321,10 @@ class ServiceProviderController {
 
       await Promise.all(categoryPromises);
 
-      res.status(200).json({ 
+      res.status(200).json({
         message: "Service categories updated successfully",
         provider_id: providerId,
-        categories_count: categories.length
+        categories_count: categories.length,
       });
     } catch (error) {
       next(error);
@@ -335,7 +348,7 @@ class ServiceProviderController {
       });
 
       // Add new cities
-      const cityPromises = cities.map(city => 
+      const cityPromises = cities.map((city) =>
         ProviderServiceCity.create({
           provider_id: providerId,
           city_id: city.id,
@@ -346,10 +359,10 @@ class ServiceProviderController {
 
       await Promise.all(cityPromises);
 
-      res.status(200).json({ 
+      res.status(200).json({
         message: "Service cities updated successfully",
         provider_id: providerId,
-        cities_count: cities.length
+        cities_count: cities.length,
       });
     } catch (error) {
       next(error);
@@ -368,9 +381,13 @@ class ServiceProviderController {
       }
 
       // Handle JSON fields
-      const jsonFields = ['availability_hours', 'social_media_links', 'payment_details'];
-      jsonFields.forEach(field => {
-        if (updateData[field] && typeof updateData[field] === 'string') {
+      const jsonFields = [
+        "availability_hours",
+        "social_media_links",
+        "payment_details",
+      ];
+      jsonFields.forEach((field) => {
+        if (updateData[field] && typeof updateData[field] === "string") {
           try {
             updateData[field] = JSON.parse(updateData[field]);
           } catch (error) {
@@ -380,17 +397,23 @@ class ServiceProviderController {
       });
 
       // Handle arrays
-      if (updateData.languages_spoken && !Array.isArray(updateData.languages_spoken)) {
+      if (
+        updateData.languages_spoken &&
+        !Array.isArray(updateData.languages_spoken)
+      ) {
         updateData.languages_spoken = [updateData.languages_spoken];
       }
 
-      if (updateData.specializations && !Array.isArray(updateData.specializations)) {
+      if (
+        updateData.specializations &&
+        !Array.isArray(updateData.specializations)
+      ) {
         updateData.specializations = [updateData.specializations];
       }
 
       // Handle file uploads
       if (req.files) {
-        Object.keys(req.files).forEach(fieldName => {
+        Object.keys(req.files).forEach((fieldName) => {
           updateData[fieldName] = req.files[fieldName][0].path;
         });
       }
@@ -399,10 +422,10 @@ class ServiceProviderController {
 
       res.status(200).json({
         message: "Provider profile updated successfully",
-        provider_id: providerId
+        provider_id: providerId,
       });
     } catch (error) {
-      console.error('Provider update error:', error);
+      console.error("Provider update error:", error);
       next(error);
     }
   }
