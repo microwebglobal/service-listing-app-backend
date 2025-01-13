@@ -17,6 +17,14 @@ module.exports = {
           key: "u_id",
         },
       },
+      enquiry_id: {
+        type: Sequelize.INTEGER,
+        allowNull: true,
+        references: {
+        model: 'service_provider_enquiries',
+        key: 'enquiry_id'
+        },
+      },
       business_type: {
         type: Sequelize.ENUM("individual", "business"),
         allowNull: false,
@@ -82,13 +90,22 @@ module.exports = {
           "pending_approval",
           "active",
           "suspended",
-          "inactive"
+          "inactive",
+          "rejected"
         ),
         defaultValue: "pending_approval",
       },
       created_at: {
         type: Sequelize.DATE,
         allowNull: false,
+      },
+      rejection_reason: {
+        type: Sequelize.TEXT,
+        allowNull: true
+      },
+      rejection_date: {
+        type: Sequelize.DATE,
+        allowNull: true
       },
       updated_at: {
         type: Sequelize.DATE,

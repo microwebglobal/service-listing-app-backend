@@ -7,6 +7,8 @@ const {
   ProviderServiceCity,
   ServiceProviderEnquiry,
 } = require("../models");
+const { sequelize } = require('../models');
+const { generateRegistrationLink } = require("../utils/helpers.js");
 
 class ServiceProviderController {
   static async getAllProviders(req, res, next) {
@@ -56,22 +58,12 @@ class ServiceProviderController {
         cities,
       } = req.body;
 
-      console.log("Incoming registration request:", {
-        enquiry_id,
-        service_radius,
-        availability_type,
-        languages_spoken,
-        payment_method,
-      });
-
-      console.log(req.body);
-
       // Find and validate enquiry
       const enquiry = await ServiceProviderEnquiry.findByPk(enquiry_id);
       if (!enquiry) {
         return res.status(404).json({
           error: "Invalid registration link",
-          message: "This registration link is invalid or has expired",
+          message: "This registration link is invalid or has expired"
         });
       }
 
@@ -90,25 +82,11 @@ class ServiceProviderController {
       ) {
         return res.status(410).json({
           error: "Registration link expired",
-          message:
-            "This registration link has expired. Please request a new one",
+          message: "This registration link has expired. Please request a new one",
         });
       }
 
-      // Check for existing provider
-      const existingProvider = await ServiceProvider.findOne({
-        where: { user_id: enquiry.user_id },
-      });
-
-      if (existingProvider) {
-        return res.status(409).json({
-          error: "Provider already registered",
-          message: "A provider is already registered for this enquiry",
-          provider_id: existingProvider.provider_id,
-        });
-      }
-
-      // Parse JSON data
+      // Parse JSON data first
       let parsedData = {};
       try {
         parsedData = {
@@ -138,11 +116,6 @@ class ServiceProviderController {
         });
       }
 
-      // Validate primary location
-      if (!enquiry.primary_location) {
-        return res.status(400).json({ error: "Primary location is required" });
-      }
-
       // Process arrays
       const processedLanguages = Array.isArray(languages_spoken)
         ? languages_spoken
@@ -158,6 +131,7 @@ class ServiceProviderController {
 
       // Prepare provider data
       const providerData = {
+        enquiry_id: enquiry.enquiry_id,
         user_id: enquiry.user_id,
         business_type: enquiry.business_type,
         business_name: enquiry.business_name,
@@ -177,8 +151,27 @@ class ServiceProviderController {
         status: "pending_approval",
       };
 
-      // Create provider
-      const provider = await ServiceProvider.create(providerData);
+      // Check for existing provider
+      const existingProvider = await ServiceProvider.findOne({
+        where: { 
+          user_id: enquiry.user_id,
+          status: 'rejected'
+        }
+      });
+
+      let provider;
+      if (existingProvider) {
+        // Reset rejection fields and update with new data
+        provider = await existingProvider.update({
+          ...providerData,
+          rejection_reason: null,
+          rejection_date: null,
+          status: 'pending_approval'
+        });
+      } else {
+        // Create new provider
+        provider = await ServiceProvider.create(providerData);
+      }
 
       // Handle categories
       if (parsedData.categories && Array.isArray(parsedData.categories)) {
@@ -224,13 +217,7 @@ class ServiceProviderController {
         });
 
         if (Object.keys(fileUpdates).length > 0) {
-          try {
-            await ServiceProvider.update(fileUpdates, {
-              where: { provider_id: provider.provider_id },
-            });
-          } catch (fileError) {
-            console.error("Error updating files:", fileError);
-          }
+          await provider.update(fileUpdates);
         }
       }
 
@@ -238,7 +225,7 @@ class ServiceProviderController {
       await ServiceProviderEnquiry.update(
         {
           status: "completed",
-          registration_link_expires: new Date(), // Immediately expire the link
+          registration_link_expires: new Date(),
           registration_completed_at: new Date(),
         },
         {
@@ -247,7 +234,9 @@ class ServiceProviderController {
       );
 
       res.status(201).json({
-        message: "Provider registered successfully",
+        message: existingProvider 
+          ? "Provider registration resubmitted successfully"
+          : "Provider registered successfully",
         provider_id: provider.provider_id,
       });
     } catch (error) {
@@ -271,24 +260,117 @@ class ServiceProviderController {
   }
 
   static async updateProviderStatus(req, res, next) {
+    const transaction = await sequelize.transaction();
+    
     try {
-      const { status } = req.body;
+      const { status, rejection_reason } = req.body;
       const providerId = req.params.id;
-
-      const provider = await ServiceProvider.findByPk(providerId);
-
-      if (!provider) {
-        return res.status(404).json({ error: "Provider not found" });
+  
+      // Validate status
+      const validStatuses = ['pending_approval', 'active', 'suspended', 'inactive', 'rejected'];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ 
+          error: "Invalid status",
+          message: `Status must be one of: ${validStatuses.join(', ')}`
+        });
       }
-
-      await provider.update({ status });
-
-      res.status(200).json({
-        message: "Status updated successfully",
-        provider_id: providerId,
-        new_status: status,
+  
+      const provider = await ServiceProvider.findByPk(providerId, {
+        include: [{
+          model: ServiceProviderEnquiry,
+          as: 'enquiry',
+          required: false
+        }],
+        transaction
       });
+  
+      if (!provider) {
+        await transaction.rollback();
+        return res.status(404).json({ 
+          error: "Provider not found",
+          message: `No provider found with ID ${providerId}`
+        });
+      }
+  
+      // If rejecting, validate rejection reason and handle appropriately
+      if (status === 'rejected') {
+        if (!rejection_reason) {
+          await transaction.rollback();
+          return res.status(400).json({
+            error: "Rejection reason required",
+            message: "A reason must be provided when rejecting a provider"
+          });
+        }
+  
+        if (provider.enquiry) {
+          try {
+            const newRegistrationLink = await generateRegistrationLink(provider.enquiry);
+            
+            await provider.enquiry.update({
+              status: 'rejected',
+              registration_link: newRegistrationLink,
+              registration_link_expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+            }, { transaction });
+  
+            await provider.update({ 
+              status,
+              rejection_reason,
+              rejection_date: new Date()
+            }, { transaction });
+  
+            await transaction.commit();
+            return res.status(200).json({
+              message: "Registration rejected successfully",
+              provider_id: providerId,
+              new_status: status,
+              registration_link: newRegistrationLink,
+              rejection_reason
+            });
+          } catch (error) {
+            await transaction.rollback();
+            console.error("Error in rejection process:", error);
+            throw error;
+          }
+        }
+      }
+  
+      // For non-rejection status updates
+      await provider.update({ 
+        status,
+        // Clear rejection fields if status is being changed from rejected
+        ...(provider.status === 'rejected' ? {
+          rejection_reason: null,
+          rejection_date: null
+        } : {})
+      }, { transaction });
+  
+      await transaction.commit();
+      res.status(200).json({
+        message: "Provider status updated successfully",
+        provider_id: providerId,
+        new_status: status
+      });
+  
     } catch (error) {
+      await transaction.rollback();
+      console.error("Provider status update error:", {
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+        details: error.original?.detail || error.original?.message
+      });
+      
+      // Handle specific error types
+      if (error.name === 'SequelizeValidationError') {
+        return res.status(400).json({
+          error: "Validation error",
+          details: error.errors?.map(e => ({
+            field: e.path,
+            message: e.message
+          }))
+        });
+      }
+      
       next(error);
     }
   }

@@ -4,6 +4,10 @@ module.exports = (sequelize, DataTypes) => {
   class ServiceProvider extends Model {
     static associate(models) {
       this.belongsTo(models.User, { foreignKey: "user_id" });
+      this.belongsTo(models.ServiceProviderEnquiry, { 
+        foreignKey: "enquiry_id",
+        as: 'enquiry'
+      });
       this.hasMany(models.ServiceProviderDocument, {
         foreignKey: "provider_id",
       });
@@ -38,6 +42,14 @@ module.exports = (sequelize, DataTypes) => {
         references: {
           model: "users",
           key: "u_id",
+        },
+      },
+      enquiry_id: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+          model: "service_provider_enquiries",
+          key: "enquiry_id",
         },
       },
       business_type: {
@@ -94,6 +106,14 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.JSON,
         allowNull: true,
       },
+      rejection_reason: {
+        type: DataTypes.TEXT,
+        allowNull: true
+      },
+      rejection_date: {
+        type: DataTypes.DATE,
+        allowNull: true
+      },
       payment_method: {
         type: DataTypes.ENUM("upi", "bank"),
         allowNull: false,
@@ -108,7 +128,7 @@ module.exports = (sequelize, DataTypes) => {
           "active",
           "suspended",
           "inactive",
-          
+          'rejected'
         ),
         defaultValue: "pending_approval",
       },

@@ -26,6 +26,13 @@ router.put(
   ServiceProviderController.updateServiceCategories
 );
 
+router.put(
+  "/provider/:id",
+  ServiceProviderController.updateProviderStatus
+);
+
+
+
 // Employee routes
 router.get(
   "/providers/:providerId/employees",
@@ -35,5 +42,7 @@ router.post(
   "/providers/:providerId/employees",
   ServiceProviderEmployeeController.addEmployee
 );
+
+
 
 module.exports = router;
