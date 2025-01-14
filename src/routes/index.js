@@ -12,6 +12,8 @@ const otpRoutes = require("./userRoutes/otpRoutes");
 const ServiceManagement = require("./serviceManagement");
 const PackageRoutes = require("./packageRoutes");
 const ServiceProviderRoutes = require("./serviceProviderRoutes");
+const BookingRoutes = require("./bookingRoutes");
+
 // Import middlewares
 const { verifyToken, checkRole } = require("../middlewares/auth.middleware");
 
@@ -36,6 +38,7 @@ router.use("/", ServiceProviderRoutes);
 // Service related routes
 router.use("/", ServiceManagement);
 router.use("/", PackageRoutes);
+router.use("/", BookingRoutes);
 
 // Protected routes
 router.use(
