@@ -4,7 +4,6 @@ const router = express.Router();
 
 // Import route modules
 const userRoutes = require("./userRoutes/userRoutes");
-const authRoutes = require("./userRoutes/authRoutes");
 const cityRoutes = require("./cityRoutes");
 const customerProfileRoutes = require("./customerProfileRoutes");
 const userAddressRoutes = require("./userRoutes/userAddress");
@@ -13,7 +12,7 @@ const ServiceManagement = require("./serviceManagement");
 const PackageRoutes = require("./packageRoutes");
 const ServiceProviderRoutes = require("./serviceProviderRoutes");
 const BookingRoutes = require("./bookingRoutes");
-
+const AuthRoutes = require("./authRoutes")
 // Import middlewares
 const { verifyToken, checkRole } = require("../middlewares/auth.middleware");
 
@@ -28,7 +27,6 @@ router.get("/health", (req, res) => {
 });
 
 // Auth related routes (public)
-router.use("/auth", authRoutes);
 router.use("/otp", otpRoutes);
 router.use("/", cityRoutes);
 // User related routes
@@ -39,6 +37,7 @@ router.use("/", ServiceProviderRoutes);
 router.use("/", ServiceManagement);
 router.use("/", PackageRoutes);
 router.use("/", BookingRoutes);
+router.use("/auth", AuthRoutes);
 
 // Protected routes
 router.use(

@@ -2,115 +2,146 @@
 const { User } = require('../models');
 
 class UserController {
-  // Get all users
-  static async getAllUsers(req, res, next) {
+  static async getProfile(req, res, next) {
     try {
-      const users = await User.findAll({
-        order: [['u_id', 'DESC']],
+      const userId = req.user.id;
+      const user = await User.findByPk(userId, {
+        attributes: { exclude: ['password', 'otp', 'otp_expires'] }
       });
-      res.status(200).json(users);
-    } catch (error) {
-      next(error);
-    }
-  }
 
-  // Get user by ID
-  static async getUserById(req, res, next) {
-    try {
-      const user = await User.findByPk(req.params.id);
       if (!user) {
-        return res.status(404).json({ error: "User not found" });
+        throw createError(404, 'User not found');
       }
-      res.status(200).json(user);
+
+      res.json(user);
     } catch (error) {
       next(error);
     }
   }
 
-  // Create new user
-  static async createUser(req, res, next) {
+  static async updateProfile(req, res, next) {
     try {
-      const newUser = await User.create({
-        name: req.body.name,
-        email: req.body.email,
-        mobile: req.body.mobile,
-        photo: req.body.photo,
-        pw: req.body.pw || '1234',
-        role: req.body.role || 'customer',
-        gender: req.body.gender,
-        nic: req.body.nic,
-        dob: req.body.dob
+      const userId = req.user.id;
+      const allowedFields = ['name', 'email', 'gender', 'dob', 'nic'];
+      
+      const updateData = {};
+      allowedFields.forEach(field => {
+        if (req.body[field] !== undefined) {
+          updateData[field] = req.body[field];
+        }
       });
-      res.status(201).json(newUser);
-    } catch (error) {
-      next(error);
-    }
-  }
 
-  // Update user
-  static async updateUser(req, res, next) {
-    try {
-      const [updated] = await User.update(req.body, {
-        where: { u_id: req.params.id },
-        returning: true,
+      const [updated] = await User.update(updateData, {
+        where: { u_id: userId },
+        returning: true
       });
 
       if (!updated) {
-        return res.status(404).json({ error: "User not found" });
+        throw createError(404, 'User not found');
       }
 
-      const updatedUser = await User.findByPk(req.params.id);
-      res.status(200).json(updatedUser);
+      const user = await User.findByPk(userId, {
+        attributes: { exclude: ['password', 'otp', 'otp_expires'] }
+      });
+
+      res.json(user);
     } catch (error) {
       next(error);
     }
   }
 
-  // Delete user
-  static async deleteUser(req, res, next) {
+  static async getUserAddresses(req, res, next) {
     try {
-      const deleted = await User.destroy({
-        where: { u_id: req.params.id },
+      const userId = req.user.id;
+      const addresses = await Address.findAll({
+        where: { userId },
+        order: [['is_primary', 'DESC'], ['createdAt', 'DESC']]
+      });
+
+      res.json(addresses);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async createAddress(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const address = await Address.create({
+        ...req.body,
+        userId,
+        is_primary: req.body.is_primary || false
+      });
+
+      if (address.is_primary) {
+        await Address.update(
+          { is_primary: false },
+          { 
+            where: { 
+              userId,
+              id: { [Op.ne]: address.id }
+            }
+          }
+        );
+      }
+
+      res.status(201).json(address);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async updateAddress(req, res, next) {
+    try {
+      const { id } = req.params;
+      const userId = req.user.id;
+
+      const address = await Address.findOne({
+        where: { id, userId }
+      });
+
+      if (!address) {
+        throw createError(404, 'Address not found');
+      }
+
+      await address.update(req.body);
+
+      if (address.is_primary) {
+        await Address.update(
+          { is_primary: false },
+          { 
+            where: { 
+              userId,
+              id: { [Op.ne]: address.id }
+            }
+          }
+        );
+      }
+
+      res.json(address);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async deleteAddress(req, res, next) {
+    try {
+      const { id } = req.params;
+      const userId = req.user.id;
+
+      const deleted = await Address.destroy({
+        where: { id, userId }
       });
 
       if (!deleted) {
-        return res.status(404).json({ error: "User not found" });
+        throw createError(404, 'Address not found');
       }
 
-      res.status(200).json({ message: "User deleted successfully" });
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  // Additional methods for email and mobile lookup
-  static async getUserByEmail(req, res, next) {
-    try {
-      const user = await User.findOne({
-        where: { email: req.params.email },
-      });
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
-      res.status(200).json(user);
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  static async getUserByMobile(req, res, next) {
-    try {
-      const user = await User.findOne({
-        where: { mobile: req.params.mobile },
-      });
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
-      res.status(200).json(user);
+      res.json({ success: true });
     } catch (error) {
       next(error);
     }
   }
 }
 
-module.exports = UserController;
+module.exports=UserController;
