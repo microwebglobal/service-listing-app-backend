@@ -10,12 +10,29 @@ const {
 } = require("../models");
 const { sequelize } = require("../models");
 
-const { generateRegistrationLink } = require("../utils/helpers.js");
+const {
+  generateRegistrationLink,
+  generatePasswordLink,
+} = require("../utils/helpers.js");
 
 class ServiceProviderController {
   static async getAllProviders(req, res, next) {
     try {
-      const providers = await ServiceProvider.findAll();
+      const providers = await ServiceProvider.findAll({
+        include: [
+          { model: User },
+          { model: ServiceCategory },
+          { model: City },
+          {
+            model: ServiceProviderEmployee,
+            include: [
+              {
+                model: User,
+              },
+            ],
+          },
+        ],
+      });
       res.status(200).json(providers);
     } catch (error) {
       next(error);
@@ -48,7 +65,6 @@ class ServiceProviderController {
         availability_type,
         availability_hours,
         specializations,
-        qualification,
         profile_bio,
         languages_spoken,
         social_media_links,
@@ -154,7 +170,7 @@ class ServiceProviderController {
         availability_hours: parsedData.availabilityHours,
         years_experience: Number(enquiry.years_experience) || 0,
         specializations: processedSpecializations,
-        qualification,
+        qualification: certificates_awards,
         whatsapp_number,
         emergency_contact_name,
         alternate_number,
@@ -333,9 +349,15 @@ class ServiceProviderController {
 
       const provider = await ServiceProvider.findByPk(providerId, {
         include: [
+          { model: User },
           {
             model: ServiceProviderEnquiry,
             as: "enquiry",
+            required: false,
+          },
+          {
+            model: ServiceProviderEmployee,
+            as: "ServiceProviderEmployees",
             required: false,
           },
         ],
@@ -402,6 +424,47 @@ class ServiceProviderController {
         }
       }
 
+      if (status === "active") {
+        // If registration approved, activate their employees' accounts as well
+        if (
+          provider.ServiceProviderEmployees &&
+          provider.ServiceProviderEmployees.length > 0
+        ) {
+          await Promise.all(
+            provider.ServiceProviderEmployees.map(async (employee) => {
+              try {
+                await ServiceProviderEmployee.update(
+                  {
+                    status: "active",
+                  },
+                  {
+                    where: {
+                      provider_id: employee.provider_id,
+                    },
+                    transaction,
+                  }
+                );
+
+                await User.update(
+                  {
+                    account_status: "active",
+                  },
+                  {
+                    where: {
+                      u_id: employee.user_id,
+                    },
+                    transaction,
+                  }
+                );
+              } catch (error) {
+                console.error("Error updating employee or user status:", error);
+                throw error; // Rollback the transaction if there's an error
+              }
+            })
+          );
+        }
+      }
+
       // For non-rejection status updates
       await provider.update(
         {
@@ -416,6 +479,9 @@ class ServiceProviderController {
         },
         { transaction }
       );
+
+      const passwordLink = generatePasswordLink(provider.User);
+      console.log(passwordLink);
 
       await transaction.commit();
       res.status(200).json({
