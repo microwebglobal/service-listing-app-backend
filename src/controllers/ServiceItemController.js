@@ -42,7 +42,7 @@ class ServiceItemController {
         );
       }
 
-      // Handle optional city-specific pricing
+      // Handle optional special pricing
       if (req.body.specialPricing?.length > 0) {
         await Promise.all(
           req.body.specialPricing.map(async (pricing) => {
