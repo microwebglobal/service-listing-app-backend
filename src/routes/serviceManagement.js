@@ -42,6 +42,7 @@ router.post(
   upload.single("image"),
   SubCategoryController.createSubCategory
 );
+router.put("/subcategories/:id", SubCategoryController.updateSubCategory);
 router.delete("/subcategories/:id", SubCategoryController.deleteSubCategory);
 
 // ServiceType routes
@@ -54,6 +55,7 @@ router.post(
   upload.single("image"),
   ServiceTypeController.createServiceType
 );
+router.put("/types/:id", ServiceTypeController.updateServiceType);
 router.delete("/types/:id", ServiceTypeController.deleteServiceType);
 
 // Service routes

@@ -1,18 +1,29 @@
-const { PackageSection, PackageItem } = require('../models');
-const IdGenerator = require('../utils/helper');
+const {
+  PackageSection,
+  PackageItem,
+  CitySpecificPricing,
+  SpecialPricing,
+} = require("../models");
+const IdGenerator = require("../utils/helper");
 
 class PackageSectionController {
   static async getSectionsByPackage(req, res, next) {
     try {
       const sections = await PackageSection.findAll({
         where: { package_id: req.params.packageId },
-        include: [{
-          model: PackageItem,
-          order: [['display_order', 'ASC']]
-        }],
-        order: [['display_order', 'ASC']]
+        include: [
+          {
+            model: PackageItem,
+            order: [["display_order", "ASC"]],
+            include: [
+              { model: CitySpecificPricing },
+              { model: SpecialPricing },
+            ],
+          },
+        ],
+        order: [["display_order", "ASC"]],
       });
-      
+
       res.status(200).json(sections);
     } catch (error) {
       next(error);
@@ -22,37 +33,37 @@ class PackageSectionController {
   static async createSection(req, res, next) {
     try {
       const { package_id, name, description, display_order, items } = req.body;
-      
+
       // Generate new section ID
       const existingSections = await PackageSection.findAll({
-        attributes: ['section_id']
+        attributes: ["section_id"],
       });
-      const existingIds = existingSections.map(section => section.section_id);
-      const newSectionID = IdGenerator.generateId('SECT', existingIds);
+      const existingIds = existingSections.map((section) => section.section_id);
+      const newSectionID = IdGenerator.generateId("SECT", existingIds);
 
       const section = await PackageSection.create({
         section_id: newSectionID,
         package_id,
         name,
         description,
-        display_order
+        display_order,
       });
 
       // Create items if provided
       if (items && Array.isArray(items)) {
-        const itemController = require('./packageItemController');
+        const itemController = require("./packageItemController");
         for (const item of items) {
           await itemController.createItem({
             ...item,
-            section_id: newSectionID
+            section_id: newSectionID,
           });
         }
       }
 
       const createdSection = await PackageSection.findByPk(newSectionID, {
-        include: [PackageItem]
+        include: [PackageItem],
       });
-      
+
       res.status(201).json(createdSection);
     } catch (error) {
       next(error);
@@ -63,7 +74,7 @@ class PackageSectionController {
     try {
       const { section_id, ...updateData } = req.body;
       const [updated] = await PackageSection.update(updateData, {
-        where: { section_id: req.params.id }
+        where: { section_id: req.params.id },
       });
 
       if (!updated) {
@@ -71,7 +82,7 @@ class PackageSectionController {
       }
 
       const updatedSection = await PackageSection.findByPk(req.params.id, {
-        include: [PackageItem]
+        include: [PackageItem],
       });
       res.status(200).json(updatedSection);
     } catch (error) {
@@ -82,7 +93,7 @@ class PackageSectionController {
   static async deleteSection(req, res, next) {
     try {
       const deleted = await PackageSection.destroy({
-        where: { section_id: req.params.id }
+        where: { section_id: req.params.id },
       });
 
       if (!deleted) {
