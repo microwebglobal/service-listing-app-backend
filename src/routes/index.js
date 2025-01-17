@@ -3,18 +3,17 @@ const express = require("express");
 const router = express.Router();
 
 // Import route modules
-const userRoutes = require("./userRoutes/userRoutes");
+//const userRoutes = require("./userRoutes/userRoutes");
 const cityRoutes = require("./cityRoutes");
 const customerProfileRoutes = require("./customerProfileRoutes");
-const userAddressRoutes = require("./userRoutes/userAddress");
-const otpRoutes = require("./userRoutes/otpRoutes");
+//const userAddressRoutes = require("./userRoutes/userAddress");
+//const otpRoutes = require("./userRoutes/otpRoutes");
 const ServiceManagement = require("./serviceManagement");
 const PackageRoutes = require("./packageRoutes");
 const ServiceProviderRoutes = require("./serviceProviderRoutes");
 const BookingRoutes = require("./bookingRoutes");
 const AuthRoutes = require("./authRoutes")
 // Import middlewares
-const { verifyToken, checkRole } = require("../middlewares/auth.middleware");
 
 // Health check route
 router.get("/health", (req, res) => {
@@ -27,11 +26,11 @@ router.get("/health", (req, res) => {
 });
 
 // Auth related routes (public)
-router.use("/otp", otpRoutes);
+//router.use("/otp", otpRoutes);
 router.use("/", cityRoutes);
 // User related routes
-router.use("/users", userRoutes);
-router.use("/users/address", userAddressRoutes); // User address routes
+//router.use("/users", userRoutes);
+//router.use("/users/address", userAddressRoutes); // User address routes
 router.use("/", ServiceProviderRoutes);
 // Service related routes
 router.use("/", ServiceManagement);
@@ -43,7 +42,7 @@ router.use("/auth", AuthRoutes);
 router.use(
   "/customer-profiles",
   [
-    verifyToken,
+   // verifyToken,
     // checkRole(['admin', 'customer']), // Uncomment when role check is needed
   ],
   customerProfileRoutes
