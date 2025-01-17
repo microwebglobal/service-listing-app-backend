@@ -8,17 +8,21 @@ const generateRegistrationLink = async (enquiry) => {
       eid: enquiry.enquiry_id,
       uid: enquiry.user_id,
       t: enquiry.business_type[0],
-      ts: Math.floor(Date.now() / 1000)
+      ts: Math.floor(Date.now() / 1000),
     };
 
     const randomBytes = crypto.randomBytes(8).toString("base64url");
     tokenData.n = randomBytes;
 
-    const token = jwt.sign(tokenData, config.development.registration.secretKey, {
-      expiresIn: "7d",
-      algorithm: "HS256",
-      noTimestamp: true
-    });
+    const token = jwt.sign(
+      tokenData,
+      config.development.registration.secretKey,
+      {
+        expiresIn: "7d",
+        algorithm: "HS256",
+        noTimestamp: true,
+      }
+    );
 
     const registrationLink = `${config.development.baseUrl}/service-provider/register/${token}`;
 
@@ -31,13 +35,13 @@ const generateRegistrationLink = async (enquiry) => {
 const validateRegistrationLink = async (token) => {
   try {
     const decoded = jwt.verify(token, config.registration.secretKey);
-    
+
     const expandedData = {
       enquiry_id: decoded.eid,
       user_id: decoded.uid,
-      business_type: decoded.t === 'b' ? 'business' : 'individual',
+      business_type: decoded.t === "b" ? "business" : "individual",
       timestamp: decoded.ts * 1000,
-      nonce: decoded.n
+      nonce: decoded.n,
     };
 
     const enquiry = await ServiceProviderEnquiry.findOne({
@@ -90,8 +94,38 @@ const invalidateRegistrationLink = async (enquiryId) => {
   }
 };
 
+const generatePasswordLink = async (user) => {
+  try {
+    const tokenData = {
+      uid: user.u_id,
+      name: user.name,
+      ts: Math.floor(Date.now() / 1000),
+    };
+
+    const randomBytes = crypto.randomBytes(8).toString("base64url");
+    tokenData.n = randomBytes;
+
+    const token = jwt.sign(
+      tokenData,
+      config.development.registration.secretKey,
+      {
+        expiresIn: "7d",
+        algorithm: "HS256",
+        noTimestamp: true,
+      }
+    );
+
+    const passwordLink = `${config.development.baseUrl}/login/provider/frist-login/${token}`;
+
+    return passwordLink;
+  } catch (error) {
+    throw new Error("Failed to generate registration link");
+  }
+};
+
 module.exports = {
   generateRegistrationLink,
   validateRegistrationLink,
   invalidateRegistrationLink,
+  generatePasswordLink,
 };

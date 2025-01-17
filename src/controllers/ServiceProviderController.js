@@ -6,16 +6,32 @@ const {
   ProviderServiceCategory,
   ProviderServiceCity,
   ServiceProviderEnquiry,
+  ServiceProviderEmployee,
 } = require("../models");
-const { sequelize } = require('../models');
-const { generateRegistrationLink } = require("../utils/helpers.js");
+const { sequelize } = require("../models");
+
+const {
+  generateRegistrationLink,
+  generatePasswordLink,
+} = require("../utils/helpers.js");
 
 class ServiceProviderController {
   static async getAllProviders(req, res, next) {
     try {
       const providers = await ServiceProvider.findAll({
-        include: [{ model: User }, { model: ServiceCategory }, { model: City }],
-        order: [["provider_id", "DESC"]],
+        include: [
+          { model: User },
+          { model: ServiceCategory },
+          { model: City },
+          {
+            model: ServiceProviderEmployee,
+            include: [
+              {
+                model: User,
+              },
+            ],
+          },
+        ],
       });
       res.status(200).json(providers);
     } catch (error) {
@@ -40,6 +56,7 @@ class ServiceProviderController {
   }
 
   static async registerProvider(req, res, next) {
+    console.log(req.body);
     try {
       const {
         enquiry_id,
@@ -48,7 +65,6 @@ class ServiceProviderController {
         availability_type,
         availability_hours,
         specializations,
-        qualification,
         profile_bio,
         languages_spoken,
         social_media_links,
@@ -56,6 +72,15 @@ class ServiceProviderController {
         payment_details,
         categories,
         cities,
+        employees,
+        whatsapp_number,
+        emergency_contact_name,
+        alternate_number,
+        reference_number,
+        reference_name,
+        aadhar_number,
+        pan_number,
+        certificates_awards,
       } = req.body;
 
       // Find and validate enquiry
@@ -63,7 +88,7 @@ class ServiceProviderController {
       if (!enquiry) {
         return res.status(404).json({
           error: "Invalid registration link",
-          message: "This registration link is invalid or has expired"
+          message: "This registration link is invalid or has expired",
         });
       }
 
@@ -82,7 +107,8 @@ class ServiceProviderController {
       ) {
         return res.status(410).json({
           error: "Registration link expired",
-          message: "This registration link has expired. Please request a new one",
+          message:
+            "This registration link has expired. Please request a new one",
         });
       }
 
@@ -107,6 +133,8 @@ class ServiceProviderController {
               ? JSON.parse(categories)
               : categories,
           cities: typeof cities === "string" ? JSON.parse(cities) : cities,
+          employees:
+            typeof employees === "string" ? JSON.parse(employees) : employees,
         };
       } catch (parseError) {
         console.error("JSON parsing error:", parseError);
@@ -142,7 +170,15 @@ class ServiceProviderController {
         availability_hours: parsedData.availabilityHours,
         years_experience: Number(enquiry.years_experience) || 0,
         specializations: processedSpecializations,
-        qualification,
+        qualification: certificates_awards,
+        whatsapp_number,
+        emergency_contact_name,
+        alternate_number,
+        reference_number,
+        reference_name,
+        aadhar_number,
+        pan_number,
+        certificates_awards,
         profile_bio,
         languages_spoken: processedLanguages,
         social_media_links: parsedData.socialMediaLinks,
@@ -153,10 +189,10 @@ class ServiceProviderController {
 
       // Check for existing provider
       const existingProvider = await ServiceProvider.findOne({
-        where: { 
+        where: {
           user_id: enquiry.user_id,
-          status: 'rejected'
-        }
+          status: "rejected",
+        },
       });
 
       let provider;
@@ -166,11 +202,41 @@ class ServiceProviderController {
           ...providerData,
           rejection_reason: null,
           rejection_date: null,
-          status: 'pending_approval'
+          status: "pending_approval",
         });
       } else {
         // Create new provider
         provider = await ServiceProvider.create(providerData);
+      }
+
+      //handle employees
+      if (parsedData.employees && Array.isArray(parsedData.employees)) {
+        console.log("parsedData: ", parsedData);
+        await Promise.all(
+          parsedData.employees.map(async (employee) => {
+            try {
+              const user = await User.create({
+                name: employee.name,
+                mobile: employee.phone,
+                tokenVersion: 1,
+                gender: employee.gender,
+                account_status: "pending",
+                role: "service_provider",
+              });
+
+              await ServiceProviderEmployee.create({
+                user_id: user.u_id,
+                provider_id: provider.provider_id,
+                role: employee.designation,
+                qualification: employee.qualification,
+                years_experience: 5,
+                status: "inactive",
+              });
+            } catch (error) {
+              console.error(error);
+            }
+          })
+        );
       }
 
       // Handle categories
@@ -234,7 +300,7 @@ class ServiceProviderController {
       );
 
       res.status(201).json({
-        message: existingProvider 
+        message: existingProvider
           ? "Provider registration resubmitted successfully"
           : "Provider registered successfully",
         provider_id: provider.provider_id,
@@ -261,70 +327,94 @@ class ServiceProviderController {
 
   static async updateProviderStatus(req, res, next) {
     const transaction = await sequelize.transaction();
-    
+
     try {
       const { status, rejection_reason } = req.body;
       const providerId = req.params.id;
-  
+
       // Validate status
-      const validStatuses = ['pending_approval', 'active', 'suspended', 'inactive', 'rejected'];
+      const validStatuses = [
+        "pending_approval",
+        "active",
+        "suspended",
+        "inactive",
+        "rejected",
+      ];
       if (!validStatuses.includes(status)) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: "Invalid status",
-          message: `Status must be one of: ${validStatuses.join(', ')}`
+          message: `Status must be one of: ${validStatuses.join(", ")}`,
         });
       }
-  
+
       const provider = await ServiceProvider.findByPk(providerId, {
-        include: [{
-          model: ServiceProviderEnquiry,
-          as: 'enquiry',
-          required: false
-        }],
-        transaction
+        include: [
+          { model: User },
+          {
+            model: ServiceProviderEnquiry,
+            as: "enquiry",
+            required: false,
+          },
+          {
+            model: ServiceProviderEmployee,
+            as: "ServiceProviderEmployees",
+            required: false,
+          },
+        ],
+        transaction,
       });
-  
+
       if (!provider) {
         await transaction.rollback();
-        return res.status(404).json({ 
+        return res.status(404).json({
           error: "Provider not found",
-          message: `No provider found with ID ${providerId}`
+          message: `No provider found with ID ${providerId}`,
         });
       }
-  
+
       // If rejecting, validate rejection reason and handle appropriately
-      if (status === 'rejected') {
+      if (status === "rejected") {
         if (!rejection_reason) {
           await transaction.rollback();
           return res.status(400).json({
             error: "Rejection reason required",
-            message: "A reason must be provided when rejecting a provider"
+            message: "A reason must be provided when rejecting a provider",
           });
         }
-  
+
         if (provider.enquiry) {
           try {
-            const newRegistrationLink = await generateRegistrationLink(provider.enquiry);
-            
-            await provider.enquiry.update({
-              status: 'rejected',
-              registration_link: newRegistrationLink,
-              registration_link_expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
-            }, { transaction });
-  
-            await provider.update({ 
-              status,
-              rejection_reason,
-              rejection_date: new Date()
-            }, { transaction });
-  
+            const newRegistrationLink = await generateRegistrationLink(
+              provider.enquiry
+            );
+
+            await provider.enquiry.update(
+              {
+                status: "rejected",
+                registration_link: newRegistrationLink,
+                registration_link_expires: new Date(
+                  Date.now() + 7 * 24 * 60 * 60 * 1000
+                ), // 7 days
+              },
+              { transaction }
+            );
+
+            await provider.update(
+              {
+                status,
+                rejection_reason,
+                rejection_date: new Date(),
+              },
+              { transaction }
+            );
+
             await transaction.commit();
             return res.status(200).json({
               message: "Registration rejected successfully",
               provider_id: providerId,
               new_status: status,
               registration_link: newRegistrationLink,
-              rejection_reason
+              rejection_reason,
             });
           } catch (error) {
             await transaction.rollback();
@@ -333,44 +423,92 @@ class ServiceProviderController {
           }
         }
       }
-  
+
+      if (status === "active") {
+        // If registration approved, activate their employees' accounts as well
+        if (
+          provider.ServiceProviderEmployees &&
+          provider.ServiceProviderEmployees.length > 0
+        ) {
+          await Promise.all(
+            provider.ServiceProviderEmployees.map(async (employee) => {
+              try {
+                await ServiceProviderEmployee.update(
+                  {
+                    status: "active",
+                  },
+                  {
+                    where: {
+                      provider_id: employee.provider_id,
+                    },
+                    transaction,
+                  }
+                );
+
+                await User.update(
+                  {
+                    account_status: "active",
+                  },
+                  {
+                    where: {
+                      u_id: employee.user_id,
+                    },
+                    transaction,
+                  }
+                );
+              } catch (error) {
+                console.error("Error updating employee or user status:", error);
+                throw error; // Rollback the transaction if there's an error
+              }
+            })
+          );
+        }
+      }
+
       // For non-rejection status updates
-      await provider.update({ 
-        status,
-        // Clear rejection fields if status is being changed from rejected
-        ...(provider.status === 'rejected' ? {
-          rejection_reason: null,
-          rejection_date: null
-        } : {})
-      }, { transaction });
-  
+      await provider.update(
+        {
+          status,
+          // Clear rejection fields if status is being changed from rejected
+          ...(provider.status === "rejected"
+            ? {
+                rejection_reason: null,
+                rejection_date: null,
+              }
+            : {}),
+        },
+        { transaction }
+      );
+
+      const passwordLink = generatePasswordLink(provider.User);
+      console.log(passwordLink);
+
       await transaction.commit();
       res.status(200).json({
         message: "Provider status updated successfully",
         provider_id: providerId,
-        new_status: status
+        new_status: status,
       });
-  
     } catch (error) {
       await transaction.rollback();
       console.error("Provider status update error:", {
         message: error.message,
         stack: error.stack,
         name: error.name,
-        details: error.original?.detail || error.original?.message
+        details: error.original?.detail || error.original?.message,
       });
-      
+
       // Handle specific error types
-      if (error.name === 'SequelizeValidationError') {
+      if (error.name === "SequelizeValidationError") {
         return res.status(400).json({
           error: "Validation error",
-          details: error.errors?.map(e => ({
+          details: error.errors?.map((e) => ({
             field: e.path,
-            message: e.message
-          }))
+            message: e.message,
+          })),
         });
       }
-      
+
       next(error);
     }
   }

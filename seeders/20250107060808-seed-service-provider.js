@@ -5,11 +5,16 @@ module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.bulkInsert("service_providers", [
       {
-        provider_id: 1,
         user_id: 2,
         business_type: "business",
         business_name: "Home Solutions Ltd.",
         business_registration_number: "123456789",
+        aadhar_number: "1234567",
+        pan_number: "234567",
+        whatsapp_number: "0786677893",
+        emergency_contact_name: "em contact",
+        reference_name: "ref name",
+        reference_number: "08967567",
         primary_location: Sequelize.fn(
           "ST_GeomFromText",
           "POINT(103.8198 1.3521)"

@@ -21,8 +21,8 @@ module.exports = {
         type: Sequelize.INTEGER,
         allowNull: true,
         references: {
-        model: 'service_provider_enquiries',
-        key: 'enquiry_id'
+          model: "service_provider_enquiries",
+          key: "enquiry_id",
         },
       },
       business_type: {
@@ -34,6 +34,31 @@ module.exports = {
         allowNull: true,
       },
       business_registration_number: {
+        type: Sequelize.STRING(100),
+        allowNull: true,
+      },
+      aadhar_number: {
+        type: Sequelize.STRING(100),
+        allowNull: true,
+      },
+      pan_number: {
+        type: Sequelize.STRING(100),
+        allowNull: true,
+      },
+      whatsapp_number: {
+        type: Sequelize.STRING(15),
+        allowNull: true,
+        unique: true,
+      },
+      emergency_contact_name: {
+        type: Sequelize.STRING(100),
+        allowNull: true,
+      },
+      reference_name: {
+        type: Sequelize.STRING(100),
+        allowNull: true,
+      },
+      reference_number: {
         type: Sequelize.STRING(100),
         allowNull: true,
       },
@@ -101,11 +126,11 @@ module.exports = {
       },
       rejection_reason: {
         type: Sequelize.TEXT,
-        allowNull: true
+        allowNull: true,
       },
       rejection_date: {
         type: Sequelize.DATE,
-        allowNull: true
+        allowNull: true,
       },
       updated_at: {
         type: Sequelize.DATE,

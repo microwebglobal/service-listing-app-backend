@@ -4,9 +4,9 @@ module.exports = (sequelize, DataTypes) => {
   class ServiceProvider extends Model {
     static associate(models) {
       this.belongsTo(models.User, { foreignKey: "user_id" });
-      this.belongsTo(models.ServiceProviderEnquiry, { 
+      this.belongsTo(models.ServiceProviderEnquiry, {
         foreignKey: "enquiry_id",
-        as: 'enquiry'
+        as: "enquiry",
       });
       this.hasMany(models.ServiceProviderDocument, {
         foreignKey: "provider_id",
@@ -64,6 +64,31 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING(100),
         allowNull: true,
       },
+      aadhar_number: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+      },
+      pan_number: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+      },
+      whatsapp_number: {
+        type: DataTypes.STRING(15),
+        allowNull: true,
+        unique: true,
+      },
+      emergency_contact_name: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+      },
+      reference_name: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+      },
+      reference_number: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+      },
       primary_location: {
         type: DataTypes.GEOMETRY("POINT"),
         allowNull: false,
@@ -108,11 +133,11 @@ module.exports = (sequelize, DataTypes) => {
       },
       rejection_reason: {
         type: DataTypes.TEXT,
-        allowNull: true
+        allowNull: true,
       },
       rejection_date: {
         type: DataTypes.DATE,
-        allowNull: true
+        allowNull: true,
       },
       payment_method: {
         type: DataTypes.ENUM("upi", "bank"),
@@ -128,7 +153,7 @@ module.exports = (sequelize, DataTypes) => {
           "active",
           "suspended",
           "inactive",
-          'rejected'
+          "rejected"
         ),
         defaultValue: "pending_approval",
       },
