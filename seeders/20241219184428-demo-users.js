@@ -80,6 +80,21 @@ module.exports = {
         last_updated: currentDate,
         created_at: currentDate,
       },
+      {
+        name: "Admin",
+        email: "admin@gmail.com",
+        mobile: "0739877854",
+        pw: hashedPassword,
+        role: "admin",
+        gender: "male",
+        nic: "2034445556738",
+        dob: "2002-05-27",
+        account_status: "active",
+        email_verified: true,
+        mobile_verified: true,
+        last_updated: currentDate,
+        created_at: currentDate,
+      },
     ]);
   },
 
