@@ -145,7 +145,6 @@ class AuthController {
           role: user.role,
           photo: user.photo,
         },
-        token: tokens,
       });
     } catch (error) {
       next(error);

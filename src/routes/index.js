@@ -12,7 +12,7 @@ const ServiceManagement = require("./serviceManagement");
 const PackageRoutes = require("./packageRoutes");
 const ServiceProviderRoutes = require("./serviceProviderRoutes");
 const BookingRoutes = require("./bookingRoutes");
-const AuthRoutes = require("./authRoutes")
+const AuthRoutes = require("./authRoutes");
 // Import middlewares
 
 // Health check route
@@ -40,9 +40,9 @@ router.use("/auth", AuthRoutes);
 
 // Protected routes
 router.use(
-  "/customer-profiles",
+  "/",
   [
-   // verifyToken,
+    // verifyToken,
     // checkRole(['admin', 'customer']), // Uncomment when role check is needed
   ],
   customerProfileRoutes

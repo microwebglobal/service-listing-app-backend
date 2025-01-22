@@ -1,5 +1,6 @@
 const { CustomerProfile, User } = require("../models");
 const createError = require("http-errors");
+const { generateEmailValidationLink } = require("../utils/helpers");
 
 class CustomerProfileController {
   static async getAllProfiles(req, res, next) {
@@ -45,16 +46,18 @@ class CustomerProfileController {
 
   static async getProfileByUserId(req, res, next) {
     try {
-      const profile = await CustomerProfile.findOne({
-        where: { u_id: req.params.uId },
-        include: [
-          {
-            model: User,
-            as: "user",
-            attributes: ["name", "email"],
-          },
-        ],
-      });
+      // const profile = await CustomerProfile.findOne({
+      //   where: { u_id: req.params.uId },
+      //   include: [
+      //     {
+      //       model: User,
+      //       as: "user",
+      //       attributes: ["name", "email"],
+      //     },
+      //   ],
+      // });
+
+      const profile = await User.findByPk(req.params.uId);
 
       if (!profile) {
         throw createError(404, "Profile not found for the given user ID");
@@ -94,32 +97,49 @@ class CustomerProfileController {
 
   static async updateProfile(req, res, next) {
     try {
-      const [updated] = await CustomerProfile.update(
+      // const [updated] = await CustomerProfile.update(
+      //   {
+      //     ...req.body,
+      //     updated_by: req.user?.username || "system",
+      //   },
+      //   {
+      //     where: { cp_id: req.params.id },
+      //     returning: true,
+      //   }
+      // );
+
+      // if (!updated) {
+      //   throw createError(404, "Profile not found");
+      // }
+
+      // const updatedProfile = await CustomerProfile.findByPk(req.params.id, {
+      //   include: [
+      //     {
+      //       model: User,
+      //       as: "user",
+      //       attributes: ["name", "email"],
+      //     },
+      //   ],
+      // });
+
+      // res.status(200).json(updatedProfile);
+      console.log(req);
+
+      await User.update(
         {
-          ...req.body,
-          updated_by: req.user?.username || "system",
+          name: req.body.name,
+          email: req.body.email,
+          email_verified: false,
+          gender: req.body.gender,
+          dob: req.body.dob,
         },
         {
-          where: { cp_id: req.params.id },
-          returning: true,
+          where: {
+            u_id: req.params.id,
+          },
         }
       );
-
-      if (!updated) {
-        throw createError(404, "Profile not found");
-      }
-
-      const updatedProfile = await CustomerProfile.findByPk(req.params.id, {
-        include: [
-          {
-            model: User,
-            as: "user",
-            attributes: ["name", "email"],
-          },
-        ],
-      });
-
-      res.status(200).json(updatedProfile);
+      res.status(200).json(User);
     } catch (error) {
       next(error);
     }
@@ -143,10 +163,42 @@ class CustomerProfileController {
         throw createError(404, "Profile not found");
       }
 
-      const updatedProfile = await CustomerProfile.findByPk(req.params.id);
+      const updatedProfile = await CustomerProfile.findByPk(req.body.id);
       res.status(200).json(updatedProfile);
     } catch (error) {
       next(error);
+    }
+  }
+
+  static async sendEmailVarificationLink(req, res, next) {
+    const user = await User.findByPk(req.params.uId);
+    try {
+      const emailLink = generateEmailValidationLink(user);
+      console.log(emailLink);
+      res.status(200).json({
+        message: "Email Validation Link Sent",
+        emailLink: emailLink,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async verifyCustomerEmail(req, res, next) {
+    try {
+      await User.update(
+        {
+          email_verified: true,
+        },
+        {
+          where: {
+            u_id: req.params.id,
+          },
+        }
+      );
+      res.status(200).json(User);
+    } catch (error) {
+      console.error();
     }
   }
 

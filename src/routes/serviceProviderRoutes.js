@@ -1,5 +1,9 @@
 const express = require("express");
 const router = express.Router();
+const {
+  authMiddleware,
+  roleCheck,
+} = require("../middlewares/auth.middleware.js");
 const ServiceProviderEnquiryController = require("../controllers/ServiceProviderEnquiryController");
 const ServiceProviderController = require("../controllers/ServiceProviderController");
 const ServiceProviderEmployeeController = require("../controllers/ServiceProviderEmployeeController");
@@ -11,6 +15,8 @@ router.get("/enquiry", ServiceProviderEnquiryController.getAllEnquiries);
 router.get("/enquiry/:id", ServiceProviderEnquiryController.getEnquirieById);
 router.put(
   "/enquiry/:id/approve",
+  authMiddleware,
+  roleCheck("admin"),
   ServiceProviderEnquiryController.approveEnquiry
 );
 
@@ -19,6 +25,8 @@ router.get("/providers", ServiceProviderController.getAllProviders);
 router.post("/provider/register", ServiceProviderController.registerProvider);
 router.put(
   "/providers/:id/status",
+  authMiddleware,
+  roleCheck("admin"),
   ServiceProviderController.updateProviderStatus
 );
 router.put(
@@ -26,12 +34,7 @@ router.put(
   ServiceProviderController.updateServiceCategories
 );
 
-router.put(
-  "/provider/:id",
-  ServiceProviderController.updateProviderStatus
-);
-
-
+router.put("/provider/:id", ServiceProviderController.updateProviderStatus);
 
 // Employee routes
 router.get(
@@ -42,7 +45,5 @@ router.post(
   "/providers/:providerId/employees",
   ServiceProviderEmployeeController.addEmployee
 );
-
-
 
 module.exports = router;
