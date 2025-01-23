@@ -1,16 +1,18 @@
 // controllers/userController.js
-const { User } = require('../models');
+const { where } = require("sequelize");
+const { User } = require("../models");
+const bcryptjs = require("bcryptjs");
 
 class UserController {
   static async getProfile(req, res, next) {
     try {
       const userId = req.user.id;
       const user = await User.findByPk(userId, {
-        attributes: { exclude: ['password', 'otp', 'otp_expires'] }
+        attributes: { exclude: ["password", "otp", "otp_expires"] },
       });
 
       if (!user) {
-        throw createError(404, 'User not found');
+        throw createError(404, "User not found");
       }
 
       res.json(user);
@@ -22,10 +24,10 @@ class UserController {
   static async updateProfile(req, res, next) {
     try {
       const userId = req.user.id;
-      const allowedFields = ['name', 'email', 'gender', 'dob', 'nic'];
-      
+      const allowedFields = ["name", "email", "gender", "dob", "nic"];
+
       const updateData = {};
-      allowedFields.forEach(field => {
+      allowedFields.forEach((field) => {
         if (req.body[field] !== undefined) {
           updateData[field] = req.body[field];
         }
@@ -33,15 +35,15 @@ class UserController {
 
       const [updated] = await User.update(updateData, {
         where: { u_id: userId },
-        returning: true
+        returning: true,
       });
 
       if (!updated) {
-        throw createError(404, 'User not found');
+        throw createError(404, "User not found");
       }
 
       const user = await User.findByPk(userId, {
-        attributes: { exclude: ['password', 'otp', 'otp_expires'] }
+        attributes: { exclude: ["password", "otp", "otp_expires"] },
       });
 
       res.json(user);
@@ -55,7 +57,10 @@ class UserController {
       const userId = req.user.id;
       const addresses = await Address.findAll({
         where: { userId },
-        order: [['is_primary', 'DESC'], ['createdAt', 'DESC']]
+        order: [
+          ["is_primary", "DESC"],
+          ["createdAt", "DESC"],
+        ],
       });
 
       res.json(addresses);
@@ -70,17 +75,17 @@ class UserController {
       const address = await Address.create({
         ...req.body,
         userId,
-        is_primary: req.body.is_primary || false
+        is_primary: req.body.is_primary || false,
       });
 
       if (address.is_primary) {
         await Address.update(
           { is_primary: false },
-          { 
-            where: { 
+          {
+            where: {
               userId,
-              id: { [Op.ne]: address.id }
-            }
+              id: { [Op.ne]: address.id },
+            },
           }
         );
       }
@@ -97,11 +102,11 @@ class UserController {
       const userId = req.user.id;
 
       const address = await Address.findOne({
-        where: { id, userId }
+        where: { id, userId },
       });
 
       if (!address) {
-        throw createError(404, 'Address not found');
+        throw createError(404, "Address not found");
       }
 
       await address.update(req.body);
@@ -109,11 +114,11 @@ class UserController {
       if (address.is_primary) {
         await Address.update(
           { is_primary: false },
-          { 
-            where: { 
+          {
+            where: {
               userId,
-              id: { [Op.ne]: address.id }
-            }
+              id: { [Op.ne]: address.id },
+            },
           }
         );
       }
@@ -130,11 +135,11 @@ class UserController {
       const userId = req.user.id;
 
       const deleted = await Address.destroy({
-        where: { id, userId }
+        where: { id, userId },
       });
 
       if (!deleted) {
-        throw createError(404, 'Address not found');
+        throw createError(404, "Address not found");
       }
 
       res.json({ success: true });
@@ -142,6 +147,28 @@ class UserController {
       next(error);
     }
   }
+
+  static async setUserPassword(req, res, next) {
+    try {
+      const { token, password } = req.body;
+      const { id } = req.params;
+
+      const hashedPassword = await bcryptjs.hash(password, 10);
+
+      await User.update(
+        {
+          pw: hashedPassword,
+        },
+        { where: { u_id: id } }
+      );
+
+      res.status(200).json({
+        message: "Password SetUp Successfully",
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
-module.exports=UserController;
+module.exports = UserController;

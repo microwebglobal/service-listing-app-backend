@@ -99,6 +99,7 @@ const generatePasswordLink = async (user) => {
     const tokenData = {
       uid: user.u_id,
       name: user.name,
+      isValid: user.pw !== null,
       ts: Math.floor(Date.now() / 1000),
     };
 
@@ -128,6 +129,8 @@ const generateEmailValidationLink = async (user) => {
     const tokenData = {
       uid: user.u_id,
       name: user.name,
+      isValid: !user.email_verified,
+      user_type: user.role,
       ts: Math.floor(Date.now() / 1000),
     };
 

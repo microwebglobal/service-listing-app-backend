@@ -7,6 +7,8 @@ const {
 const ServiceProviderEnquiryController = require("../controllers/ServiceProviderEnquiryController");
 const ServiceProviderController = require("../controllers/ServiceProviderController");
 const ServiceProviderEmployeeController = require("../controllers/ServiceProviderEmployeeController");
+const UserController = require("../controllers/userController.js");
+
 //const { authenticate, authorize } = require('../middleware/auth');
 
 // Enquiry routes
@@ -22,6 +24,7 @@ router.put(
 
 // Provider routes
 router.get("/providers", ServiceProviderController.getAllProviders);
+router.get("/provider/user/:id", ServiceProviderController.getProviderByUserId);
 router.post("/provider/register", ServiceProviderController.registerProvider);
 router.put(
   "/providers/:id/status",
@@ -45,5 +48,8 @@ router.post(
   "/providers/:providerId/employees",
   ServiceProviderEmployeeController.addEmployee
 );
+
+//provider user password routes
+router.put("/provider/password/:id", UserController.setUserPassword);
 
 module.exports = router;

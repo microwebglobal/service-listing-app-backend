@@ -1,3 +1,4 @@
+const { where } = require("sequelize");
 const {
   ServiceProvider,
   User,
@@ -42,6 +43,23 @@ class ServiceProviderController {
   static async getProviderById(req, res, next) {
     try {
       const provider = await ServiceProvider.findByPk(req.params.id, {
+        include: [{ model: User }, { model: ServiceCategory }, { model: City }],
+      });
+
+      if (!provider) {
+        return res.status(404).json({ error: "Provider not found" });
+      }
+
+      res.status(200).json(provider);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getProviderByUserId(req, res, next) {
+    try {
+      const provider = await ServiceProvider.findOne({
+        where: { user_id: req.params.id },
         include: [{ model: User }, { model: ServiceCategory }, { model: City }],
       });
 
@@ -464,6 +482,18 @@ class ServiceProviderController {
           );
         }
       }
+
+      await User.update(
+        {
+          account_status: "active",
+        },
+        {
+          where: {
+            u_id: provider.User.u_id,
+          },
+          transaction,
+        }
+      );
 
       // For non-rejection status updates
       await provider.update(
