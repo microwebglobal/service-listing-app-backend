@@ -37,7 +37,8 @@ module.exports = {
           "admin",
           "customer",
           "service_provider",
-          "business_service_provider"
+          "business_service_provider",
+          "business_employee"
         ),
         defaultValue: "customer",
         allowNull: false,

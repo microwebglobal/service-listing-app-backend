@@ -6,8 +6,8 @@ const bcrypt = require("bcryptjs");
 module.exports = (sequelize, DataTypes) => {
   class User extends Model {
     static associate(models) {
-      this.hasOne(models.ServiceProvider, { foreignKey: 'user_id' });
-      this.hasOne(models.ServiceProviderEnquiry, { foreignKey: 'user_id' });
+      this.hasOne(models.ServiceProvider, { foreignKey: "user_id" });
+      this.hasOne(models.ServiceProviderEnquiry, { foreignKey: "user_id" });
     }
 
     async validatePassword(password) {
@@ -40,13 +40,13 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING(100),
         allowNull: true,
         unique: {
-          msg: "Email already in use!"
+          msg: "Email already in use!",
         },
         validate: {
           isEmail: {
-            msg: "Invalid email format"
-          }
-        }
+            msg: "Invalid email format",
+          },
+        },
       },
       mobile: {
         type: DataTypes.STRING(15),
@@ -69,22 +69,28 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
       },
       role: {
-        type: DataTypes.ENUM("admin", "customer", "service_provider", "business_service_provider"),
+        type: DataTypes.ENUM(
+          "admin",
+          "customer",
+          "service_provider",
+          "business_service_provider",
+          "business_employee"
+        ),
         defaultValue: "customer",
         allowNull: false,
       },
       account_status: {
         type: DataTypes.ENUM("pending", "active", "suspended", "inactive"),
         defaultValue: "pending",
-        allowNull: false
+        allowNull: false,
       },
       email_verified: {
         type: DataTypes.BOOLEAN,
-        defaultValue: false
+        defaultValue: false,
       },
       mobile_verified: {
         type: DataTypes.BOOLEAN,
-        defaultValue: false
+        defaultValue: false,
       },
       otp: {
         type: DataTypes.STRING(6),

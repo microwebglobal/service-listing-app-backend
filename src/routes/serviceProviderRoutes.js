@@ -38,7 +38,10 @@ router.put(
 );
 
 router.put("/provider/:id", ServiceProviderController.updateProviderStatus);
-
+router.put(
+  "/provider/update/:id",
+  ServiceProviderController.updateProviderProfile
+);
 // Employee routes
 router.get(
   "/providers/:providerId/employees",

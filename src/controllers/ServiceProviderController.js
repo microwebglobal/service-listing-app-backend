@@ -239,7 +239,7 @@ class ServiceProviderController {
                 tokenVersion: 1,
                 gender: employee.gender,
                 account_status: "pending",
-                role: "service_provider",
+                role: "business_employee",
               });
 
               await ServiceProviderEmployee.create({
@@ -474,6 +474,15 @@ class ServiceProviderController {
                     transaction,
                   }
                 );
+
+                const updatedUser = await User.findOne({
+                  where: {
+                    u_id: employee.user_id,
+                  },
+                });
+
+                const passwordLink = generatePasswordLink(updatedUser);
+                console.log("Paswordlinkfor Employee ", passwordLink);
               } catch (error) {
                 console.error("Error updating employee or user status:", error);
                 throw error; // Rollback the transaction if there's an error
@@ -511,7 +520,7 @@ class ServiceProviderController {
       );
 
       const passwordLink = generatePasswordLink(provider.User);
-      console.log(passwordLink);
+      console.log("Paswordlinkfor Business Provider", passwordLink);
 
       await transaction.commit();
       res.status(200).json({
@@ -620,11 +629,15 @@ class ServiceProviderController {
   }
 
   static async updateProviderProfile(req, res, next) {
+    console.log(req.body);
+    const transaction = await sequelize.transaction();
     try {
       const providerId = req.params.id;
       const updateData = req.body;
 
-      const provider = await ServiceProvider.findByPk(providerId);
+      const provider = await ServiceProvider.findByPk(providerId, {
+        include: [{ model: User }, { model: ServiceCategory }, { model: City }],
+      });
 
       if (!provider) {
         return res.status(404).json({ error: "Provider not found" });
@@ -668,7 +681,154 @@ class ServiceProviderController {
         });
       }
 
-      await provider.update(updateData);
+      await provider.update(updateData, { transaction });
+
+      const userUpdateData = {
+        name: updateData.name,
+        email: updateData.email,
+        dob: updateData.dob || null,
+        gender: updateData.gender,
+        mobile: updateData.mobile,
+      };
+
+      if (updateData.email && updateData.email !== provider.User.email) {
+        userUpdateData.email_verified = false;
+      }
+
+      await User.update(userUpdateData, {
+        where: {
+          u_id: provider.user_id,
+        },
+        transaction,
+      });
+
+      if (req.body.categories) {
+        await ProviderServiceCategory.destroy({
+          where: { provider_id: providerId },
+          transaction,
+        });
+
+        // Add new categories
+        const categoryPromises = req.body.categories.map((category) =>
+          ProviderServiceCategory.create(
+            {
+              provider_id: providerId,
+              category_id: category.category_id || category,
+              experience_years: Number(category.experience_years) || 0,
+              is_primary: Boolean(category.is_primary),
+            },
+            { transaction }
+          )
+        );
+
+        await Promise.all(categoryPromises);
+      }
+
+      if (req.body.cities) {
+        await ProviderServiceCity.destroy({
+          where: { provider_id: providerId },
+          transaction,
+        });
+
+        // Add new cities
+        const cityPromises = req.body.cities.map((city) =>
+          ProviderServiceCity.create(
+            {
+              provider_id: providerId,
+              city_id: city.city_id || city,
+              service_radius: Number(city.service_radius) || 0,
+              is_primary: Boolean(city.is_primary),
+            },
+            { transaction }
+          )
+        );
+
+        await Promise.all(cityPromises);
+      }
+
+      if (req.body.employees) {
+        await Promise.all(
+          req.body.employees.map(async (employee) => {
+            try {
+              if (employee.employee_id) {
+                await ServiceProviderEmployee.update(
+                  {
+                    role: employee.role,
+                    status: employee.status,
+                    qualification: employee.qualification,
+                    years_experience: employee.years_experience,
+                  },
+                  {
+                    where: {
+                      employee_id: employee.employee_id,
+                    },
+                    transaction,
+                  }
+                );
+
+                await User.update(
+                  {
+                    name: employee?.User.name,
+                    email: employee?.User.email,
+                    account_status: employee?.User.account_status,
+                    mobile: employee?.User.mobile,
+                    gender: employee?.User.gender,
+                    dob: employee?.User.dob,
+                  },
+                  {
+                    where: {
+                      u_id: employee.user_id,
+                    },
+                    transaction,
+                  }
+                );
+              } else {
+                const t = await sequelize.transaction();
+                const newEmployee = await User.create(
+                  {
+                    name: employee?.User.name,
+                    email: employee?.User.email,
+                    role: "business_employee",
+                    account_status: "active",
+                    account_status: employee?.User.account_status,
+                    mobile: employee?.User.mobile,
+                    gender: employee?.User.gender,
+                    dob: employee?.User.dob,
+                  },
+                  {
+                    transaction: t,
+                  }
+                );
+
+                console.log("New Employee:", newEmployee);
+
+                await ServiceProviderEmployee.create(
+                  {
+                    provider_id: providerId,
+                    user_id: newEmployee.u_id,
+                    role: employee.role,
+                    status: employee.status,
+                    qualification: employee.qualification,
+                    years_experience: employee.years_experience,
+                    created_at: new Date(),
+                    updated_at: new Date(),
+                  },
+                  {
+                    transaction: t,
+                  }
+                );
+
+                await t.commit();
+              }
+            } catch (error) {
+              console.error("Error updating employee Data:", error);
+              throw error;
+            }
+          })
+        );
+      }
+
+      await transaction.commit();
 
       res.status(200).json({
         message: "Provider profile updated successfully",
