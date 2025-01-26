@@ -1,7 +1,7 @@
-const { User } = require('../models');
-const createError = require('http-errors');
-const jwt = require('jsonwebtoken');
-const { Op } = require('sequelize');
+const { User } = require("../models");
+const createError = require("http-errors");
+const jwt = require("jsonwebtoken");
+const { Op } = require("sequelize");
 
 class AuthController {
   constructor() {
@@ -18,39 +18,42 @@ class AuthController {
       const { mobile } = req.body;
 
       if (!mobile) {
-        throw createError(400, 'Mobile number is required');
+        throw createError(400, "Mobile number is required");
       }
 
       const [user] = await User.findOrCreate({
-        where: { 
+        where: {
           mobile,
-          role: 'customer'
+          role: "customer",
         },
         defaults: {
           name: `User-${mobile.slice(-4)}`,
-          account_status: 'active'
-        }
+          account_status: "active",
+        },
       });
 
-      if (user.account_status !== 'active') {
-        throw createError(403, 'Account is not active');
+      if (user.account_status !== "active") {
+        throw createError(403, "Account is not active");
       }
 
-      const otp = process.env.NODE_ENV === 'development' ? 
-        "123456" : 
-        Math.floor(100000 + Math.random() * 900000).toString();
+      const otp =
+        process.env.NODE_ENV === "development"
+          ? "123456"
+          : Math.floor(100000 + Math.random() * 900000).toString();
+
+      console.log(otp); //loggr to print otp
 
       await user.update({
         otp,
         otp_expires: new Date(Date.now() + 5 * 60 * 1000),
-        mobile_verified: true
+        mobile_verified: true,
       });
 
       // In production, send OTP via SMS here
 
       res.json({
         success: true,
-        message: 'OTP sent successfully'
+        message: "OTP sent successfully",
       });
     } catch (error) {
       next(error);
@@ -62,28 +65,28 @@ class AuthController {
       const { mobile, otp } = req.body;
 
       if (!mobile || !otp) {
-        throw createError(400, 'Mobile and OTP are required');
+        throw createError(400, "Mobile and OTP are required");
       }
 
       const user = await User.findOne({
         where: {
           mobile,
-          role: 'customer',
+          role: "customer",
           otp,
           otp_expires: {
-            [Op.gt]: new Date()
-          }
-        }
+            [Op.gt]: new Date(),
+          },
+        },
       });
 
       if (!user) {
-        throw createError(401, 'Invalid or expired OTP');
+        throw createError(401, "Invalid or expired OTP");
       }
 
       await user.update({
         otp: null,
         otp_expires: null,
-        last_login: new Date()
+        last_login: new Date(),
       });
 
       const tokens = this.generateTokens(user);
@@ -97,8 +100,8 @@ class AuthController {
           mobile: user.mobile,
           role: user.role,
           email: user.email,
-          photo: user.photo
-        }
+          photo: user.photo,
+        },
       });
     } catch (error) {
       next(error);
@@ -110,22 +113,22 @@ class AuthController {
       const { email, password } = req.body;
 
       if (!email || !password) {
-        throw createError(400, 'Email and password are required');
+        throw createError(400, "Email and password are required");
       }
 
       const user = await User.findOne({
         where: {
           email,
-          role: 'admin'
-        }
+          role: "admin",
+        },
       });
 
       if (!user || !(await user.validatePassword(password))) {
-        throw createError(401, 'Invalid credentials');
+        throw createError(401, "Invalid credentials");
       }
 
-      if (user.account_status !== 'active') {
-        throw createError(403, 'Account is not active');
+      if (user.account_status !== "active") {
+        throw createError(403, "Account is not active");
       }
 
       await user.update({ last_login: new Date() });
@@ -140,8 +143,8 @@ class AuthController {
           name: user.name,
           email: user.email,
           role: user.role,
-          photo: user.photo
-        }
+          photo: user.photo,
+        },
       });
     } catch (error) {
       next(error);
@@ -153,22 +156,22 @@ class AuthController {
       const { email, password } = req.body;
 
       if (!email || !password) {
-        throw createError(400, 'Email and password are required');
+        throw createError(400, "Email and password are required");
       }
 
       const user = await User.findOne({
         where: {
           email,
-          role: ['service_provider', 'business_service_provider']
-        }
+          role: ["service_provider", "business_service_provider"],
+        },
       });
 
       if (!user || !(await user.validatePassword(password))) {
-        throw createError(401, 'Invalid credentials');
+        throw createError(401, "Invalid credentials");
       }
 
-      if (user.account_status !== 'active') {
-        throw createError(403, 'Account is not active');
+      if (user.account_status !== "active") {
+        throw createError(403, "Account is not active");
       }
 
       await user.update({ last_login: new Date() });
@@ -183,8 +186,8 @@ class AuthController {
           name: user.name,
           email: user.email,
           role: user.role,
-          photo: user.photo
-        }
+          photo: user.photo,
+        },
       });
     } catch (error) {
       next(error);
@@ -196,14 +199,14 @@ class AuthController {
       const { refreshToken } = req.cookies;
 
       if (!refreshToken) {
-        throw createError(401, 'Refresh token required');
+        throw createError(401, "Refresh token required");
       }
 
       const payload = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
       const user = await User.findByPk(payload.id);
 
       if (!user || user.tokenVersion !== payload.tokenVersion) {
-        throw createError(401, 'Invalid refresh token');
+        throw createError(401, "Invalid refresh token");
       }
 
       const tokens = this.generateTokens(user);
@@ -211,8 +214,8 @@ class AuthController {
 
       res.json({ success: true });
     } catch (error) {
-      if (error.name === 'JsonWebTokenError') {
-        error = createError(401, 'Invalid refresh token');
+      if (error.name === "JsonWebTokenError") {
+        error = createError(401, "Invalid refresh token");
       }
       next(error);
     }
@@ -220,12 +223,12 @@ class AuthController {
 
   async logout(req, res, next) {
     try {
-      res.clearCookie('accessToken');
-      res.clearCookie('refreshToken');
+      res.clearCookie("accessToken");
+      res.clearCookie("refreshToken");
 
       if (req.user) {
-        await User.increment('tokenVersion', {
-          where: { u_id: req.user.id }
+        await User.increment("tokenVersion", {
+          where: { u_id: req.user.id },
         });
       }
 
@@ -239,31 +242,31 @@ class AuthController {
     const accessToken = jwt.sign(
       { id: user.u_id, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: '1d' }
+      { expiresIn: "1d" }
     );
 
     const refreshToken = jwt.sign(
       { id: user.u_id, tokenVersion: user.tokenVersion },
       process.env.JWT_REFRESH_SECRET,
-      { expiresIn: '90d' }
+      { expiresIn: "90d" }
     );
 
     return { accessToken, refreshToken };
   }
 
   setTokenCookies(res, { accessToken, refreshToken }) {
-    res.cookie('accessToken', accessToken, {
+    res.cookie("accessToken", accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 24 * 60 * 60 * 1000
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 24 * 60 * 60 * 1000,
     });
 
-    res.cookie('refreshToken', refreshToken, {
+    res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 90 * 24 * 60 * 60 * 1000
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 90 * 24 * 60 * 60 * 1000,
     });
   }
 }

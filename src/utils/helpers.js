@@ -99,6 +99,7 @@ const generatePasswordLink = async (user) => {
     const tokenData = {
       uid: user.u_id,
       name: user.name,
+      isValid: user.pw !== null,
       ts: Math.floor(Date.now() / 1000),
     };
 
@@ -123,9 +124,41 @@ const generatePasswordLink = async (user) => {
   }
 };
 
+const generateEmailValidationLink = async (user) => {
+  try {
+    const tokenData = {
+      uid: user.u_id,
+      name: user.name,
+      isValid: !user.email_verified,
+      user_type: user.role,
+      ts: Math.floor(Date.now() / 1000),
+    };
+
+    const randomBytes = crypto.randomBytes(8).toString("base64url");
+    tokenData.n = randomBytes;
+
+    const token = jwt.sign(
+      tokenData,
+      config.development.registration.secretKey,
+      {
+        expiresIn: "1d",
+        algorithm: "HS256",
+        noTimestamp: true,
+      }
+    );
+
+    const emailLink = `${config.development.baseUrl}/profile/customer/validate-email/${token}`;
+
+    return emailLink;
+  } catch (error) {
+    throw new Error("Failed to generate Email ValidationLink");
+  }
+};
+
 module.exports = {
   generateRegistrationLink,
   validateRegistrationLink,
   invalidateRegistrationLink,
   generatePasswordLink,
+  generateEmailValidationLink,
 };
