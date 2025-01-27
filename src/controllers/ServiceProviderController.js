@@ -75,7 +75,7 @@ class ServiceProviderController {
   }
 
   static async registerProvider(req, res, next) {
-    console.log("req.files:", req.files);
+    const t = await sequelize.transaction();
     try {
       const {
         enquiry_id,
@@ -103,7 +103,9 @@ class ServiceProviderController {
       } = req.body;
 
       // Find and validate enquiry
-      const enquiry = await ServiceProviderEnquiry.findByPk(enquiry_id);
+      const enquiry = await ServiceProviderEnquiry.findByPk(enquiry_id, {
+        transaction: t,
+      });
       if (!enquiry) {
         return res.status(404).json({
           error: "Invalid registration link",
@@ -131,7 +133,7 @@ class ServiceProviderController {
         });
       }
 
-      // Parse JSON data first
+      // Parse JSON data
       let parsedData = {};
       try {
         parsedData = {
@@ -212,45 +214,56 @@ class ServiceProviderController {
           user_id: enquiry.user_id,
           status: "rejected",
         },
+        transaction: t,
       });
 
       let provider;
       if (existingProvider) {
         // Reset rejection fields and update with new data
-        provider = await existingProvider.update({
-          ...providerData,
-          rejection_reason: null,
-          rejection_date: null,
-          status: "pending_approval",
-        });
+        provider = await existingProvider.update(
+          {
+            ...providerData,
+            rejection_reason: null,
+            rejection_date: null,
+            status: "pending_approval",
+          },
+          { transaction: t }
+        );
       } else {
         // Create new provider
-        provider = await ServiceProvider.create(providerData);
+        provider = await ServiceProvider.create(providerData, {
+          transaction: t,
+        });
       }
 
-      //handle employees
+      // Handle employees
       if (parsedData.employees && Array.isArray(parsedData.employees)) {
-        console.log("parsedData: ", parsedData);
         await Promise.all(
           parsedData.employees.map(async (employee) => {
             try {
-              const user = await User.create({
-                name: employee.name,
-                mobile: employee.phone,
-                tokenVersion: 1,
-                gender: employee.gender,
-                account_status: "pending",
-                role: "business_employee",
-              });
+              const user = await User.create(
+                {
+                  name: employee.name,
+                  mobile: employee.phone,
+                  tokenVersion: 1,
+                  gender: employee.gender,
+                  account_status: "pending",
+                  role: "business_employee",
+                },
+                { transaction: t }
+              );
 
-              await ServiceProviderEmployee.create({
-                user_id: user.u_id,
-                provider_id: provider.provider_id,
-                role: employee.designation,
-                qualification: employee.qualification,
-                years_experience: 5,
-                status: "inactive",
-              });
+              await ServiceProviderEmployee.create(
+                {
+                  user_id: user.u_id,
+                  provider_id: provider.provider_id,
+                  role: employee.designation,
+                  qualification: employee.qualification,
+                  years_experience: 5,
+                  status: "inactive",
+                },
+                { transaction: t }
+              );
             } catch (error) {
               console.error(error);
             }
@@ -263,12 +276,15 @@ class ServiceProviderController {
         await Promise.all(
           parsedData.categories.map(async (category) => {
             try {
-              await ProviderServiceCategory.create({
-                provider_id: provider.provider_id,
-                category_id: category.id,
-                experience_years: Number(category.experience_years) || 0,
-                is_primary: Boolean(category.is_primary),
-              });
+              await ProviderServiceCategory.create(
+                {
+                  provider_id: provider.provider_id,
+                  category_id: category.id,
+                  experience_years: Number(category.experience_years) || 0,
+                  is_primary: Boolean(category.is_primary),
+                },
+                { transaction: t }
+              );
             } catch (categoryError) {
               console.error("Error creating category:", categoryError);
             }
@@ -281,12 +297,15 @@ class ServiceProviderController {
         await Promise.all(
           parsedData.cities.map(async (city) => {
             try {
-              await ProviderServiceCity.create({
-                provider_id: provider.provider_id,
-                city_id: city.id,
-                service_radius: Number(city.service_radius) || 0,
-                is_primary: Boolean(city.is_primary),
-              });
+              await ProviderServiceCity.create(
+                {
+                  provider_id: provider.provider_id,
+                  city_id: city.id,
+                  service_radius: Number(city.service_radius) || 0,
+                  is_primary: Boolean(city.is_primary),
+                },
+                { transaction: t }
+              );
             } catch (cityError) {
               console.error("Error creating city:", cityError);
             }
@@ -294,7 +313,7 @@ class ServiceProviderController {
         );
       }
 
-      //handle file upload
+      // Handle file upload
       if (req.files) {
         Object.keys(req.files).forEach((fieldName) => {
           const files = req.files[fieldName];
@@ -307,11 +326,14 @@ class ServiceProviderController {
             if (file && file.path) {
               try {
                 console.log(fieldName);
-                await ServiceProviderDocument.create({
-                  provider_id: provider.provider_id,
-                  document_type: file.fieldname,
-                  document_url: file.path,
-                });
+                await ServiceProviderDocument.create(
+                  {
+                    provider_id: provider.provider_id,
+                    document_type: file.fieldname,
+                    document_url: file.path,
+                  },
+                  { transaction: t }
+                );
               } catch (error) {
                 console.error(
                   `Error inserting document for field: ${fieldName}`,
@@ -334,10 +356,11 @@ class ServiceProviderController {
           registration_link_expires: new Date(),
           registration_completed_at: new Date(),
         },
-        {
-          where: { enquiry_id },
-        }
+        { where: { enquiry_id }, transaction: t }
       );
+
+      // Commit the transaction
+      await t.commit();
 
       res.status(201).json({
         message: existingProvider
@@ -346,6 +369,9 @@ class ServiceProviderController {
         provider_id: provider.provider_id,
       });
     } catch (error) {
+      // Rollback the transaction in case of an error
+      await t.rollback();
+
       console.error("Provider registration error:", {
         message: error.message,
         stack: error.stack,
