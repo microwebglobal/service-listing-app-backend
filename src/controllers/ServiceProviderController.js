@@ -294,6 +294,7 @@ class ServiceProviderController {
         );
       }
 
+      //handle file upload
       if (req.files) {
         Object.keys(req.files).forEach((fieldName) => {
           const files = req.files[fieldName];
