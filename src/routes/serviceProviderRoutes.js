@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const upload = require("../middlewares/uploadMiddleware.js");
 const {
   authMiddleware,
   roleCheck,
@@ -13,7 +14,12 @@ const UserController = require("../controllers/userController.js");
 
 // Enquiry routes
 router.post("/enquiry", ServiceProviderEnquiryController.createEnquiry);
-router.get("/enquiry", ServiceProviderEnquiryController.getAllEnquiries);
+router.get(
+  "/enquiry",
+  authMiddleware,
+  roleCheck("admin"),
+  ServiceProviderEnquiryController.getAllEnquiries
+);
 router.get("/enquiry/:id", ServiceProviderEnquiryController.getEnquirieById);
 router.put(
   "/enquiry/:id/approve",
@@ -23,9 +29,18 @@ router.put(
 );
 
 // Provider routes
-router.get("/providers", ServiceProviderController.getAllProviders);
+router.get(
+  "/providers",
+  authMiddleware,
+  roleCheck("admin"),
+  ServiceProviderController.getAllProviders
+);
 router.get("/provider/user/:id", ServiceProviderController.getProviderByUserId);
-router.post("/provider/register", ServiceProviderController.registerProvider);
+router.post(
+  "/provider/register",
+  upload.any(),
+  ServiceProviderController.registerProvider
+);
 router.put(
   "/providers/:id/status",
   authMiddleware,

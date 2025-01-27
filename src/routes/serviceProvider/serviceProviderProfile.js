@@ -10,6 +10,5 @@ router.post("/", ServiceProviderProfileController.createProvider);
 router.put("/:id", ServiceProviderProfileController.updateProvider);
 router.delete("/:id", ServiceProviderProfileController.deleteProvider);
 
-router.put("/user/password/:id", UserController.setUserPassword);
 
 module.exports = router;

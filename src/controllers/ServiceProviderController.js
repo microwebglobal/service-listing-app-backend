@@ -8,6 +8,7 @@ const {
   ProviderServiceCity,
   ServiceProviderEnquiry,
   ServiceProviderEmployee,
+  ServiceProviderDocument,
 } = require("../models");
 const { sequelize } = require("../models");
 
@@ -74,7 +75,7 @@ class ServiceProviderController {
   }
 
   static async registerProvider(req, res, next) {
-    console.log(req.body);
+    console.log("req.files:", req.files);
     try {
       const {
         enquiry_id,
@@ -293,16 +294,36 @@ class ServiceProviderController {
         );
       }
 
-      // Handle file uploads
       if (req.files) {
-        const fileUpdates = {};
         Object.keys(req.files).forEach((fieldName) => {
-          fileUpdates[fieldName] = req.files[fieldName][0].path;
-        });
+          const files = req.files[fieldName];
 
-        if (Object.keys(fileUpdates).length > 0) {
-          await provider.update(fileUpdates);
-        }
+          const filesArray = Array.isArray(files) ? files : [files];
+
+          filesArray.forEach(async (file) => {
+            console.log("Fieldname:", file.fieldname);
+            console.log("File Path:", file?.path);
+            if (file && file.path) {
+              try {
+                console.log(fieldName);
+                await ServiceProviderDocument.create({
+                  provider_id: provider.provider_id,
+                  document_type: file.fieldname,
+                  document_url: file.path,
+                });
+              } catch (error) {
+                console.error(
+                  `Error inserting document for field: ${fieldName}`,
+                  error
+                );
+              }
+            } else {
+              console.error(`No valid file or path for field: ${fieldName}`);
+            }
+          });
+        });
+      } else {
+        console.error("No files found");
       }
 
       // Update enquiry status
@@ -689,6 +710,7 @@ class ServiceProviderController {
         dob: updateData.dob || null,
         gender: updateData.gender,
         mobile: updateData.mobile,
+        account_status: updateData.account_status,
       };
 
       if (updateData.email && updateData.email !== provider.User.email) {
@@ -746,83 +768,145 @@ class ServiceProviderController {
         await Promise.all(cityPromises);
       }
 
-      if (req.body.employees) {
+      if (req.body.employees.length > 0) {
+        const existingEmployees = await ServiceProviderEmployee.findAll({
+          where: { provider_id: providerId },
+          attributes: ["employee_id"],
+          transaction,
+        });
+
+        const existingEmployeeIds = existingEmployees.map(
+          (employee) => employee.employee_id
+        );
+
+        const updatedEmployeeIds = req.body.employees
+          .filter((employee) => employee.employee_id)
+          .map((employee) => employee.employee_id);
+
+        const employeesToDelete = existingEmployeeIds.filter(
+          (id) => !updatedEmployeeIds.includes(id)
+        );
+
+        if (employeesToDelete && employeesToDelete.length > 0) {
+          // Fetch the user_ids of the employees to delete
+          const employeesToDeleteData = await ServiceProviderEmployee.findAll({
+            where: {
+              employee_id: employeesToDelete,
+            },
+            attributes: ["user_id"],
+            transaction,
+          });
+
+          // Extract the user_ids from the data
+          const userIdsToDelete = employeesToDeleteData.map(
+            (emp) => emp.user_id
+          );
+
+          // Delete ServiceProviderEmployee records
+          await ServiceProviderEmployee.destroy({
+            where: {
+              employee_id: employeesToDelete,
+            },
+            transaction,
+          });
+
+          // Delete the corresponding User records
+          if (userIdsToDelete.length > 0) {
+            await User.destroy({
+              where: {
+                u_id: userIdsToDelete,
+              },
+              transaction,
+            });
+          }
+        }
+
         await Promise.all(
           req.body.employees.map(async (employee) => {
-            try {
-              if (employee.employee_id) {
-                await ServiceProviderEmployee.update(
-                  {
-                    role: employee.role,
-                    status: employee.status,
-                    qualification: employee.qualification,
-                    years_experience: employee.years_experience,
-                  },
-                  {
-                    where: {
-                      employee_id: employee.employee_id,
+            if (employee.employee_id) {
+              // Update existing employee
+              const businessEmployee = await ServiceProviderEmployee.findByPk(
+                employee.employee_id,
+                {
+                  include: [
+                    {
+                      model: User,
+                      attributes: ["email"],
                     },
-                    transaction,
-                  }
-                );
+                  ],
+                  transaction,
+                }
+              );
 
-                await User.update(
-                  {
-                    name: employee?.User.name,
-                    email: employee?.User.email,
-                    account_status: employee?.User.account_status,
-                    mobile: employee?.User.mobile,
-                    gender: employee?.User.gender,
-                    dob: employee?.User.dob,
+              await ServiceProviderEmployee.update(
+                {
+                  role: employee.role,
+                  status: employee.status,
+                  qualification: employee.qualification,
+                  years_experience: employee.years_experience,
+                },
+                {
+                  where: {
+                    employee_id: employee.employee_id,
                   },
-                  {
-                    where: {
-                      u_id: employee.user_id,
-                    },
-                    transaction,
-                  }
-                );
-              } else {
-                const t = await sequelize.transaction();
-                const newEmployee = await User.create(
-                  {
-                    name: employee?.User.name,
-                    email: employee?.User.email,
-                    role: "business_employee",
-                    account_status: "active",
-                    account_status: employee?.User.account_status,
-                    mobile: employee?.User.mobile,
-                    gender: employee?.User.gender,
-                    dob: employee?.User.dob,
-                  },
-                  {
-                    transaction: t,
-                  }
-                );
+                  transaction,
+                }
+              );
 
-                console.log("New Employee:", newEmployee);
+              const empUpdateData = {
+                name: employee?.User?.name,
+                email: employee?.User?.email,
+                account_status: employee?.User?.account_status,
+                mobile: employee?.User?.mobile,
+                gender: employee?.User?.gender,
+                dob: employee?.User?.dob,
+              };
 
-                await ServiceProviderEmployee.create(
-                  {
-                    provider_id: providerId,
-                    user_id: newEmployee.u_id,
-                    role: employee.role,
-                    status: employee.status,
-                    qualification: employee.qualification,
-                    years_experience: employee.years_experience,
-                    created_at: new Date(),
-                    updated_at: new Date(),
-                  },
-                  {
-                    transaction: t,
-                  }
-                );
-
-                await t.commit();
+              if (
+                empUpdateData.email &&
+                empUpdateData.email !== businessEmployee?.User?.email
+              ) {
+                empUpdateData.email_verified = false;
               }
-            } catch (error) {
-              console.error("Error updating employee Data:", error);
-              throw error;
+
+              await User.update(empUpdateData, {
+                where: {
+                  u_id: employee.user_id,
+                },
+                transaction,
+              });
+            } else {
+              // Add new employee
+              const newEmployee = await User.create(
+                {
+                  name: employee?.User?.name,
+                  email: employee?.User?.email,
+                  role: "business_employee",
+                  account_status: "active",
+                  mobile: employee?.User?.mobile,
+                  gender: employee?.User?.gender,
+                  dob: employee?.User?.dob,
+                },
+                {
+                  transaction,
+                }
+              );
+
+              await ServiceProviderEmployee.create(
+                {
+                  provider_id: providerId,
+                  user_id: newEmployee?.u_id,
+                  role: employee?.role,
+                  status: employee?.status,
+                  qualification: employee?.qualification,
+                  years_experience: employee?.years_experience,
+                  created_at: new Date(),
+                  updated_at: new Date(),
+                },
+                {
+                  transaction,
+                }
+              );
             }
           })
         );
