@@ -1,11 +1,11 @@
-const { 
+const {
   Booking,
   BookingItem,
   BookingPayment,
   ServiceItem,
   PackageItem,
   CitySpecificPricing,
-  SpecialPricing
+  SpecialPricing,
 } = require("../models");
 const { Op } = require("sequelize");
 const IdGenerator = require("../utils/helper");
@@ -14,11 +14,11 @@ class BookingController {
   static validateTimeSlot(time) {
     const validStartHour = 11;
     const validEndHour = 20;
-    const [hour, minutes] = time.split(':').map(num => parseInt(num));
-    
+    const [hour, minutes] = time.split(":").map((num) => parseInt(num));
+
     return (
-      hour >= validStartHour && 
-      hour <= validEndHour && 
+      hour >= validStartHour &&
+      hour <= validEndHour &&
       (minutes === 0 || minutes === 30) &&
       !(hour === validEndHour && minutes === 30)
     );
@@ -27,24 +27,24 @@ class BookingController {
   static calculateTotalDuration(items) {
     return items.reduce((total, item) => {
       const duration = item.duration_hours * 60 + item.duration_minutes;
-      return total + (duration * item.quantity);
+      return total + duration * item.quantity;
     }, 0);
   }
 
   static async getCurrentPrice(itemId, itemType, cityId) {
     try {
       const currentDate = new Date();
-      
+
       // Check for special pricing first
       const specialPricing = await SpecialPricing.findOne({
         where: {
           item_id: itemId,
           item_type: itemType,
           city_id: cityId,
-          status: 'active',
+          status: "active",
           start_date: { [Op.lte]: currentDate },
-          end_date: { [Op.gte]: currentDate }
-        }
+          end_date: { [Op.gte]: currentDate },
+        },
       });
 
       if (specialPricing) {
@@ -56,8 +56,8 @@ class BookingController {
         where: {
           item_id: itemId,
           item_type: itemType,
-          city_id: cityId
-        }
+          city_id: cityId,
+        },
       });
 
       if (cityPricing) {
@@ -65,16 +65,16 @@ class BookingController {
       }
 
       // Fall back to base price
-      const Model = itemType === 'service_item' ? ServiceItem : PackageItem;
+      const Model = itemType === "service_item" ? ServiceItem : PackageItem;
       const item = await Model.findByPk(itemId);
-      
+
       if (!item) {
         throw new Error(`Item not found: ${itemId}`);
       }
-      
-      return itemType === 'service_item' ? item.base_price : item.price;
+
+      return itemType === "service_item" ? item.base_price : item.price;
     } catch (error) {
-      console.error('Error getting current price:', error);
+      console.error("Error getting current price:", error);
       throw error;
     }
   }
@@ -84,15 +84,16 @@ class BookingController {
       if (!req.user || !req.user.id) {
         return res.status(401).json({ message: "Authentication required" });
       }
+      console.log(req.body);
 
-      const { 
-        cityId, 
-        items, 
-        bookingDate, 
+      const {
+        cityId,
+        items,
+        bookingDate,
         startTime,
         serviceAddress,
         serviceLocation,
-        customerNotes 
+        customerNotes,
       } = req.body;
 
       // Validate required fields
@@ -101,27 +102,33 @@ class BookingController {
       }
 
       if (!BookingController.validateTimeSlot(startTime)) {
-        return res.status(400).json({ 
-          message: "Invalid time slot. Please select a time between 11:00 AM and 8:30 PM in 30-minute intervals" 
+        return res.status(400).json({
+          message:
+            "Invalid time slot. Please select a time between 11:00 AM and 8:30 PM in 30-minute intervals",
         });
       }
 
       let booking = await Booking.findOne({
         where: {
           user_id: req.user.id,
-          status: 'cart'
-        }
+          status: "cart",
+        },
       });
 
       if (!booking) {
         const existingBookings = await Booking.findAll({
-          attributes: ['booking_id']
+          attributes: ["booking_id"],
         });
 
         const newBookingId = IdGenerator.generateId(
           "BKG",
-          existingBookings.map(booking => booking.booking_id)
+          existingBookings.map((booking) => booking.booking_id)
         );
+
+        const formattedLocation = JSON.stringify({
+          type: "Point",
+          coordinates: serviceLocation,
+        });
 
         booking = await Booking.create({
           booking_id: newBookingId,
@@ -130,16 +137,19 @@ class BookingController {
           booking_date: bookingDate,
           start_time: startTime,
           end_time: startTime,
-          status: 'cart',
+          status: "cart",
           service_address: serviceAddress,
-          service_location: serviceLocation,
-          customer_notes: customerNotes
+          service_location: JSON.stringify({
+            type: "Point",
+            coordinates: [-122.4194, 37.7749], //use fixwed values untill implementitng google api
+          }),
+          customer_notes: customerNotes,
         });
       }
 
       // Clear existing items
       await BookingItem.destroy({
-        where: { booking_id: booking.booking_id }
+        where: { booking_id: booking.booking_id },
       });
 
       // Add new items
@@ -160,39 +170,53 @@ class BookingController {
           item_type: item.itemType,
           quantity: item.quantity,
           unit_price: currentPrice,
-          total_price: totalPrice
+          total_price: totalPrice,
         });
       }
 
       // Update payment information
       await BookingPayment.destroy({
-        where: { booking_id: booking.booking_id }
+        where: { booking_id: booking.booking_id },
       });
 
+      const existingPaymentIds = await BookingPayment.findAll({
+        attributes: ["payment_id"],
+        raw: true,
+      });
+
+      const paymentIds = existingPaymentIds.map((entry) => entry.payment_id);
       await BookingPayment.create({
-        payment_id: IdGenerator.generateId("PAY", []),
+        payment_id: IdGenerator.generateId("PAY", paymentIds),
         booking_id: booking.booking_id,
         subtotal: totalAmount,
+        payment_method: "card",
         tax_amount: totalAmount * 0.18,
         total_amount: totalAmount * 1.18,
-        payment_status: 'pending'
+        payment_status: "pending",
       });
 
       const updatedBooking = await Booking.findByPk(booking.booking_id, {
         include: [
-          { 
+          {
             model: BookingItem,
             include: [
-              { model: ServiceItem, required: false },
-              { model: PackageItem, required: false }
-            ]
+              {
+                model: ServiceItem,
+                as: "serviceItem",
+                required: false,
+              },
+              {
+                model: PackageItem,
+                as: "packageItem",
+                required: false,
+              },
+            ],
           },
-          { model: BookingPayment }
-        ]
+          { model: BookingPayment },
+        ],
       });
 
       res.status(200).json(updatedBooking);
-
     } catch (error) {
       console.error("Add to Cart Error:", error);
       next(error);
@@ -200,6 +224,7 @@ class BookingController {
   }
 
   static async getCart(req, res, next) {
+    console.log(req);
     try {
       if (!req.user || !req.user.id) {
         return res.status(401).json({ message: "Authentication required" });
@@ -208,18 +233,26 @@ class BookingController {
       const cart = await Booking.findOne({
         where: {
           user_id: req.user.id,
-          status: 'cart'
+          status: "cart",
         },
         include: [
-          { 
+          {
             model: BookingItem,
             include: [
-              { model: ServiceItem, required: false },
-              { model: PackageItem, required: false }
-            ]
+              {
+                model: ServiceItem,
+                as: "serviceItem",
+                required: false,
+              },
+              {
+                model: PackageItem,
+                as: "packageItem",
+                required: false,
+              },
+            ],
           },
-          { model: BookingPayment }
-        ]
+          { model: BookingPayment },
+        ],
       });
 
       if (!cart) {
@@ -227,7 +260,6 @@ class BookingController {
       }
 
       res.status(200).json(cart);
-
     } catch (error) {
       console.error("Get Cart Error:", error);
       next(error);
@@ -243,14 +275,16 @@ class BookingController {
       const { itemId, quantity } = req.body;
 
       if (!itemId || quantity === undefined) {
-        return res.status(400).json({ message: "Item ID and quantity are required" });
+        return res
+          .status(400)
+          .json({ message: "Item ID and quantity are required" });
       }
 
       const booking = await Booking.findOne({
         where: {
           user_id: req.user.id,
-          status: 'cart'
-        }
+          status: "cart",
+        },
       });
 
       if (!booking) {
@@ -260,8 +294,8 @@ class BookingController {
       const bookingItem = await BookingItem.findOne({
         where: {
           booking_id: booking.booking_id,
-          item_id: itemId
-        }
+          item_id: itemId,
+        },
       });
 
       if (!bookingItem) {
@@ -274,36 +308,35 @@ class BookingController {
         const newTotalPrice = bookingItem.unit_price * quantity;
         await bookingItem.update({
           quantity,
-          total_price: newTotalPrice
+          total_price: newTotalPrice,
         });
       }
 
       // Recalculate totals
       const allItems = await BookingItem.findAll({
-        where: { booking_id: booking.booking_id }
+        where: { booking_id: booking.booking_id },
       });
 
-      const subtotal = allItems.reduce((sum, item) => sum + item.total_price, 0);
+      const subtotal = allItems.reduce(
+        (sum, item) => sum + item.total_price,
+        0
+      );
       const payment = await BookingPayment.findOne({
-        where: { booking_id: booking.booking_id }
+        where: { booking_id: booking.booking_id },
       });
 
       await payment.update({
         subtotal,
         tax_amount: subtotal * 0.18,
-        total_amount: (subtotal * 1.18) + (payment.tip_amount || 0)
+        total_amount: subtotal * 1.18 + (payment.tip_amount || 0),
       });
 
-      res.status(200).json({ 
+      res.status(200).json({
         message: "Cart updated successfully",
         booking: await booking.reload({
-          include: [
-            { model: BookingItem },
-            { model: BookingPayment }
-          ]
-        })
+          include: [{ model: BookingItem }, { model: BookingPayment }],
+        }),
       });
-
     } catch (error) {
       console.error("Update Cart Item Error:", error);
       next(error);
@@ -316,7 +349,7 @@ class BookingController {
         return res.status(401).json({ message: "Authentication required" });
       }
 
-      const { tipAmount } = req.body;
+      const { tipAmount, subTotal, taxAmount } = req.body;
 
       if (tipAmount === undefined) {
         return res.status(400).json({ message: "Tip amount is required" });
@@ -325,28 +358,40 @@ class BookingController {
       const booking = await Booking.findOne({
         where: {
           user_id: req.user.id,
-          status: 'cart'
+          status: "cart",
         },
-        include: [{ model: BookingPayment }]
+        include: [{ model: BookingPayment }],
       });
 
       if (!booking) {
         return res.status(404).json({ message: "No active cart found" });
       }
 
-      const payment = booking.BookingPayment;
-      const newTotalAmount = payment.subtotal + payment.tax_amount + tipAmount;
+      const subtotal = parseFloat(subTotal) || 0;
+      const tax = parseFloat(taxAmount) || 0;
+      const tip = parseFloat(tipAmount) || 0;
+
+      if (isNaN(subtotal) || isNaN(taxAmount) || isNaN(tip)) {
+        return res
+          .status(400)
+          .json({ message: "Invalid numeric values in payment data" });
+      }
+
+      const newTotalAmount = subtotal + tax + tip;
+
+      const payment = await BookingPayment.findOne({
+        where: { booking_id: booking.booking_id },
+      });
 
       await payment.update({
         tip_amount: tipAmount,
-        total_amount: newTotalAmount
+        total_amount: newTotalAmount,
       });
 
-      res.status(200).json({ 
+      res.status(200).json({
         message: "Tip updated successfully",
-        payment: await payment.reload()
+        payment: await payment.reload(),
       });
-
     } catch (error) {
       console.error("Update Tip Error:", error);
       next(error);
@@ -362,27 +407,23 @@ class BookingController {
       const booking = await Booking.findOne({
         where: {
           user_id: req.user.id,
-          status: 'cart'
+          status: "cart",
         },
-        include: [{ model: BookingPayment }]
+        include: [{ model: BookingPayment }],
       });
 
       if (!booking) {
         return res.status(404).json({ message: "No active cart found" });
       }
 
-      await booking.update({ status: 'payment_pending' });
-      
+      await booking.update({ status: "payment_pending" });
+
       res.status(200).json({
         message: "Booking ready for payment",
         booking: await booking.reload({
-          include: [
-            { model: BookingItem },
-            { model: BookingPayment }
-          ]
-        })
+          include: [{ model: BookingItem }, { model: BookingPayment }],
+        }),
       });
-
     } catch (error) {
       console.error("Proceed to Payment Error:", error);
       next(error);

@@ -25,6 +25,7 @@ class ServiceProviderController {
           { model: User },
           { model: ServiceCategory },
           { model: City },
+          { model: ServiceProviderDocument },
           {
             model: ServiceProviderEmployee,
             include: [

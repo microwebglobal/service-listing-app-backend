@@ -4,13 +4,17 @@ const BookingController = require("../controllers/BookingController");
 const { authMiddleware } = require("../middlewares/auth.middleware");
 
 // Apply authentication middleware to all routes
-router.use(authMiddleware);
+// router.use(authMiddleware);
 
 // Cart Management Routes
-router.post("/cart/add", BookingController.addToCart);
-router.get("/cart", BookingController.getCart);
-router.put("/cart/item", BookingController.updateCartItem);
-router.put("/cart/tip", BookingController.updateTip);
-router.post("/cart/checkout", BookingController.proceedToPayment);
+router.post("/cart/add", authMiddleware, BookingController.addToCart);
+router.get("/cart", authMiddleware, BookingController.getCart);
+router.put("/cart/item", authMiddleware, BookingController.updateCartItem);
+router.put("/cart/tip", authMiddleware, BookingController.updateTip);
+router.post(
+  "/cart/checkout",
+  authMiddleware,
+  BookingController.proceedToPayment
+);
 
 module.exports = router;

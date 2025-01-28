@@ -6,28 +6,31 @@ require("dotenv").config();
 
 const authMiddleware = async (req, res, next) => {
   try {
-    const { accessToken } = req.cookies;
-
+    const accessToken =
+      req.cookies.accessToken || req.headers.authorization?.split(" ")[1];
     if (!accessToken) {
       throw createError(401, "Authentication required");
     }
 
     const decoded = jwt.verify(accessToken, process.env.JWT_SECRET);
-    
+
     // Set user info from decoded token
     req.user = {
       id: decoded.id,
-      role: decoded.role
+      role: decoded.role,
     };
 
     next();
   } catch (error) {
     console.error("Auth Middleware Error:", error);
-    
-    if (error.name === "JsonWebTokenError" || error.name === "TokenExpiredError") {
+
+    if (
+      error.name === "JsonWebTokenError" ||
+      error.name === "TokenExpiredError"
+    ) {
       return next(createError(401, "Invalid or expired token"));
     }
-    
+
     next(error);
   }
 };
@@ -43,5 +46,5 @@ const roleCheck = (...roles) => {
 
 module.exports = {
   authMiddleware,
-  roleCheck
+  roleCheck,
 };
