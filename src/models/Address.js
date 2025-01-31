@@ -1,6 +1,5 @@
 const { Model } = require("sequelize");
 
-
 module.exports = (sequelize, DataTypes) => {
     const Address = sequelize.define('Address', {
       id: {
@@ -14,7 +13,8 @@ module.exports = (sequelize, DataTypes) => {
         references: {
           model: 'users',
           key: 'u_id'
-        }
+        },
+        field: 'userId' 
       },
       type: {
         type: DataTypes.ENUM('home', 'work', 'other'),
@@ -40,11 +40,26 @@ module.exports = (sequelize, DataTypes) => {
       is_primary: {
         type: DataTypes.BOOLEAN,
         defaultValue: false
+      },
+      createdAt: {
+        type: DataTypes.DATE,
+        field: 'createdAt'
+      },
+      updatedAt: {
+        type: DataTypes.DATE,
+        field: 'updatedAt'
       }
     }, {
       tableName: 'addresses',
       timestamps: true
     });
   
+    Address.associate = function(models) {
+      Address.belongsTo(models.User, {
+        foreignKey: 'userId',
+        targetKey: 'u_id'
+      });
+    };
+  
     return Address;
-  };
+};

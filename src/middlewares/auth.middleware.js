@@ -14,9 +14,10 @@ const authMiddleware = async (req, res, next) => {
 
     const decoded = jwt.verify(accessToken, process.env.JWT_SECRET);
 
-    // Set user info from decoded token
+    // Set user info from decoded token with both id and u_id
     req.user = {
       id: decoded.id,
+      u_id: decoded.id,
       role: decoded.role,
     };
 

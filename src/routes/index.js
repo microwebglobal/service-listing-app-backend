@@ -13,6 +13,8 @@ const PackageRoutes = require("./packageRoutes");
 const ServiceProviderRoutes = require("./serviceProviderRoutes");
 const BookingRoutes = require("./bookingRoutes");
 const AuthRoutes = require("./authRoutes");
+const Addresses = require("./addresses");
+const AdminBookingRoutes=require("./adminbookingRoutes");
 // Import middlewares
 
 // Health check route
@@ -28,6 +30,7 @@ router.get("/health", (req, res) => {
 // Auth related routes (public)
 //router.use("/otp", otpRoutes);
 router.use("/", cityRoutes);
+router.use("/users", Addresses);
 // User related routes
 //router.use("/users", userRoutes);
 //router.use("/users/address", userAddressRoutes); // User address routes
@@ -37,6 +40,7 @@ router.use("/", ServiceManagement);
 router.use("/", PackageRoutes);
 router.use("/", BookingRoutes);
 router.use("/auth", AuthRoutes);
+router.use("/admin",AdminBookingRoutes);
 
 // Protected routes
 router.use(

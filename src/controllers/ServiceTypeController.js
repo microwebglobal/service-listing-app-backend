@@ -30,13 +30,37 @@ class ServiceTypeController {
 
   static async getTypesBySubCategory(req, res, next) {
     try {
+      console.log('Request params:', {
+        subCategoryId: req.params.subCategoryId,
+        paramType: typeof req.params.subCategoryId
+      });
+  
+      // First verify the subcategory exists
+      const subCategory = await SubCategory.findByPk(req.params.subCategoryId);
+      if (!subCategory) {
+        console.log('Subcategory not found:', req.params.subCategoryId);
+        return res.status(404).json({ error: 'Subcategory not found' });
+      }
+  
       const types = await ServiceType.findAll({
         where: { sub_category_id: req.params.subCategoryId },
         include: [Service],
-        order: [['display_order', 'ASC']]
+        order: [['display_order', 'ASC']],
+        logging: (sql, queryObject) => {
+          console.log('Generated SQL:', sql);
+          console.log('Query parameters:', queryObject.bind);
+        }
       });
+  
+      console.log('Found types:', types.length);
       res.status(200).json(types);
     } catch (error) {
+      console.error('Error details:', {
+        message: error.message,
+        name: error.name,
+        sql: error.sql,
+        parameters: error.parameters
+      });
       next(error);
     }
   }

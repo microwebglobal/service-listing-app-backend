@@ -15,16 +15,28 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: "provider_id",
       });
 
-      // Many-to-many relationships
+      this.hasMany(models.ProviderServiceCity, {
+        foreignKey: "provider_id",
+        as: "providerCities"
+      });
+
+      this.hasMany(models.ProviderServiceCategory, {
+        foreignKey: "provider_id",
+        as: "providerCategories"
+      });
+
       this.belongsToMany(models.ServiceCategory, {
-        through: "provider_service_categories",
+        through: models.ProviderServiceCategory,
         foreignKey: "provider_id",
         otherKey: "category_id",
+        as: "serviceCategories"
       });
+
       this.belongsToMany(models.City, {
-        through: "provider_service_cities",
+        through: models.ProviderServiceCity,
         foreignKey: "provider_id",
         otherKey: "city_id",
+        as: "serviceCities"
       });
     }
   }
