@@ -1,6 +1,11 @@
-const { ServiceCategory, SubCategory, CategoryCities ,City } = require('../models');
-const IdGenerator = require('../utils/helper');
-const { Op } = require('sequelize');
+const {
+  ServiceCategory,
+  SubCategory,
+  CategoryCities,
+  City,
+} = require("../models");
+const IdGenerator = require("../utils/helper");
+const { Op } = require("sequelize");
 
 class ServiceCategoryController {
   static async getAllCategories(req, res, next) {
@@ -13,21 +18,21 @@ class ServiceCategoryController {
       const categories = await ServiceCategory.findAll({
         include: [
           {
-            model: SubCategory
+            model: SubCategory,
           },
           {
             model: CategoryCities,
-            as: 'categoryMappings', 
+            as: "categoryMappings",
             where: {
               city_id: cityId,
-              status: 'active'
+              status: "active",
             },
-            required: true
-          }
+            required: true,
+          },
         ],
-        order: [['display_order', 'ASC']]
+        order: [["display_order", "ASC"]],
       });
-      
+
       res.status(200).json(categories);
     } catch (error) {
       next(error);
@@ -38,7 +43,7 @@ class ServiceCategoryController {
     try {
       const categories = await ServiceCategory.findAll({
         include: [SubCategory],
-        order: [['display_order', 'ASC']]
+        order: [["display_order", "ASC"]],
       });
       res.status(200).json(categories);
     } catch (error) {
@@ -56,22 +61,24 @@ class ServiceCategoryController {
       const category = await ServiceCategory.findByPk(req.params.id, {
         include: [
           {
-            model: SubCategory
+            model: SubCategory,
           },
           {
             model: CategoryCities,
-            as: 'categoryMappings',  
+            as: "categoryMappings",
             where: {
               city_id: cityId,
-              status: 'active'
+              status: "active",
             },
-            required: true
-          }
-        ]
+            required: true,
+          },
+        ],
       });
 
       if (!category) {
-        return res.status(404).json({ error: "Category not found in this city" });
+        return res
+          .status(404)
+          .json({ error: "Category not found in this city" });
       }
       res.status(200).json(category);
     } catch (error) {
@@ -90,9 +97,9 @@ class ServiceCategoryController {
       const city = await City.findOne({
         where: {
           name: {
-            [Op.iLike]: cityName // Case-insensitive comparison
-          }
-        }
+            [Op.iLike]: cityName, // Case-insensitive comparison
+          },
+        },
       });
 
       if (!city) {
@@ -103,22 +110,24 @@ class ServiceCategoryController {
         where: { slug: req.params.slug },
         include: [
           {
-            model: SubCategory
+            model: SubCategory,
           },
           {
             model: CategoryCities,
-            as: 'categoryMappings',  
+            as: "categoryMappings",
             where: {
               city_id: city.city_id,
-              status: 'active'
+              status: "active",
             },
-            required: true
-          }
-        ]
+            required: true,
+          },
+        ],
       });
 
       if (!category) {
-        return res.status(404).json({ error: "Category not found in this city" });
+        return res
+          .status(404)
+          .json({ error: "Category not found in this city" });
       }
       res.status(200).json(category);
     } catch (error) {
@@ -128,28 +137,24 @@ class ServiceCategoryController {
 
   static async createCategory(req, res, next) {
     try {
-      console.log('File:', req.file); // Debugging
-      console.log('Body:', req.body); // Debugging
+      console.log("File:", req.file); // Debugging
+      console.log("Body:", req.body); // Debugging
 
-       if (!req.file) {
-            return res.status(400).json({ error: 'No file uploaded' });
-         }
-
-        const iconUrl = `/uploads/images/${req.file.filename}`;
+      const iconUrl = `/uploads/files/${req?.file?.filename}`;
 
       const existingCategories = await ServiceCategory.findAll({
-        attributes: ['category_id']
+        attributes: ["category_id"],
       });
-      const existingIds = existingCategories.map(cat => cat.category_id);
-      
-      const newCategoryId = IdGenerator.generateId('CAT', existingIds);
-      
+      const existingIds = existingCategories.map((cat) => cat.category_id);
+
+      const newCategoryId = IdGenerator.generateId("CAT", existingIds);
+
       const newCategory = await ServiceCategory.create({
         category_id: newCategoryId,
         name: req.body.name,
         slug: req.body.slug,
         icon_url: iconUrl,
-        display_order: req.body.display_order
+        display_order: req.body.display_order,
       });
       res.status(201).json(newCategory);
     } catch (error) {
@@ -161,13 +166,13 @@ class ServiceCategoryController {
     try {
       const { category_id, ...updateData } = req.body;
       const [updated] = await ServiceCategory.update(updateData, {
-        where: { category_id: req.params.id }
+        where: { category_id: req.params.id },
       });
-      
+
       if (!updated) {
         return res.status(404).json({ error: "Category not found" });
       }
-      
+
       const updatedCategory = await ServiceCategory.findByPk(req.params.id);
       res.status(200).json(updatedCategory);
     } catch (error) {
@@ -178,9 +183,9 @@ class ServiceCategoryController {
   static async deleteCategory(req, res, next) {
     try {
       const deleted = await ServiceCategory.destroy({
-        where: { category_id: req.params.id }
+        where: { category_id: req.params.id },
       });
-      
+
       if (!deleted) {
         return res.status(404).json({ error: "Category not found" });
       }

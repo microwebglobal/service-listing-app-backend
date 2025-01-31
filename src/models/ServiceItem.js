@@ -48,6 +48,7 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false,
       },
+      icon_url: DataTypes.STRING(255),
     },
     {
       sequelize,

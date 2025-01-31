@@ -34,6 +34,10 @@ class PackageSectionController {
     try {
       const { package_id, name, description, display_order, items } = req.body;
 
+      console.log("File:", req.file);
+      console.log("Body:", req.body);
+
+      const iconUrl = `/uploads/files/${req?.file?.filename}`;
       // Generate new section ID
       const existingSections = await PackageSection.findAll({
         attributes: ["section_id"],
@@ -47,6 +51,7 @@ class PackageSectionController {
         name,
         description,
         display_order,
+        icon_url: iconUrl,
       });
 
       // Create items if provided

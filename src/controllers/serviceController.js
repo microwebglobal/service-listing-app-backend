@@ -69,6 +69,9 @@ class ServiceController {
       const existingServices = await Service.findAll({
         attributes: ["service_id"],
       });
+      console.log(req.body);
+      const iconUrl = `/uploads/files/${req?.file?.filename}`;
+
       const existingIds = existingServices.map((service) => service.service_id);
 
       // Generate new ID using the utility
@@ -79,7 +82,8 @@ class ServiceController {
         type_id: req.body.type_id,
         name: req.body.name,
         description: req.body.description,
-        display_order: req.body.display_order,
+        display_order: req.body.display_order || 0,
+        icon_url: iconUrl,
       });
       res.status(201).json(newService);
     } catch (error) {

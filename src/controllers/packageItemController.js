@@ -81,7 +81,11 @@ class PackageItemController {
         is_none_option,
         display_order,
         city_prices,
+        specialPricing, // This should now be a stringified JSON array
       } = req.body;
+
+      console.log("Raw city_prices:", city_prices);
+      console.log("Raw specialPricing:", specialPricing);
 
       if (!section_id || !name || price === undefined) {
         return res.status(400).json({
@@ -89,6 +93,41 @@ class PackageItemController {
             "Missing required fields: section_id, name, and price are required",
         });
       }
+
+      // Parse city_prices
+      let parsedCityPrices = {};
+
+      if (typeof city_prices === "string") {
+        try {
+          parsedCityPrices = JSON.parse(city_prices);
+        } catch (error) {
+          console.error("Invalid JSON in city_prices:", city_prices);
+        }
+      } else if (typeof city_prices === "object" && city_prices !== null) {
+        parsedCityPrices = city_prices;
+      }
+
+      // Parse specialPricing
+      let parsedSpecialPricing = [];
+      if (Array.isArray(specialPricing)) {
+        parsedSpecialPricing = specialPricing;
+      } else if (typeof specialPricing === "string") {
+        try {
+          parsedSpecialPricing = JSON.parse(specialPricing);
+        } catch (error) {
+          console.error("Invalid JSON in specialPricing:", specialPricing);
+          return res.status(400).json({
+            error: "Invalid specialPricing format. Expected a JSON array.",
+          });
+        }
+      } else {
+        console.error("Unexpected specialPricing type:", typeof specialPricing);
+        return res.status(400).json({
+          error: "specialPricing must be an array.",
+        });
+      }
+
+      const iconUrl = `/uploads/files/${req?.file?.filename}`;
 
       const section = await PackageSection.findByPk(section_id);
       if (!section) {
@@ -101,7 +140,7 @@ class PackageItemController {
         attributes: ["item_id"],
       });
       const newItemID = IdGenerator.generateId(
-        "ITEM",
+        "PITEM",
         existingPackageItems.map((item) => item.item_id)
       );
 
@@ -114,11 +153,12 @@ class PackageItemController {
         is_default: is_default || false,
         is_none_option: is_none_option || false,
         display_order: display_order || 0,
+        icon_url: iconUrl,
       });
 
       // Handle city-specific pricing if provided
-      if (city_prices && Object.keys(city_prices).length > 0) {
-        const cityPricingPromises = Object.entries(city_prices).map(
+      if (parsedCityPrices && Object.keys(parsedCityPrices).length > 0) {
+        const cityPricingPromises = Object.entries(parsedCityPrices).map(
           ([cityId, price]) => {
             return CitySpecificPricing.create({
               city_id: cityId,
@@ -132,9 +172,9 @@ class PackageItemController {
       }
 
       // Handle optional special pricing
-      if (req.body.specialPricing?.length > 0) {
+      if (parsedSpecialPricing?.length > 0) {
         await Promise.all(
-          req.body.specialPricing.map(async (pricing) => {
+          parsedSpecialPricing.map(async (pricing) => {
             return SpecialPricing.create({
               item_id: newItemID,
               item_type: "package_item",
@@ -152,6 +192,7 @@ class PackageItemController {
         include: [
           {
             model: PackageSection,
+            as: "PackageSections",
             attributes: ["name", "description", "display_order"],
           },
           {
@@ -174,9 +215,9 @@ class PackageItemController {
           return acc;
         }, {}),
         section: {
-          name: createdItem.PackageSection.name,
-          description: createdItem.PackageSection.description,
-          display_order: createdItem.PackageSection.display_order,
+          name: createdItem.PackageSections.name,
+          description: createdItem.PackageSections.description,
+          display_order: createdItem.PackageSections.display_order,
         },
       });
     } catch (error) {
@@ -208,6 +249,7 @@ class PackageItemController {
         include: [
           {
             model: PackageSection,
+            as: "PackageSections",
             attributes: ["name", "description", "display_order"],
           },
           {
@@ -240,9 +282,9 @@ class PackageItemController {
         }, {}),
         special_prices: item.SpecialPricings,
         section: {
-          name: item.PackageSection.name,
-          description: item.PackageSection.description,
-          display_order: item.PackageSection.display_order,
+          name: item.PackageSections.name,
+          description: item.PackageSections.description,
+          display_order: item.PackageSections.display_order,
         },
       }));
 
@@ -265,7 +307,43 @@ class PackageItemController {
         display_order,
         section_id,
         city_prices,
+        specialPricing,
       } = req.body;
+
+      console.log(req.body);
+
+      // Parse city_prices
+      let parsedCityPrices = {};
+
+      if (typeof city_prices === "string") {
+        try {
+          parsedCityPrices = JSON.parse(city_prices);
+        } catch (error) {
+          console.error("Invalid JSON in city_prices:", city_prices);
+        }
+      } else if (typeof city_prices === "object" && city_prices !== null) {
+        parsedCityPrices = city_prices;
+      }
+
+      // Parse specialPricing
+      let parsedSpecialPricing = [];
+      if (Array.isArray(specialPricing)) {
+        parsedSpecialPricing = specialPricing;
+      } else if (typeof specialPricing === "string") {
+        try {
+          parsedSpecialPricing = JSON.parse(specialPricing);
+        } catch (error) {
+          console.error("Invalid JSON in specialPricing:", specialPricing);
+          return res.status(400).json({
+            error: "Invalid specialPricing format. Expected a JSON array.",
+          });
+        }
+      } else {
+        console.error("Unexpected specialPricing type:", typeof specialPricing);
+        return res.status(400).json({
+          error: "specialPricing must be an array.",
+        });
+      }
 
       const item = await PackageItem.findByPk(itemId);
       if (!item) {
@@ -306,8 +384,8 @@ class PackageItemController {
         });
 
         // Create new pricing entries
-        if (Object.keys(city_prices).length > 0) {
-          const cityPricingPromises = Object.entries(city_prices).map(
+        if (parsedCityPrices && Object.keys(parsedCityPrices).length > 0) {
+          const cityPricingPromises = Object.entries(parsedCityPrices).map(
             ([cityId, price]) => {
               return CitySpecificPricing.create({
                 city_id: cityId,
@@ -321,10 +399,35 @@ class PackageItemController {
         }
       }
 
+      // Handle optional special pricing
+      if (parsedSpecialPricing?.length > 0) {
+        await SpecialPricing.destroy({
+          where: {
+            item_id: itemId,
+            item_type: "package_item",
+          },
+        });
+
+        await Promise.all(
+          parsedSpecialPricing.map(async (pricing) => {
+            return SpecialPricing.create({
+              item_id: itemId,
+              item_type: "package_item",
+              city_id: pricing.city_id,
+              special_price: pricing.special_price,
+              start_date: pricing.start_date,
+              end_date: pricing.end_date,
+              status: "active",
+            });
+          })
+        );
+      }
+
       const updatedItem = await PackageItem.findByPk(itemId, {
         include: [
           {
             model: PackageSection,
+            as: "PackageSections",
             attributes: ["name", "description", "display_order"],
           },
           {
@@ -347,9 +450,9 @@ class PackageItemController {
           return acc;
         }, {}),
         section: {
-          name: updatedItem.PackageSection.name,
-          description: updatedItem.PackageSection.description,
-          display_order: updatedItem.PackageSection.display_order,
+          name: updatedItem.PackageSections.name,
+          description: updatedItem.PackageSections.description,
+          display_order: updatedItem.PackageSections.display_order,
         },
       });
     } catch (error) {

@@ -4,8 +4,10 @@ const {
   BookingPayment,
   ServiceItem,
   PackageItem,
+  PackageSection,
   CitySpecificPricing,
   SpecialPricing,
+  Package,
 } = require("../models");
 const { Op } = require("sequelize");
 const IdGenerator = require("../utils/helper");
@@ -223,8 +225,107 @@ class BookingController {
     }
   }
 
+  static async getBooking(req, res, next) {
+    try {
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const booking = await Booking.findOne({
+        where: {
+          booking_id: req.params.id,
+        },
+        include: [
+          {
+            model: BookingItem,
+            include: [
+              {
+                model: ServiceItem,
+                as: "serviceItem",
+                required: false,
+              },
+              {
+                model: PackageItem,
+                as: "packageItem",
+                required: false,
+              },
+            ],
+          },
+          { model: BookingPayment },
+        ],
+      });
+      if (!booking) {
+        return res.status(404).json({ message: "No booking found" });
+      }
+
+      if (booking?.BookingPayment?.payment_status === "completed") {
+        return res
+          .status(405)
+          .json({ message: "This Transaction Already Compleated" });
+      }
+      res.status(200).json(booking);
+    } catch (error) {
+      console.error("Get Booking Error:", error);
+      next(error);
+    }
+  }
+
+  static async getBookingByCustomer(req, res, next) {
+    try {
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const booking = await Booking.findAll({
+        where: {
+          user_id: req.user.id,
+        },
+        include: [
+          {
+            model: BookingItem,
+            include: [
+              {
+                model: ServiceItem,
+                as: "serviceItem",
+                required: false,
+              },
+              {
+                model: PackageItem,
+                as: "packageItem",
+                required: false,
+                include: [
+                  {
+                    model: PackageSection,
+                    as: "PackageSections",
+                    required: false,
+                    include: [
+                      {
+                        model: Package,
+                        as: "Package",
+                        required: false,
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+          { model: BookingPayment },
+        ],
+      });
+
+      if (!booking) {
+        return res.status(404).json({ message: "No booking found" });
+      }
+
+      res.status(200).json(booking);
+    } catch (error) {
+      console.error("Get Booking Error:", error);
+      next(error);
+    }
+  }
+
   static async getCart(req, res, next) {
-    console.log(req);
     try {
       if (!req.user || !req.user.id) {
         return res.status(401).json({ message: "Authentication required" });

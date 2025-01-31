@@ -4,62 +4,66 @@ module.exports = (sequelize, DataTypes) => {
   class Package extends Model {
     static associate(models) {
       Package.belongsTo(models.ServiceType, {
-        foreignKey: 'type_id'
+        foreignKey: "type_id",
       });
       Package.hasMany(models.PackageSection, {
-        foreignKey: 'package_id'
+        foreignKey: "package_id",
       });
       Package.hasMany(models.CitySpecificPricing, {
-        foreignKey: 'item_id',
+        foreignKey: "item_id",
         constraints: false,
         scope: {
-          item_type: 'package'
-        }
+          item_type: "package",
+        },
       });
     }
   }
 
-  Package.init({
-    package_id: {
-      type: DataTypes.STRING,
-      primaryKey: true,
-      allowNull: false
+  Package.init(
+    {
+      package_id: {
+        type: DataTypes.STRING,
+        primaryKey: true,
+        allowNull: false,
+      },
+      type_id: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        references: {
+          model: "service_types",
+          key: "type_id",
+        },
+      },
+      name: {
+        type: DataTypes.STRING(100),
+        allowNull: false,
+      },
+      description: DataTypes.TEXT,
+      duration_hours: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+      },
+      duration_minutes: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+      },
+      display_order: {
+        type: DataTypes.INTEGER,
+        defaultValue: 0,
+      },
+      icon_url: DataTypes.STRING(255),
     },
-    type_id: {
-      type: DataTypes.STRING,
-      allowNull: false,
-      references: {
-        model: 'service_types',
-        key: 'type_id'
-      }
-    },
-    name: {
-      type: DataTypes.STRING(100),
-      allowNull: false
-    },
-    description: DataTypes.TEXT,
-    duration_hours: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      defaultValue: 0
-    },
-    duration_minutes: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      defaultValue: 0
-    },
-    display_order: {
-      type: DataTypes.INTEGER,
-      defaultValue: 0
+    {
+      sequelize,
+      modelName: "Package",
+      tableName: "packages",
+      timestamps: true,
+      createdAt: "created_at",
+      updatedAt: "updated_at",
     }
-  }, {
-    sequelize,
-    modelName: 'Package',
-    tableName: 'packages',
-    timestamps: true,
-    createdAt: 'created_at',
-    updatedAt: 'updated_at'
-  });
+  );
 
   return Package;
 };

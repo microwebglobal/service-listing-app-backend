@@ -116,6 +116,7 @@ router.get(
 router.get("/services/items/:typeId", ServiceController.getServiceByType);
 router.post(
   "/services",
+  upload.single("image"),
   authMiddleware,
   roleCheck("admin"),
   ServiceController.createService
