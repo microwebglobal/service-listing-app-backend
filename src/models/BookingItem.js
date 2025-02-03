@@ -8,15 +8,16 @@ module.exports = (sequelize, DataTypes) => {
       });
       BookingItem.belongsTo(models.ServiceItem, {
         foreignKey: "item_id",
+        constraints: false,
         targetKey: "item_id",
         as: "serviceItem",
       });
 
-      // Association for PackageItem
       BookingItem.belongsTo(models.PackageItem, {
+        as: "packageItem",
         foreignKey: "item_id",
         targetKey: "item_id",
-        as: "packageItem",
+        constraints: false,
       });
     }
   }

@@ -3,9 +3,8 @@ const { Model } = require("sequelize");
 module.exports = (sequelize, DataTypes) => {
   class PackageItem extends Model {
     static associate(models) {
-      PackageItem.hasMany(models.PackageSection, {
+      PackageItem.belongsTo(models.PackageSection, {
         foreignKey: "section_id",
-        as: "PackageSections",
       });
       PackageItem.hasMany(models.CitySpecificPricing, {
         foreignKey: "item_id",
@@ -20,6 +19,10 @@ module.exports = (sequelize, DataTypes) => {
         scope: {
           item_type: "package_item",
         },
+      });
+      PackageItem.hasMany(models.BookingItem, {
+        as: "bookingItems",
+        foreignKey: "item_id",
       });
     }
   }

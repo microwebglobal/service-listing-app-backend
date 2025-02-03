@@ -16,8 +16,7 @@ const SpecialPricingController = require("../controllers/SpecialPricingControlle
 router.get("/categories/", ServiceCategoryController.getAllCategories);
 router.get(
   "/categories/all",
-  authMiddleware,
-  roleCheck("admin"),
+
   ServiceCategoryController.getAllCategoriesWithoutCity
 );
 router.post(
