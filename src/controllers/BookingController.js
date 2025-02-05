@@ -296,7 +296,6 @@ class BookingController {
                 include: [
                   {
                     model: PackageSection,
-                    as: "PackageSections",
                     required: false,
                     include: [
                       {
