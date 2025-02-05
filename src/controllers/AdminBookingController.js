@@ -23,7 +23,9 @@ const createError = require("http-errors");
 class AdminBookingController {
   static async getAllBookings(req, res, next) {
     try {
-      const { status, dateRange, search, cityId } = req.query;
+      const { status, dateRange, search, cityId, page = 1 } = req.query;
+      const limit = 10;
+      const offset = (page - 1) * limit;
 
       let whereClause = {};
 
@@ -39,8 +41,6 @@ class AdminBookingController {
 
       // Add date filter if provided
       if (dateRange) {
-        const currentDate = new Date();
-
         switch (dateRange) {
           case "today":
             whereClause.booking_date = sequelize.literal("CURRENT_DATE");
@@ -57,6 +57,8 @@ class AdminBookingController {
             break;
         }
       }
+
+      const totalBookings = await Booking.count({ where: whereClause });
 
       const bookings = await Booking.findAll({
         where: whereClause,
@@ -117,12 +119,14 @@ class AdminBookingController {
           ["booking_date", "DESC"],
           ["start_time", "DESC"],
         ],
+        limit,
+        offset,
       });
 
       const serviceItemIds = [];
       const packageItemIds = [];
 
-      // Loop through the bookings and BookingItems to extract item_ids based on item_type
+      // Extract item_ids from BookingItems
       bookings.forEach((booking) => {
         booking.BookingItems.forEach((item) => {
           if (item.item_type === "service_item") {
@@ -135,7 +139,7 @@ class AdminBookingController {
 
       // Fetch ServiceItems with Category ID (for Service Items)
       const serviceItemsWithCategory = await ServiceItem.findAll({
-        where: { item_id: serviceItemIds }, // Use the item IDs from the bookings
+        where: { item_id: serviceItemIds },
         include: [
           {
             model: Service,
@@ -190,11 +194,6 @@ class AdminBookingController {
         ],
       });
 
-      console.log(
-        packageItemsWithCategory[0].PackageSection.Package.ServiceType
-          .SubCategory
-      );
-
       // Map service item category_ids
       const serviceCategoryMap = serviceItemsWithCategory.reduce(
         (acc, serviceItem) => {
@@ -225,24 +224,29 @@ class AdminBookingController {
             categoryId = serviceCategoryMap[item.item_id];
           } else if (item.item_type === "package_item") {
             categoryId = packageCategoryMap[item.item_id];
-            console.log();
           }
 
-          // Add categoryId to the item
           item.setDataValue("category_id", categoryId);
         });
 
-        // Optionally, we can also add a combined category list to the booking if needed
+        // Collect category IDs for each booking
         let allCategoryIds = new Set();
         booking.BookingItems.forEach((item) => {
           if (item.category_id) allCategoryIds.add(item.category_id);
         });
 
-        // Convert to array and set it to the booking's `catId`
         booking.setDataValue("catId", Array.from(allCategoryIds));
       });
 
-      res.status(200).json(bookings);
+      const totalPages = Math.ceil(totalBookings / limit);
+
+      res.status(200).json({
+        bookings,
+        totalPages,
+        currentPage: parseInt(page),
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+      });
     } catch (error) {
       console.error("Error in getAllBookings:", error);
       next(error);
@@ -251,10 +255,7 @@ class AdminBookingController {
 
   static async getServiceProviders(req, res, next) {
     try {
-      const { search } = req.query;
-
-      const cityId = "CTY001";
-      const categoryId = "CAT001";
+      const { search, cityId, categoryId } = req.query;
 
       const includeClause = [
         {
@@ -272,7 +273,7 @@ class AdminBookingController {
         },
         {
           model: City,
-          as: "serviceCities", // Using the alias defined in the model
+          as: "serviceCities",
           required: cityId ? true : false,
           where: cityId ? { city_id: cityId } : {},
           through: { attributes: [] },
@@ -283,7 +284,7 @@ class AdminBookingController {
       if (categoryId) {
         includeClause.push({
           model: ServiceCategory,
-          as: "serviceCategories", // Using the alias defined in the model
+          as: "serviceCategories",
           required: true,
           where: { category_id: categoryId },
           through: { attributes: [] },
@@ -435,10 +436,12 @@ class AdminBookingController {
               },
             ],
           });
-          if (service?.Service?.ServiceType?.SubCategory?.ServiceCategory) {
+          if (service?.Service?.ServiceType?.SubCategory?.category_id) {
+            console.log(
+              service?.Service?.ServiceType?.SubCategory?.category_id
+            );
             categoryIds.add(
-              service.Service.ServiceType.SubCategory.ServiceCategory
-                .category_id
+              service.Service.ServiceType.SubCategory.category_id
             );
           }
         } else if (item.packageItem) {
@@ -473,16 +476,20 @@ class AdminBookingController {
           });
           if (
             packageItem?.PackageSection?.Package?.ServiceType?.SubCategory
-              ?.ServiceCategory
+              ?.category_id
           ) {
+            console.log(
+              packageItem.PackageSection.Package.ServiceType.SubCategory
+                .category_id
+            );
             categoryIds.add(
               packageItem.PackageSection.Package.ServiceType.SubCategory
-                .ServiceCategory.category_id
+                .category_id
             );
           }
         }
       }
-
+      console.log([...categoryIds]);
       // Get provider details with category and city verification
       const provider = await ServiceProvider.findOne({
         where: {
@@ -544,16 +551,34 @@ class AdminBookingController {
       }
 
       // Check provider's availability
+      const availabilityData =
+        typeof provider.availability_hours === "string"
+          ? JSON.parse(provider.availability_hours)
+          : provider.availability_hours;
+
+      const dayMapping = [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+      ];
       const bookingTime = new Date(
         `${booking.booking_date} ${booking.start_time}`
       );
-      const dayOfWeek = bookingTime.getDay();
+      const dayOfWeek = dayMapping[bookingTime.getDay()];
       const timeOfDay = booking.start_time;
 
-      const availabilityHours = provider.availability_hours?.[dayOfWeek] || [];
-      const isAvailable = availabilityHours.some((slot) => {
-        return timeOfDay >= slot.start && timeOfDay <= slot.end;
-      });
+      const availability = availabilityData
+        ? availabilityData[dayOfWeek]
+        : null;
+
+      const isAvailable =
+        availability?.isOpen &&
+        timeOfDay >= availability.start &&
+        timeOfDay <= availability.end;
 
       if (!isAvailable) {
         throw createError(

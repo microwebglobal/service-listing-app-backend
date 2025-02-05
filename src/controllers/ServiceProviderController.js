@@ -23,8 +23,8 @@ class ServiceProviderController {
       const providers = await ServiceProvider.findAll({
         include: [
           { model: User },
-          { model: ServiceCategory },
-          { model: City },
+          { model: ServiceCategory, as: "serviceCategories" },
+          { model: City, as: "serviceCities" },
           { model: ServiceProviderDocument },
           {
             model: ServiceProviderEmployee,
@@ -45,7 +45,11 @@ class ServiceProviderController {
   static async getProviderById(req, res, next) {
     try {
       const provider = await ServiceProvider.findByPk(req.params.id, {
-        include: [{ model: User }, { model: ServiceCategory }, { model: City }],
+        include: [
+          { model: User },
+          { model: ServiceCategory, as: "serviceCategories" },
+          { model: City, as: "serviceCities" },
+        ],
       });
 
       if (!provider) {
@@ -62,7 +66,11 @@ class ServiceProviderController {
     try {
       const provider = await ServiceProvider.findOne({
         where: { user_id: req.params.id },
-        include: [{ model: User }, { model: ServiceCategory }, { model: City }],
+        include: [
+          { model: User },
+          { model: ServiceCategory, as: "serviceCategories" },
+          { model: City, as: "serviceCities" },
+        ],
       });
 
       if (!provider) {
@@ -685,7 +693,11 @@ class ServiceProviderController {
       const updateData = req.body;
 
       const provider = await ServiceProvider.findByPk(providerId, {
-        include: [{ model: User }, { model: ServiceCategory }, { model: City }],
+        include: [
+          { model: User },
+          { model: ServiceCategory, as: "serviceCategories" },
+          { model: City, as: "serviceCities" },
+        ],
       });
 
       if (!provider) {

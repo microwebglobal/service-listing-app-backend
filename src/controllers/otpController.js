@@ -19,7 +19,7 @@ class OTPController {
     const otp = generateOTP();
     OTP_STORE[mobile] = otp;
 
-    console.log(`OTP for ${mobile}: ${otp}`); // For testing 
+    console.log(`OTP for ${mobile}: ${otp}`); // For testing
 
     // Send response
     res.json({ success: true, message: `OTP sent to ${mobile}` });
@@ -28,21 +28,21 @@ class OTPController {
   // Function to verify OTP
   static verifyOTP(req, res) {
     const { mobile, otp } = req.body;
-  
+
     if (OTP_STORE[mobile] === otp) {
-      // OTP delete it from the store 
+      // OTP delete it from the store
       delete OTP_STORE[mobile];
-  
+
       // Respond with success
       return res.status(200).json({
         success: true,
-        message: "OTP verified successfully."
+        message: "OTP verified successfully.",
       });
     } else {
       // OTP is incorrect or expired
-      return res.status(401).json({
+      return res.status(402).json({
         success: false,
-        message: "Invalid or expired OTP."
+        message: "Invalid or expired OTP.",
       });
     }
   }

@@ -80,7 +80,7 @@ class AuthController {
       });
 
       if (!user) {
-        throw createError(401, "Invalid or expired OTP");
+        throw createError(402, "Invalid or expired OTP");
       }
 
       await user.update({

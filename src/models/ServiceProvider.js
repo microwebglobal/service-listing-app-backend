@@ -17,26 +17,26 @@ module.exports = (sequelize, DataTypes) => {
 
       this.hasMany(models.ProviderServiceCity, {
         foreignKey: "provider_id",
-        as: "providerCities"
+        as: "providerCities",
       });
 
       this.hasMany(models.ProviderServiceCategory, {
         foreignKey: "provider_id",
-        as: "providerCategories"
+        as: "providerCategories",
       });
 
       this.belongsToMany(models.ServiceCategory, {
         through: models.ProviderServiceCategory,
         foreignKey: "provider_id",
         otherKey: "category_id",
-        as: "serviceCategories"
+        as: "serviceCategories",
       });
 
       this.belongsToMany(models.City, {
         through: models.ProviderServiceCity,
         foreignKey: "provider_id",
         otherKey: "city_id",
-        as: "serviceCities"
+        as: "serviceCities",
       });
     }
   }
