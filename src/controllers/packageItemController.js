@@ -192,7 +192,7 @@ class PackageItemController {
         include: [
           {
             model: PackageSection,
-            as: "PackageSections",
+            as: "PackageSection",
             attributes: ["name", "description", "display_order"],
           },
           {

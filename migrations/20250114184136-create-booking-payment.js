@@ -41,7 +41,7 @@ module.exports = {
         allowNull: false
       },
       payment_method: {
-        type: Sequelize.ENUM('card', 'upi', 'net_banking'),
+        type: Sequelize.ENUM('pending','card', 'upi', 'net_banking'),
         allowNull: false
       },
       payment_status: {
@@ -63,6 +63,18 @@ module.exports = {
       refund_status: {
         type: Sequelize.ENUM('pending', 'completed', 'failed'),
         allowNull: true
+      },
+      cash_collected_at: {
+        type: Sequelize.DATE,
+        allowNull: true
+      },
+      cash_collected_by: {
+        type: Sequelize.INTEGER,
+        allowNull: true,
+        references: {
+          model: 'service_providers',
+          key: 'provider_id'
+        }
       },
       created_at: {
         type: Sequelize.DATE,
