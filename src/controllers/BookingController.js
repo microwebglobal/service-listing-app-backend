@@ -593,7 +593,7 @@ class BookingController {
           { model: BookingPayment },
           {
             model: ServiceProvider,
-            as: "provider",  // Add this alias to match the model
+            as: "provider", 
             include: [{ model: User, attributes: ['name', 'email', 'mobile'] }]
           }
         ]
