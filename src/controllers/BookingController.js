@@ -7,6 +7,8 @@ const {
   PackageSection,
   CitySpecificPricing,
   SpecialPricing,
+  ServiceProvider,
+  User,
   Package,
 } = require("../models");
 const { Op } = require("sequelize");
@@ -310,6 +312,17 @@ class BookingController {
             ],
           },
           { model: BookingPayment },
+          {
+            model: ServiceProvider,
+            as: "provider",
+            required: false,
+            include: [
+              {
+                model: User,
+                attributes: ["name", "email", "mobile"],
+              },
+            ],
+          },
         ],
       });
 
