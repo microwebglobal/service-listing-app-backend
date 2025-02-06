@@ -46,6 +46,100 @@ class BookingController {
     }, 0);
   }
 
+  static async proceedToPayment(req, res, next) {
+    try {
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const booking = await Booking.findOne({
+        where: {
+          user_id: req.user.id,
+          status: "cart",
+        },
+        include: [{ model: BookingPayment }],
+      });
+
+      if (!booking) {
+        return res.status(404).json({ message: "No active cart found" });
+      }
+
+      await booking.update({ status: "payment_pending" });
+
+      res.status(200).json({
+        message: "Booking ready for payment",
+        booking: await booking.reload({
+          include: [{ model: BookingItem }, { model: BookingPayment }],
+        }),
+      });
+    } catch (error) {
+      console.error("Proceed to Payment Error:", error);
+      next(error);
+    }
+  }
+
+  static async getBookingByCustomer(req, res, next) {
+    try {
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const bookings = await Booking.findAll({
+        where: {
+          user_id: req.user.id,
+          status: {
+            [Op.ne]: "cart", // Exclude cart items
+          },
+        },
+        include: [
+          {
+            model: BookingItem,
+            include: [
+              {
+                model: ServiceItem,
+                as: "serviceItem",
+                required: false,
+              },
+              {
+                model: PackageItem,
+                as: "packageItem",
+                required: false,
+                include: [
+                  {
+                    model: PackageSection,
+                    as: "PackageSection",
+                    required: false,
+                    include: [
+                      {
+                        model: Package,
+                        as: "Package",
+                        required: false,
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+          { model: BookingPayment },
+          {
+            model: ServiceProvider,
+            include: [{ model: User, attributes: ["name", "email", "mobile"] }],
+          },
+        ],
+      });
+
+      if (!bookings || bookings.length === 0) {
+        return res.status(404).json({ message: "No bookings found" });
+      }
+
+      res.status(200).json(bookings);
+    } catch (error) {
+      console.error("Get Customer Bookings Error:", error);
+      next(error);
+    }
+  }
+
   static async getCurrentPrice(itemId, itemType, cityId) {
     try {
       const currentDate = new Date();
@@ -80,6 +174,296 @@ class BookingController {
     } catch (error) {
       console.error("Error getting current price:", error);
       throw error;
+    }
+  }
+
+  static async assignServiceProvider(bookingId, cityId, transaction) {
+    try {
+      // Check if auto-assignment is enabled
+      const autoAssignmentSetting = await SystemSettings.findOne({
+        where: {
+          category: "provider_assignment",
+          key: "auto_assignment_enabled",
+        },
+        transaction,
+      });
+
+      if (!autoAssignmentSetting || !JSON.parse(autoAssignmentSetting.value)) {
+        console.log("Auto assignment is disabled");
+        return null;
+      }
+
+      // Get daily booking count
+      const dailyBookingCount = await Booking.count({
+        where: {
+          created_at: {
+            [Op.gte]: new Date().setHours(0, 0, 0, 0),
+          },
+          status: {
+            [Op.in]: ["confirmed", "assigned"],
+          },
+        },
+        transaction,
+      });
+
+      // Generate random number between 1-10
+      const randomNumber = Math.floor(Math.random() * 10) + 1;
+      const providerType = randomNumber <= 7 ? "individual" : "business";
+
+      // Find eligible providers
+      const eligibleProviders = await ServiceProvider.findAll({
+        where: {
+          status: "active",
+          business_type: providerType,
+          "$ProviderServiceCities.city_id$": cityId,
+        },
+        include: [
+          {
+            model: ProviderServiceCity,
+            where: { city_id: cityId },
+            required: true,
+          },
+        ],
+        transaction,
+      });
+
+      if (!eligibleProviders.length) {
+        throw new Error(
+          `No eligible ${providerType} providers found in the city`
+        );
+      }
+
+      // Randomly select provider
+      const selectedProvider =
+        eligibleProviders[Math.floor(Math.random() * eligibleProviders.length)];
+
+      // Create assignment history
+      await AssignmentHistory.create(
+        {
+          booking_id: bookingId,
+          provider_id: selectedProvider.provider_id,
+          provider_type: providerType,
+          random_number: randomNumber,
+          daily_booking_count: dailyBookingCount,
+          attempt_number: 1,
+          status: "assigned",
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+        { transaction }
+      );
+
+      // Update booking
+      await Booking.update(
+        {
+          provider_id: selectedProvider.provider_id,
+          status: "assigned",
+          assignment_type: "auto",
+        },
+        {
+          where: { booking_id: bookingId },
+          transaction,
+        }
+      );
+
+      return selectedProvider;
+    } catch (error) {
+      console.error("Provider assignment error:", error);
+      throw error;
+    }
+  }
+
+  static async manuallyAssignProvider(req, res, next) {
+    const transaction = await sequelize.transaction();
+    try {
+      const { bookingId, providerId } = req.body;
+
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const booking = await Booking.findOne({
+        where: { booking_id: bookingId },
+        transaction,
+      });
+
+      if (!booking) {
+        await transaction.rollback();
+        return res.status(404).json({ message: "Booking not found" });
+      }
+
+      const provider = await ServiceProvider.findOne({
+        where: { provider_id: providerId, status: "active" },
+        include: [
+          {
+            model: ProviderServiceCity,
+            where: { city_id: booking.city_id },
+            required: true,
+          },
+        ],
+        transaction,
+      });
+
+      if (!provider) {
+        await transaction.rollback();
+        return res.status(404).json({ message: "Eligible provider not found" });
+      }
+
+      // Create assignment history
+      await AssignmentHistory.create(
+        {
+          booking_id: bookingId,
+          provider_id: providerId,
+          provider_type: provider.business_type,
+          status: "assigned",
+          attempt_number: 1,
+          assignment_type: "manual",
+          assigned_by: req.user.id,
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+        { transaction }
+      );
+
+      // Update booking
+      await booking.update(
+        {
+          provider_id: providerId,
+          status: "assigned",
+          assignment_type: "manual",
+        },
+        { transaction }
+      );
+
+      await transaction.commit();
+
+      const updatedBooking = await Booking.findByPk(bookingId, {
+        include: [
+          { model: BookingItem },
+          { model: BookingPayment },
+          {
+            model: ServiceProvider,
+            include: [{ model: User, attributes: ["name", "email", "mobile"] }],
+          },
+        ],
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Provider manually assigned successfully",
+        booking: updatedBooking,
+      });
+    } catch (error) {
+      await transaction.rollback();
+      console.error("Manual assignment error:", error);
+      next(error);
+    }
+  }
+
+  static async processPayment(req, res, next) {
+    const transaction = await sequelize.transaction();
+
+    try {
+      const { amount, bookingId, paymentMethod, cardNumber, expiry, cvv } =
+        req.body;
+
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const booking = await Booking.findOne({
+        where: { booking_id: bookingId },
+        transaction,
+      });
+
+      const payment = await BookingPayment.findOne({
+        where: { booking_id: bookingId },
+        transaction,
+      });
+
+      let isSuccess = false;
+
+      if (paymentMethod === "card") {
+        if (!cardNumber || !expiry || !cvv) {
+          return res.status(400).json({ error: "Card details required" });
+        }
+        isSuccess = Math.random() > 0.2; // 80% success rate for card
+      } else if (paymentMethod === "cash") {
+        isSuccess = true; // Cash payments always proceed
+      }
+
+      if (isSuccess) {
+        // Update payment
+        await payment.update(
+          {
+            payment_method: paymentMethod,
+            payment_status: paymentMethod === "cash" ? "pending" : "completed",
+            transaction_id: uuidv4(),
+          },
+          { transaction }
+        );
+
+        // Update booking
+        await booking.update(
+          {
+            status: "confirmed",
+          },
+          { transaction }
+        );
+
+        // Try automatic assignment if enabled
+        let assignedProvider = null;
+        try {
+          assignedProvider = await BookingController.assignServiceProvider(
+            bookingId,
+            booking.city_id,
+            transaction
+          );
+        } catch (assignError) {
+          console.error("Auto-assignment failed:", assignError);
+          // Continue without assignment if auto-assignment fails
+        }
+
+        await transaction.commit();
+
+        const updatedBooking = await Booking.findByPk(bookingId, {
+          include: [
+            { model: BookingItem },
+            { model: BookingPayment },
+            {
+              model: ServiceProvider,
+              include: [
+                { model: User, attributes: ["name", "email", "mobile"] },
+              ],
+            },
+          ],
+        });
+
+        return res.status(200).json({
+          success: true,
+          message: assignedProvider
+            ? `Booking confirmed and assigned to ${assignedProvider.business_type} provider`
+            : "Booking confirmed, awaiting manual provider assignment",
+          booking: updatedBooking,
+        });
+      } else {
+        await payment.update(
+          {
+            payment_status: "failed",
+          },
+          { transaction }
+        );
+
+        await transaction.commit();
+        return res.status(200).json({
+          success: false,
+          message: "Payment failed",
+        });
+      }
+    } catch (error) {
+      await transaction.rollback();
+      console.error("Payment Processing Error:", error);
+      next(error);
     }
   }
 
@@ -127,10 +511,11 @@ class BookingController {
           existingBookings.map((booking) => booking.booking_id)
         );
 
-        const formattedLocation = JSON.stringify({
+        // Format the location data for PostgreSQL
+        const locationData = serviceLocation || {
           type: "Point",
-          coordinates: serviceLocation,
-        });
+          coordinates: [0, 0],
+        };
 
         booking = await Booking.create({
           booking_id: newBookingId,
@@ -141,11 +526,8 @@ class BookingController {
           end_time: startTime,
           status: "cart",
           service_address: serviceAddress,
-          service_location: JSON.stringify({
-            type: "Point",
-            coordinates: [-122.4194, 37.7749], //use fixwed values untill implementitng google api
-          }),
-          customer_notes: customerNotes,
+          service_location: locationData,
+          customer_notes: customerNotes || "",
         });
       }
 
@@ -183,20 +565,26 @@ class BookingController {
 
       const existingPaymentIds = await BookingPayment.findAll({
         attributes: ["payment_id"],
-        raw: true,
       });
 
       const taxAmount = totalAmount * 0.18;
       const totalWithTax = totalAmount + taxAmount;
 
       await BookingPayment.create({
-        payment_id: IdGenerator.generateId("PAY", paymentIds),
+        payment_id: IdGenerator.generateId(
+          "PAY",
+          existingPaymentIds.map((p) => p.payment_id)
+        ),
         booking_id: booking.booking_id,
-        subtotal: totalAmount,
         payment_method: "card",
-        tax_amount: totalAmount * 0.18,
-        total_amount: totalAmount * 1.18,
         payment_status: "pending",
+        subtotal: totalAmount,
+        tax_amount: taxAmount,
+        total_amount: totalWithTax,
+        tip_amount: 0, // Set default tip amount
+        transaction_id: null, // Will be set during actual payment
+        payment_date: null, // Will be set during actual payment
+        payment_response: null, // Will be set during actual payment
       });
 
       const updatedBooking = await Booking.findByPk(booking.booking_id, {
@@ -204,16 +592,8 @@ class BookingController {
           {
             model: BookingItem,
             include: [
-              {
-                model: ServiceItem,
-                as: "serviceItem",
-                required: false,
-              },
-              {
-                model: PackageItem,
-                as: "packageItem",
-                required: false,
-              },
+              { model: ServiceItem, as: "serviceItem", required: false },
+              { model: PackageItem, as: "packageItem", required: false },
             ],
           },
           { model: BookingPayment },
@@ -239,16 +619,8 @@ class BookingController {
           {
             model: BookingItem,
             include: [
-              {
-                model: ServiceItem,
-                as: "serviceItem",
-                required: false,
-              },
-              {
-                model: PackageItem,
-                as: "packageItem",
-                required: false,
-              },
+              { model: ServiceItem, as: "serviceItem", required: false },
+              { model: PackageItem, as: "packageItem", required: false },
             ],
           },
           { model: BookingPayment },
@@ -339,16 +711,8 @@ class BookingController {
           {
             model: BookingItem,
             include: [
-              {
-                model: ServiceItem,
-                as: "serviceItem",
-                required: false,
-              },
-              {
-                model: PackageItem,
-                as: "packageItem",
-                required: false,
-              },
+              { model: ServiceItem, as: "serviceItem", required: false },
+              { model: PackageItem, as: "packageItem", required: false },
             ],
           },
           { model: BookingPayment },
@@ -503,29 +867,78 @@ class BookingController {
     const transaction = await sequelize.transaction();
 
     try {
-      if (!req.user || !req.user.id) {
-        return res.status(401).json({ message: "Authentication required" });
+      const { bookingId } = req.params;
+
+      const payment = await BookingPayment.findOne({
+        where: {
+          booking_id: bookingId,
+          payment_method: "cash",
+          payment_status: "pending",
+        },
+        transaction,
+      });
+
+      if (!payment) {
+        return res
+          .status(404)
+          .json({ message: "No pending cash payment found for this booking" });
       }
 
-      const booking = await Booking.findOne({
-        where: {
-          user_id: req.user.id,
-          status: "cart",
+      await payment.update(
+        {
+          payment_status: "completed",
+          completed_at: new Date(),
         },
-        include: [{ model: BookingPayment }],
+        { transaction }
+      );
+
+      await transaction.commit();
+
+      res.status(200).json({
+        success: true,
+        message: "Cash payment marked as completed",
+        payment: await payment.reload(),
+      });
+    } catch (error) {
+      await transaction.rollback();
+      console.error("Complete Cash Payment Error:", error);
+      next(error);
+    }
+  }
+
+  static async getEligibleProviders(req, res, next) {
+    try {
+      const { bookingId } = req.params;
+
+      const booking = await Booking.findOne({
+        where: { booking_id: bookingId },
       });
 
       if (!booking) {
         return res.status(404).json({ message: "Booking not found" });
       }
 
-      await booking.update({ status: "payment_pending" });
+      const eligibleProviders = await ServiceProvider.findAll({
+        where: {
+          status: "active",
+          "$ProviderServiceCities.city_id$": booking.city_id,
+        },
+        include: [
+          {
+            model: ProviderServiceCity,
+            where: { city_id: booking.city_id },
+            required: true,
+          },
+          {
+            model: User,
+            attributes: ["name", "email", "mobile"],
+          },
+        ],
+      });
 
       res.status(200).json({
-        message: "Booking ready for payment",
-        booking: await booking.reload({
-          include: [{ model: BookingItem }, { model: BookingPayment }],
-        }),
+        success: true,
+        providers: eligibleProviders,
       });
     } catch (error) {
       console.error("Get Eligible Providers Error:", error);
