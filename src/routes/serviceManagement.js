@@ -39,6 +39,7 @@ router.delete(
 );
 router.put(
   "/categories/:id",
+  upload.single("image"),
   authMiddleware,
   roleCheck("admin"),
   ServiceCategoryController.updateCategory
@@ -66,12 +67,8 @@ router.post(
   roleCheck("admin"),
   SubCategoryController.createSubCategory
 );
-router.put(
-  "/subcategories/:id",
-  authMiddleware,
-  roleCheck("admin"),
-  SubCategoryController.updateSubCategory
-);
+router.put('/subcategories/:id', upload.single('image'), SubCategoryController.updateSubCategory);
+
 router.delete(
   "/subcategories/:id",
   authMiddleware,

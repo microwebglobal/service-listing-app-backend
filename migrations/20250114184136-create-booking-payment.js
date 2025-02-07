@@ -41,7 +41,7 @@ module.exports = {
         allowNull: false
       },
       payment_method: {
-        type: Sequelize.ENUM('pending','card', 'upi', 'net_banking'),
+        type: Sequelize.ENUM('pending','card', 'upi', 'net_banking','cash'),
         allowNull: false
       },
       payment_status: {

@@ -749,10 +749,10 @@ class BookingController {
           { model: BookingPayment },
           {
             model: ServiceProvider,
-            as: "provider",
-            include: [{ model: User, attributes: ["name", "email", "mobile"] }],
-          },
-        ],
+            as: "provider", 
+            include: [{ model: User, attributes: ['name', 'email', 'mobile'] }]
+          }
+        ]
       });
 
       if (!booking) {

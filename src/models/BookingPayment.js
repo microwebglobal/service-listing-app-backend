@@ -45,7 +45,7 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false
     },
     payment_method: {
-      type: DataTypes.ENUM('pending','card', 'upi', 'net_banking', 'cash'),
+      type: DataTypes.ENUM('pending', 'card', 'upi', 'net_banking', 'cash'),
       allowNull: false
     },
     payment_status: {

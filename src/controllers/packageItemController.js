@@ -4,9 +4,12 @@ const {
   PackageSection,
   CitySpecificPricing,
   SpecialPricing,
+  sequelize
 } = require("../models");
 const IdGenerator = require("../utils/helper");
 const { Op } = require("sequelize");
+const path = require('path');
+const fs = require('fs');
 
 class PackageItemController {
   static async getPackageItems(req, res, next) {
@@ -47,6 +50,7 @@ class PackageItemController {
         is_default: item.is_default,
         is_none_option: item.is_none_option,
         display_order: item.display_order,
+        icon_url: item.icon_url,
         city_prices: item.CitySpecificPricings.reduce((acc, pricing) => {
           const specialPrice = item.SpecialPricings?.find(
             (sp) => sp.city_id === pricing.city_id && sp.status === "active"
@@ -63,14 +67,19 @@ class PackageItemController {
         },
       }));
 
-      res.status(200).json(transformedItems);
+      res.status(200).json({
+        status: "success",
+        data: transformedItems,
+        message: items.length ? "Package items retrieved successfully" : "No items found"
+      });
     } catch (error) {
       next(error);
     }
   }
 
-  // Create package item with city pricing
   static async createPackageItem(req, res, next) {
+    const transaction = await sequelize.transaction();
+    
     try {
       const {
         section_id,
@@ -81,61 +90,55 @@ class PackageItemController {
         is_none_option,
         display_order,
         city_prices,
-        specialPricing, // This should now be a stringified JSON array
+        specialPricing,
       } = req.body;
 
-      console.log("Raw city_prices:", city_prices);
-      console.log("Raw specialPricing:", specialPricing);
-
+      // Validate required fields
       if (!section_id || !name || price === undefined) {
-        return res.status(400).json({
-          error:
-            "Missing required fields: section_id, name, and price are required",
-        });
-      }
-
-      // Parse city_prices
-      let parsedCityPrices = {};
-
-      if (typeof city_prices === "string") {
-        try {
-          parsedCityPrices = JSON.parse(city_prices);
-        } catch (error) {
-          console.error("Invalid JSON in city_prices:", city_prices);
-        }
-      } else if (typeof city_prices === "object" && city_prices !== null) {
-        parsedCityPrices = city_prices;
-      }
-
-      // Parse specialPricing
-      let parsedSpecialPricing = [];
-      if (Array.isArray(specialPricing)) {
-        parsedSpecialPricing = specialPricing;
-      } else if (typeof specialPricing === "string") {
-        try {
-          parsedSpecialPricing = JSON.parse(specialPricing);
-        } catch (error) {
-          console.error("Invalid JSON in specialPricing:", specialPricing);
-          return res.status(400).json({
-            error: "Invalid specialPricing format. Expected a JSON array.",
+        if (req.file) {
+          const filePath = path.join(__dirname, '..', 'uploads', 'files', req.file.filename);
+          fs.unlink(filePath, err => {
+            if (err) console.error('Error deleting file:', err);
           });
         }
-      } else {
-        console.error("Unexpected specialPricing type:", typeof specialPricing);
         return res.status(400).json({
-          error: "specialPricing must be an array.",
+          status: "error",
+          message: "Missing required fields: section_id, name, and price are required"
         });
       }
 
-      const iconUrl = `/uploads/files/${req?.file?.filename}`;
-
+      // Validate section existence
       const section = await PackageSection.findByPk(section_id);
       if (!section) {
+        if (req.file) {
+          const filePath = path.join(__dirname, '..', 'uploads', 'files', req.file.filename);
+          fs.unlink(filePath, err => {
+            if (err) console.error('Error deleting file:', err);
+          });
+        }
         return res.status(404).json({
-          error: `Section with ID ${section_id} not found`,
+          status: "error",
+          message: `Section with ID ${section_id} not found`
         });
       }
 
+      // Parse city_prices and specialPricing
+      const parsedCityPrices = this.parsePriceData(city_prices);
+      const parsedSpecialPricing = this.parseSpecialPricing(specialPricing);
+      if (parsedSpecialPricing.error) {
+        return res.status(400).json({
+          status: "error",
+          message: parsedSpecialPricing.error
+        });
+      }
+
+      // Handle file upload
+      let iconUrl = null;
+      if (req.file) {
+        iconUrl = `/uploads/files/${req.file.filename}`;
+      }
+
+      // Generate new item ID
       const existingPackageItems = await PackageItem.findAll({
         attributes: ["item_id"],
       });
@@ -144,6 +147,7 @@ class PackageItemController {
         existingPackageItems.map((item) => item.item_id)
       );
 
+      // Create package item
       const newItem = await PackageItem.create({
         item_id: newItemID,
         section_id,
@@ -154,28 +158,27 @@ class PackageItemController {
         is_none_option: is_none_option || false,
         display_order: display_order || 0,
         icon_url: iconUrl,
-      });
+      }, { transaction });
 
-      // Handle city-specific pricing if provided
+      // Create city-specific pricing
       if (parsedCityPrices && Object.keys(parsedCityPrices).length > 0) {
-        const cityPricingPromises = Object.entries(parsedCityPrices).map(
-          ([cityId, price]) => {
-            return CitySpecificPricing.create({
+        await Promise.all(
+          Object.entries(parsedCityPrices).map(([cityId, price]) =>
+            CitySpecificPricing.create({
               city_id: cityId,
               item_id: newItemID,
               item_type: "package_item",
               price: price,
-            });
-          }
+            }, { transaction })
+          )
         );
-        await Promise.all(cityPricingPromises);
       }
 
-      // Handle optional special pricing
-      if (parsedSpecialPricing?.length > 0) {
+      // Create special pricing
+      if (parsedSpecialPricing.data?.length > 0) {
         await Promise.all(
-          parsedSpecialPricing.map(async (pricing) => {
-            return SpecialPricing.create({
+          parsedSpecialPricing.data.map((pricing) =>
+            SpecialPricing.create({
               item_id: newItemID,
               item_type: "package_item",
               city_id: pricing.city_id,
@@ -183,73 +186,18 @@ class PackageItemController {
               start_date: pricing.start_date,
               end_date: pricing.end_date,
               status: "active",
-            });
-          })
+            }, { transaction })
+          )
         );
       }
 
+      await transaction.commit();
+
+      // Fetch created item with associations
       const createdItem = await PackageItem.findByPk(newItemID, {
         include: [
           {
             model: PackageSection,
-            as: "PackageSection",
-            attributes: ["name", "description", "display_order"],
-          },
-          {
-            model: CitySpecificPricing,
-            attributes: ["city_id", "price"],
-          },
-        ],
-      });
-
-      res.status(201).json({
-        item_id: createdItem.item_id,
-        name: createdItem.name,
-        description: createdItem.description,
-        price: createdItem.price,
-        is_default: createdItem.is_default,
-        is_none_option: createdItem.is_none_option,
-        display_order: createdItem.display_order,
-        city_prices: createdItem.CitySpecificPricings.reduce((acc, pricing) => {
-          acc[pricing.city_id] = pricing.price;
-          return acc;
-        }, {}),
-        section: {
-          name: createdItem.PackageSections.name,
-          description: createdItem.PackageSections.description,
-          display_order: createdItem.PackageSections.display_order,
-        },
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  static async getItemsBySectionId(req, res, next) {
-    try {
-      const sectionId = req.params.sectionId;
-      const currentDate = new Date();
-      if (!sectionId) {
-        return res.status(400).json({
-          error: "Section ID is required",
-        });
-      }
-
-      // Check if section exists
-      const section = await PackageSection.findByPk(sectionId);
-      if (!section) {
-        return res.status(404).json({
-          error: `Section with ID ${sectionId} not found`,
-        });
-      }
-
-      // Get all items for the section
-      const items = await PackageItem.findAll({
-        where: { section_id: sectionId },
-        include: [
-          {
-            model: PackageSection,
-            as: "PackageSections",
             attributes: ["name", "description", "display_order"],
           },
           {
@@ -258,44 +206,34 @@ class PackageItemController {
           },
           {
             model: SpecialPricing,
+            where: { status: "active" },
             required: false,
           },
         ],
-        order: [["display_order", "ASC"]],
       });
 
-      if (!items || items.length === 0) {
-        return res.status(200).json([]);
+      res.status(201).json({
+        status: "success",
+        data: this.transformItemResponse(createdItem),
+        message: "Package item created successfully"
+      });
+    } catch (error) {
+      await transaction.rollback();
+      
+      if (req.file) {
+        const filePath = path.join(__dirname, '..', 'uploads', 'files', req.file.filename);
+        fs.unlink(filePath, err => {
+          if (err) console.error('Error deleting file:', err);
+        });
       }
 
-      const transformedItems = items.map((item) => ({
-        item_id: item.item_id,
-        name: item.name,
-        description: item.description,
-        price: item.price,
-        is_default: item.is_default,
-        is_none_option: item.is_none_option,
-        display_order: item.display_order,
-        city_prices: item.CitySpecificPricings.reduce((acc, pricing) => {
-          acc[pricing.city_id] = pricing.price;
-          return acc;
-        }, {}),
-        special_prices: item.SpecialPricings,
-        section: {
-          name: item.PackageSections.name,
-          description: item.PackageSections.description,
-          display_order: item.PackageSections.display_order,
-        },
-      }));
-
-      res.status(200).json(transformedItems);
-    } catch (error) {
       next(error);
     }
   }
 
-  // Update package item with city pricing
   static async updatePackageItem(req, res, next) {
+    const transaction = await sequelize.transaction();
+    
     try {
       const itemId = req.params.id;
       const {
@@ -310,186 +248,343 @@ class PackageItemController {
         specialPricing,
       } = req.body;
 
-      console.log(req.body);
-
-      // Parse city_prices
-      let parsedCityPrices = {};
-
-      if (typeof city_prices === "string") {
-        try {
-          parsedCityPrices = JSON.parse(city_prices);
-        } catch (error) {
-          console.error("Invalid JSON in city_prices:", city_prices);
-        }
-      } else if (typeof city_prices === "object" && city_prices !== null) {
-        parsedCityPrices = city_prices;
-      }
-
-      // Parse specialPricing
-      let parsedSpecialPricing = [];
-      if (Array.isArray(specialPricing)) {
-        parsedSpecialPricing = specialPricing;
-      } else if (typeof specialPricing === "string") {
-        try {
-          parsedSpecialPricing = JSON.parse(specialPricing);
-        } catch (error) {
-          console.error("Invalid JSON in specialPricing:", specialPricing);
-          return res.status(400).json({
-            error: "Invalid specialPricing format. Expected a JSON array.",
-          });
-        }
-      } else {
-        console.error("Unexpected specialPricing type:", typeof specialPricing);
-        return res.status(400).json({
-          error: "specialPricing must be an array.",
-        });
-      }
-
+      // Find existing item
       const item = await PackageItem.findByPk(itemId);
       if (!item) {
+        if (req.file) {
+          const filePath = path.join(__dirname, '..', 'uploads', 'files', req.file.filename);
+          fs.unlink(filePath, err => {
+            if (err) console.error('Error deleting file:', err);
+          });
+        }
         return res.status(404).json({
-          error: "Package item not found",
+          status: "error",
+          message: "Package item not found"
         });
       }
 
+      // Validate section if provided
       if (section_id) {
         const section = await PackageSection.findByPk(section_id);
         if (!section) {
+          if (req.file) {
+            const filePath = path.join(__dirname, '..', 'uploads', 'files', req.file.filename);
+            fs.unlink(filePath, err => {
+              if (err) console.error('Error deleting file:', err);
+            });
+          }
           return res.status(404).json({
-            error: `Section with ID ${section_id} not found`,
+            status: "error",
+            message: `Section with ID ${section_id} not found`
           });
         }
       }
 
+      // Handle file upload
+      if (req.file) {
+        const iconUrl = `/uploads/files/${req.file.filename}`;
+
+        // Delete old file if exists
+        if (item.icon_url) {
+          const relativePath = item.icon_url.startsWith('/') 
+            ? item.icon_url.slice(1) 
+            : item.icon_url;
+            
+          const oldFilePath = path.join(__dirname, '..', relativePath);
+          
+          if (fs.existsSync(oldFilePath)) {
+            fs.unlink(oldFilePath, err => {
+              if (err) console.error('Error deleting old file:', err);
+            });
+          }
+        }
+
+        await item.update({ icon_url: iconUrl }, { transaction });
+      }
+
+      // Update item
       await item.update({
         name: name || item.name,
         description: description !== undefined ? description : item.description,
         price: price !== undefined ? price : item.price,
         is_default: is_default !== undefined ? is_default : item.is_default,
-        is_none_option:
-          is_none_option !== undefined ? is_none_option : item.is_none_option,
-        display_order:
-          display_order !== undefined ? display_order : item.display_order,
+        is_none_option: is_none_option !== undefined ? is_none_option : item.is_none_option,
+        display_order: display_order !== undefined ? display_order : item.display_order,
         section_id: section_id || item.section_id,
-      });
+      }, { transaction });
 
-      // Update city-specific pricing if provided
+      // Update city-specific pricing
       if (city_prices) {
-        // Delete existing pricing
+        const parsedCityPrices = this.parsePriceData(city_prices);
+        
         await CitySpecificPricing.destroy({
           where: {
             item_id: itemId,
             item_type: "package_item",
           },
+          transaction
         });
 
-        // Create new pricing entries
-        if (parsedCityPrices && Object.keys(parsedCityPrices).length > 0) {
-          const cityPricingPromises = Object.entries(parsedCityPrices).map(
-            ([cityId, price]) => {
-              return CitySpecificPricing.create({
+        if (Object.keys(parsedCityPrices).length > 0) {
+          await Promise.all(
+            Object.entries(parsedCityPrices).map(([cityId, price]) =>
+              CitySpecificPricing.create({
                 city_id: cityId,
                 item_id: itemId,
                 item_type: "package_item",
                 price: price,
-              });
-            }
+              }, { transaction })
+            )
           );
-          await Promise.all(cityPricingPromises);
         }
       }
 
-      // Handle optional special pricing
-      if (parsedSpecialPricing?.length > 0) {
+      // Update special pricing
+      if (specialPricing) {
+        const parsedSpecialPricing = this.parseSpecialPricing(specialPricing);
+        if (parsedSpecialPricing.error) {
+          return res.status(400).json({
+            status: "error",
+            message: parsedSpecialPricing.error
+          });
+        }
+
         await SpecialPricing.destroy({
           where: {
             item_id: itemId,
             item_type: "package_item",
           },
+          transaction
         });
 
-        await Promise.all(
-          parsedSpecialPricing.map(async (pricing) => {
-            return SpecialPricing.create({
-              item_id: itemId,
-              item_type: "package_item",
-              city_id: pricing.city_id,
-              special_price: pricing.special_price,
-              start_date: pricing.start_date,
-              end_date: pricing.end_date,
-              status: "active",
-            });
-          })
-        );
+        if (parsedSpecialPricing.data?.length > 0) {
+          await Promise.all(
+            parsedSpecialPricing.data.map((pricing) =>
+              SpecialPricing.create({
+                item_id: itemId,
+                item_type: "package_item",
+                city_id: pricing.city_id,
+                special_price: pricing.special_price,
+                start_date: pricing.start_date,
+                end_date: pricing.end_date,
+                status: "active",
+              }, { transaction })
+            )
+          );
+        }
       }
 
+      await transaction.commit();
+
+      // Fetch updated item with associations
       const updatedItem = await PackageItem.findByPk(itemId, {
         include: [
           {
             model: PackageSection,
-            as: "PackageSections",
             attributes: ["name", "description", "display_order"],
           },
           {
             model: CitySpecificPricing,
             attributes: ["city_id", "price"],
           },
+          {
+            model: SpecialPricing,
+            where: { status: "active" },
+            required: false,
+          },
         ],
       });
 
       res.status(200).json({
-        item_id: updatedItem.item_id,
-        name: updatedItem.name,
-        description: updatedItem.description,
-        price: updatedItem.price,
-        is_default: updatedItem.is_default,
-        is_none_option: updatedItem.is_none_option,
-        display_order: updatedItem.display_order,
-        city_prices: updatedItem.CitySpecificPricings.reduce((acc, pricing) => {
-          acc[pricing.city_id] = pricing.price;
-          return acc;
-        }, {}),
-        section: {
-          name: updatedItem.PackageSections.name,
-          description: updatedItem.PackageSections.description,
-          display_order: updatedItem.PackageSections.display_order,
-        },
+        status: "success",
+        data: this.transformItemResponse(updatedItem),
+        message: "Package item updated successfully"
       });
     } catch (error) {
+      await transaction.rollback();
+      
+      if (req.file) {
+        const filePath = path.join(__dirname, '..', 'uploads', 'files', req.file.filename);
+        fs.unlink(filePath, err => {
+          if (err) console.error('Error deleting file:', err);
+        });
+      }
+
       next(error);
     }
   }
 
-  // Delete package item (cascades to city pricing)
   static async deletePackageItem(req, res, next) {
+    const transaction = await sequelize.transaction();
+    
     try {
       const itemId = req.params.id;
 
       const item = await PackageItem.findByPk(itemId);
       if (!item) {
         return res.status(404).json({
-          error: "Package item not found",
+          status: "error",
+          message: "Package item not found"
         });
       }
 
-      // Delete city-specific pricing first
-      await CitySpecificPricing.destroy({
-        where: {
-          item_id: itemId,
-          item_type: "package_item",
-        },
-      });
+      // Delete associated file if exists
+      if (item.icon_url) {
+        const relativePath = item.icon_url.startsWith('/') 
+          ? item.icon_url.slice(1) 
+          : item.icon_url;
+          
+        const filePath = path.join(__dirname, '..', relativePath);
+        if (fs.existsSync(filePath)) {
+          fs.unlink(filePath, err => {
+            if (err) console.error('Error deleting file:', err);
+          });
+        }
+      }
 
-      await item.destroy();
+      // Delete associated data
+      await Promise.all([
+        CitySpecificPricing.destroy({
+          where: {
+            item_id: itemId,
+            item_type: "package_item",
+          },
+          transaction
+        }),
+        SpecialPricing.destroy({
+          where: {
+            item_id: itemId,
+            item_type: "package_item",
+          },
+          transaction
+        }),
+        item.destroy({ transaction })
+      ]);
+
+      await transaction.commit();
 
       res.status(200).json({
-        message:
-          "Package item and associated city pricing deleted successfully",
-        item_id: itemId,
+        status: "success",
+        message: "Package item and associated data deleted successfully",
+        data: { item_id: itemId }
+      });
+    } catch (error) {
+      await transaction.rollback();
+      next(error);
+    }
+  }
+  static async getItemsBySectionId(req, res, next) {
+    try {
+      const sectionId = req.params.sectionId;
+      const currentDate = new Date();
+
+      // Validate section existence
+      const section = await PackageSection.findByPk(sectionId);
+      if (!section) {
+        return res.status(404).json({
+          status: "error",
+          message: `Section with ID ${sectionId} not found`
+        });
+      }
+
+      // Get items with associations
+      const items = await PackageItem.findAll({
+        where: { section_id: sectionId },
+        include: [
+          {
+            model: PackageSection,
+            attributes: ["name", "description", "display_order"],
+          },
+          {
+            model: CitySpecificPricing,
+            attributes: ["city_id", "price"],
+          },
+          {
+            model: SpecialPricing,
+            where: {
+              status: "active",
+              start_date: { [Op.lte]: currentDate },
+              end_date: { [Op.gte]: currentDate },
+            },
+            required: false,
+          },
+        ],
+        order: [["display_order", "ASC"]],
+      });
+
+      res.status(200).json({
+        status: "success",
+        data: items.map(item => this.transformItemResponse(item)),
+        message: items.length ? "Items retrieved successfully" : "No items found for this section"
       });
     } catch (error) {
       next(error);
     }
+  }
+
+  // Utility methods
+  static parsePriceData(priceData) {
+    let parsedData = {};
+
+    if (typeof priceData === "string") {
+      try {
+        parsedData = JSON.parse(priceData);
+      } catch (error) {
+        console.error("Invalid JSON in price data:", priceData);
+      }
+    } else if (typeof priceData === "object" && priceData !== null) {
+      parsedData = priceData;
+    }
+
+    return parsedData;
+  }
+
+  static parseSpecialPricing(specialPricing) {
+    if (Array.isArray(specialPricing)) {
+      return { data: specialPricing };
+    }
+
+    if (typeof specialPricing === "string") {
+      try {
+        const parsed = JSON.parse(specialPricing);
+        if (!Array.isArray(parsed)) {
+          return { error: "Special pricing must be an array" };
+        }
+        return { data: parsed };
+      } catch (error) {
+        return { error: "Invalid special pricing format" };
+      }
+    }
+
+    return { data: [] };
+  }
+
+  static transformItemResponse(item) {
+    return {
+      item_id: item.item_id,
+      name: item.name,
+      description: item.description,
+      price: item.price,
+      is_default: item.is_default,
+      is_none_option: item.is_none_option,
+      display_order: item.display_order,
+      icon_url: item.icon_url,
+      city_prices: item.CitySpecificPricings.reduce((acc, pricing) => {
+        const specialPrice = item.SpecialPricings?.find(
+          sp => sp.city_id === pricing.city_id && sp.status === "active"
+        );
+        acc[pricing.city_id] = specialPrice
+          ? specialPrice.special_price
+          : pricing.price;
+        return acc;
+      }, {}),
+      special_prices: item.SpecialPricings || [],
+      section: item.PackageSection ? {
+        name: item.PackageSection.name,
+        description: item.PackageSection.description,
+        display_order: item.PackageSection.display_order,
+      } : null
+    };
   }
 }
 

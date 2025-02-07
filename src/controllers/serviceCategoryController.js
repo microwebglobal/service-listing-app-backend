@@ -6,6 +6,9 @@ const {
 } = require("../models");
 const IdGenerator = require("../utils/helper");
 const { Op } = require("sequelize");
+const { sequelize } = require("../models");
+const path = require("path");
+const fs = require("fs");
 
 class ServiceCategoryController {
   static async getAllCategories(req, res, next) {
@@ -136,11 +139,23 @@ class ServiceCategoryController {
   }
 
   static async createCategory(req, res, next) {
+    const transaction = await sequelize.transaction();
+    
     try {
-      console.log("File:", req.file); // Debugging
-      console.log("Body:", req.body); // Debugging
+      console.log("File:", req.file);
+      console.log("Body:", req.body);
 
-      const iconUrl = `/uploads/files/${req?.file?.filename}`;
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+
+      // Parse city IDs from the request body
+      const cityIds = JSON.parse(req.body.cities || '[]');
+      if (!Array.isArray(cityIds) || cityIds.length === 0) {
+        return res.status(400).json({ error: 'At least one city must be selected' });
+      }
+
+      const iconUrl = `/uploads/images/${req.file.filename}`;
 
       const existingCategories = await ServiceCategory.findAll({
         attributes: ["category_id"],
@@ -149,51 +164,165 @@ class ServiceCategoryController {
 
       const newCategoryId = IdGenerator.generateId("CAT", existingIds);
 
+      // Create the category
       const newCategory = await ServiceCategory.create({
         category_id: newCategoryId,
         name: req.body.name,
         slug: req.body.slug,
         icon_url: iconUrl,
-        display_order: req.body.display_order,
+        display_order: req.body.display_order || 0,
+      }, { transaction });
+
+      // Create city mappings
+      const cityMappings = cityIds.map(cityId => ({
+        category_id: newCategoryId,
+        city_id: cityId,
+        status: 'active'
+      }));
+
+      await CategoryCities.bulkCreate(cityMappings, { transaction });
+
+      await transaction.commit();
+
+      // Fetch the created category with its associations
+      const categoryWithAssociations = await ServiceCategory.findByPk(newCategoryId, {
+        include: [
+          {
+            model: City,
+            as: 'cities',
+            through: { attributes: [] }
+          }
+        ]
       });
-      res.status(201).json(newCategory);
+
+      res.status(201).json(categoryWithAssociations);
     } catch (error) {
+      await transaction.rollback();
+      
+      // Clean up uploaded file if database operation fails
+      if (req.file) {
+        const filePath = path.join(__dirname, '..', 'uploads', 'images', req.file.filename);
+        fs.unlink(filePath, err => {
+          if (err) console.error('Error deleting file:', err);
+        });
+      }
       next(error);
     }
   }
 
   static async updateCategory(req, res, next) {
+    const transaction = await sequelize.transaction();
+    
     try {
-      const { category_id, ...updateData } = req.body;
-      const [updated] = await ServiceCategory.update(updateData, {
-        where: { category_id: req.params.id },
-      });
-
-      if (!updated) {
+      const { category_id, cities, ...updateData } = req.body;
+      
+      const oldCategory = await ServiceCategory.findByPk(req.params.id);
+      if (!oldCategory) {
+        if (req.file) {
+          const filePath = path.join(__dirname, '..', 'uploads', 'images', req.file.filename);
+          fs.unlink(filePath, err => {
+            if (err) console.error('Error deleting file:', err);
+          });
+        }
         return res.status(404).json({ error: "Category not found" });
       }
 
-      const updatedCategory = await ServiceCategory.findByPk(req.params.id);
+      // Handle file upload if there's a new file
+      if (req.file) {
+        updateData.icon_url = `/uploads/images/${req.file.filename}`;
+
+        // Delete old file if it exists
+        if (oldCategory.icon_url) {
+          const relativePath = oldCategory.icon_url.startsWith('/') 
+            ? oldCategory.icon_url.slice(1) 
+            : oldCategory.icon_url;
+            
+          const oldFilePath = path.join(__dirname, '..', relativePath);
+          
+          if (fs.existsSync(oldFilePath)) {
+            fs.unlink(oldFilePath, err => {
+              if (err) console.error('Error deleting old file:', err);
+            });
+          }
+        }
+      }
+
+      // Update category basic info
+      await ServiceCategory.update(updateData, {
+        where: { category_id: req.params.id },
+        transaction
+      });
+
+      // Update city mappings if provided
+      if (cities) {
+        const cityIds = JSON.parse(cities);
+        
+        // Delete existing mappings
+        await CategoryCities.destroy({
+          where: { category_id: req.params.id },
+          transaction
+        });
+
+        // Create new mappings
+        if (Array.isArray(cityIds) && cityIds.length > 0) {
+          const newMappings = cityIds.map(cityId => ({
+            category_id: req.params.id,
+            city_id: cityId,
+            status: 'active'
+          }));
+
+          await CategoryCities.bulkCreate(newMappings, { transaction });
+        }
+      }
+
+      await transaction.commit();
+
+      const updatedCategory = await ServiceCategory.findByPk(req.params.id, {
+        include: [
+          {
+            model: City,
+            as: 'cities',
+            through: { attributes: [] }
+          }
+        ]
+      });
+
       res.status(200).json(updatedCategory);
     } catch (error) {
+      await transaction.rollback();
+      
+      if (req.file) {
+        const filePath = path.join(__dirname, '..', 'uploads', 'images', req.file.filename);
+        fs.unlink(filePath, err => {
+          if (err) console.error('Error deleting file:', err);
+        });
+      }
       next(error);
     }
   }
 
   static async deleteCategory(req, res, next) {
     try {
-      const deleted = await ServiceCategory.destroy({
-        where: { category_id: req.params.id },
-      });
-
-      if (!deleted) {
+      const category = await ServiceCategory.findByPk(req.params.id);
+      if (!category) {
         return res.status(404).json({ error: "Category not found" });
       }
+
+      // Delete the associated image file if it exists
+      if (category.icon_url) {
+        const filePath = path.join(__dirname, '..', category.icon_url);
+        if (fs.existsSync(filePath)) {
+          fs.unlink(filePath, err => {
+            if (err) console.error('Error deleting file:', err);
+          });
+        }
+      }
+
+      await category.destroy();
       res.status(200).json({ message: "Category deleted successfully" });
     } catch (error) {
       next(error);
     }
   }
 }
-
 module.exports = ServiceCategoryController;
