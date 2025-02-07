@@ -9,6 +9,7 @@ const ServiceProviderEnquiryController = require("../controllers/ServiceProvider
 const ServiceProviderController = require("../controllers/ServiceProviderController");
 const ServiceProviderEmployeeController = require("../controllers/ServiceProviderEmployeeController");
 const UserController = require("../controllers/userController.js");
+const ProviderBookingController = require("../controllers/ProviderBookingController.js");
 
 //const { authenticate, authorize } = require('../middleware/auth');
 
@@ -57,6 +58,11 @@ router.put(
   "/provider/update/:id",
   ServiceProviderController.updateProviderProfile
 );
+
+router.put(
+  "/provider/availability/:id",
+  ServiceProviderController.updateProviderAvailability
+);
 // Employee routes
 router.get(
   "/providers/:providerId/employees",
@@ -66,8 +72,22 @@ router.post(
   "/providers/:providerId/employees",
   ServiceProviderEmployeeController.addEmployee
 );
+router.put(
+  "/providers/:employeeId/employees",
+  ServiceProviderEmployeeController.updateEmployee
+);
+router.delete(
+  "/providers/:employeeId/employees",
+  ServiceProviderEmployeeController.deleteEmployee
+);
 
 //provider user password routes
 router.put("/provider/password/:id", UserController.setUserPassword);
+
+//provider booking routes
+router.get(
+  "/provider/bookings/:id",
+  ProviderBookingController.getBookingByProvider
+);
 
 module.exports = router;

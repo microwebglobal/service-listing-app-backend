@@ -419,10 +419,14 @@ class BookingController {
             booking.city_id,
             transaction
           );
+          console.log(assignedProvider);
         } catch (assignError) {
           console.error("Auto-assignment failed:", assignError);
+
           // Continue without assignment if auto-assignment fails
         }
+
+        console;
 
         await transaction.commit();
 
@@ -432,6 +436,7 @@ class BookingController {
             { model: BookingPayment },
             {
               model: ServiceProvider,
+              as: "provider",
               include: [
                 { model: User, attributes: ["name", "email", "mobile"] },
               ],
@@ -461,7 +466,9 @@ class BookingController {
         });
       }
     } catch (error) {
-      await transaction.rollback();
+      if (transaction.finished !== "commit") {
+        await transaction.rollback();
+      }
       console.error("Payment Processing Error:", error);
       next(error);
     }
@@ -624,64 +631,11 @@ class BookingController {
             ],
           },
           { model: BookingPayment },
-        ],
-      });
-      if (!booking) {
-        return res.status(404).json({ message: "No booking found" });
-      }
-
-      if (booking?.BookingPayment?.payment_status === "completed") {
-        return res
-          .status(405)
-          .json({ message: "This Transaction Already Compleated" });
-      }
-      res.status(200).json(booking);
-    } catch (error) {
-      console.error("Get Booking Error:", error);
-      next(error);
-    }
-  }
-
-  static async getBookingByCustomer(req, res, next) {
-    try {
-      if (!req.user || !req.user.id) {
-        return res.status(401).json({ message: "Authentication required" });
-      }
-
-      const booking = await Booking.findAll({
-        where: {
-          user_id: req.user.id,
-        },
-        include: [
           {
-            model: BookingItem,
-            include: [
-              {
-                model: ServiceItem,
-                as: "serviceItem",
-                required: false,
-              },
-              {
-                model: PackageItem,
-                as: "packageItem",
-                required: false,
-                include: [
-                  {
-                    model: PackageSection,
-                    required: false,
-                    include: [
-                      {
-                        model: Package,
-                        as: "Package",
-                        required: false,
-                      },
-                    ],
-                  },
-                ],
-              },
-            ],
+            model: ServiceProvider,
+            as: "provider",
+            include: [{ model: User, attributes: ["name", "email", "mobile"] }],
           },
-          { model: BookingPayment },
         ],
       });
 
