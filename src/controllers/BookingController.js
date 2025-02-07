@@ -55,9 +55,9 @@ class BookingController {
       const booking = await Booking.findOne({
         where: {
           user_id: req.user.id,
-          status: "cart"
+          status: "cart",
         },
-        include: [{ model: BookingPayment }]
+        include: [{ model: BookingPayment }],
       });
 
       if (!booking) {
@@ -69,8 +69,8 @@ class BookingController {
       res.status(200).json({
         message: "Booking ready for payment",
         booking: await booking.reload({
-          include: [{ model: BookingItem }, { model: BookingPayment }]
-        })
+          include: [{ model: BookingItem }, { model: BookingPayment }],
+        }),
       });
     } catch (error) {
       console.error("Proceed to Payment Error:", error);
@@ -88,8 +88,8 @@ class BookingController {
         where: {
           user_id: req.user.id,
           status: {
-            [Op.ne]: 'cart' // Exclude cart items
-          }
+            [Op.ne]: "cart", // Exclude cart items
+          },
         },
         include: [
           {
@@ -98,7 +98,7 @@ class BookingController {
               {
                 model: ServiceItem,
                 as: "serviceItem",
-                required: false
+                required: false,
               },
               {
                 model: PackageItem,
@@ -113,20 +113,20 @@ class BookingController {
                       {
                         model: Package,
                         as: "Package",
-                        required: false
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
+                        required: false,
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
           },
           { model: BookingPayment },
           {
             model: ServiceProvider,
-            include: [{ model: User, attributes: ['name', 'email', 'mobile'] }]
-          }
-        ]
+            include: [{ model: User, attributes: ["name", "email", "mobile"] }],
+          },
+        ],
       });
 
       if (!bookings || bookings.length === 0) {
@@ -182,14 +182,14 @@ class BookingController {
       // Check if auto-assignment is enabled
       const autoAssignmentSetting = await SystemSettings.findOne({
         where: {
-          category: 'provider_assignment',
-          key: 'auto_assignment_enabled'
+          category: "provider_assignment",
+          key: "auto_assignment_enabled",
         },
-        transaction
+        transaction,
       });
 
       if (!autoAssignmentSetting || !JSON.parse(autoAssignmentSetting.value)) {
-        console.log('Auto assignment is disabled');
+        console.log("Auto assignment is disabled");
         return null;
       }
 
@@ -197,67 +197,78 @@ class BookingController {
       const dailyBookingCount = await Booking.count({
         where: {
           created_at: {
-            [Op.gte]: new Date().setHours(0, 0, 0, 0)
+            [Op.gte]: new Date().setHours(0, 0, 0, 0),
           },
           status: {
-            [Op.in]: ['confirmed', 'assigned']
-          }
+            [Op.in]: ["confirmed", "assigned"],
+          },
         },
-        transaction
+        transaction,
       });
 
       // Generate random number between 1-10
       const randomNumber = Math.floor(Math.random() * 10) + 1;
-      const providerType = randomNumber <= 7 ? 'individual' : 'business';
+      const providerType = randomNumber <= 7 ? "individual" : "business";
 
       // Find eligible providers
       const eligibleProviders = await ServiceProvider.findAll({
         where: {
-          status: 'active',
+          status: "active",
           business_type: providerType,
-          '$ProviderServiceCities.city_id$': cityId
+          "$ProviderServiceCities.city_id$": cityId,
         },
-        include: [{
-          model: ProviderServiceCity,
-          where: { city_id: cityId },
-          required: true
-        }],
-        transaction
+        include: [
+          {
+            model: ProviderServiceCity,
+            where: { city_id: cityId },
+            required: true,
+          },
+        ],
+        transaction,
       });
 
       if (!eligibleProviders.length) {
-        throw new Error(`No eligible ${providerType} providers found in the city`);
+        throw new Error(
+          `No eligible ${providerType} providers found in the city`
+        );
       }
 
       // Randomly select provider
-      const selectedProvider = eligibleProviders[Math.floor(Math.random() * eligibleProviders.length)];
+      const selectedProvider =
+        eligibleProviders[Math.floor(Math.random() * eligibleProviders.length)];
 
       // Create assignment history
-      await AssignmentHistory.create({
-        booking_id: bookingId,
-        provider_id: selectedProvider.provider_id,
-        provider_type: providerType,
-        random_number: randomNumber,
-        daily_booking_count: dailyBookingCount,
-        attempt_number: 1,
-        status: 'assigned',
-        created_at: new Date(),
-        updated_at: new Date()
-      }, { transaction });
+      await AssignmentHistory.create(
+        {
+          booking_id: bookingId,
+          provider_id: selectedProvider.provider_id,
+          provider_type: providerType,
+          random_number: randomNumber,
+          daily_booking_count: dailyBookingCount,
+          attempt_number: 1,
+          status: "assigned",
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+        { transaction }
+      );
 
       // Update booking
-      await Booking.update({
-        provider_id: selectedProvider.provider_id,
-        status: 'assigned',
-        assignment_type: 'auto'
-      }, {
-        where: { booking_id: bookingId },
-        transaction
-      });
+      await Booking.update(
+        {
+          provider_id: selectedProvider.provider_id,
+          status: "assigned",
+          assignment_type: "auto",
+        },
+        {
+          where: { booking_id: bookingId },
+          transaction,
+        }
+      );
 
       return selectedProvider;
     } catch (error) {
-      console.error('Provider assignment error:', error);
+      console.error("Provider assignment error:", error);
       throw error;
     }
   }
@@ -273,7 +284,7 @@ class BookingController {
 
       const booking = await Booking.findOne({
         where: { booking_id: bookingId },
-        transaction
+        transaction,
       });
 
       if (!booking) {
@@ -282,13 +293,15 @@ class BookingController {
       }
 
       const provider = await ServiceProvider.findOne({
-        where: { provider_id: providerId, status: 'active' },
-        include: [{
-          model: ProviderServiceCity,
-          where: { city_id: booking.city_id },
-          required: true
-        }],
-        transaction
+        where: { provider_id: providerId, status: "active" },
+        include: [
+          {
+            model: ProviderServiceCity,
+            where: { city_id: booking.city_id },
+            required: true,
+          },
+        ],
+        transaction,
       });
 
       if (!provider) {
@@ -297,24 +310,30 @@ class BookingController {
       }
 
       // Create assignment history
-      await AssignmentHistory.create({
-        booking_id: bookingId,
-        provider_id: providerId,
-        provider_type: provider.business_type,
-        status: 'assigned',
-        attempt_number: 1,
-        assignment_type: 'manual',
-        assigned_by: req.user.id,
-        created_at: new Date(),
-        updated_at: new Date()
-      }, { transaction });
+      await AssignmentHistory.create(
+        {
+          booking_id: bookingId,
+          provider_id: providerId,
+          provider_type: provider.business_type,
+          status: "assigned",
+          attempt_number: 1,
+          assignment_type: "manual",
+          assigned_by: req.user.id,
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+        { transaction }
+      );
 
       // Update booking
-      await booking.update({
-        provider_id: providerId,
-        status: 'assigned',
-        assignment_type: 'manual'
-      }, { transaction });
+      await booking.update(
+        {
+          provider_id: providerId,
+          status: "assigned",
+          assignment_type: "manual",
+        },
+        { transaction }
+      );
 
       await transaction.commit();
 
@@ -324,17 +343,16 @@ class BookingController {
           { model: BookingPayment },
           {
             model: ServiceProvider,
-            include: [{ model: User, attributes: ['name', 'email', 'mobile'] }]
-          }
-        ]
+            include: [{ model: User, attributes: ["name", "email", "mobile"] }],
+          },
+        ],
       });
 
       return res.status(200).json({
         success: true,
         message: "Provider manually assigned successfully",
-        booking: updatedBooking
+        booking: updatedBooking,
       });
-
     } catch (error) {
       await transaction.rollback();
       console.error("Manual assignment error:", error);
@@ -346,7 +364,8 @@ class BookingController {
     const transaction = await sequelize.transaction();
 
     try {
-      const { amount, bookingId, paymentMethod, cardNumber, expiry, cvv } = req.body;
+      const { amount, bookingId, paymentMethod, cardNumber, expiry, cvv } =
+        req.body;
 
       if (!req.user || !req.user.id) {
         return res.status(401).json({ message: "Authentication required" });
@@ -354,37 +373,43 @@ class BookingController {
 
       const booking = await Booking.findOne({
         where: { booking_id: bookingId },
-        transaction
+        transaction,
       });
 
       const payment = await BookingPayment.findOne({
         where: { booking_id: bookingId },
-        transaction
+        transaction,
       });
 
       let isSuccess = false;
 
-      if (paymentMethod === 'card') {
+      if (paymentMethod === "card") {
         if (!cardNumber || !expiry || !cvv) {
           return res.status(400).json({ error: "Card details required" });
         }
         isSuccess = Math.random() > 0.2; // 80% success rate for card
-      } else if (paymentMethod === 'cash') {
+      } else if (paymentMethod === "cash") {
         isSuccess = true; // Cash payments always proceed
       }
 
       if (isSuccess) {
         // Update payment
-        await payment.update({
-          payment_method: paymentMethod,
-          payment_status: paymentMethod === 'cash' ? 'pending' : 'completed',
-          transaction_id: uuidv4()
-        }, { transaction });
+        await payment.update(
+          {
+            payment_method: paymentMethod,
+            payment_status: paymentMethod === "cash" ? "pending" : "completed",
+            transaction_id: uuidv4(),
+          },
+          { transaction }
+        );
 
         // Update booking
-        await booking.update({
-          status: 'confirmed'
-        }, { transaction });
+        await booking.update(
+          {
+            status: "confirmed",
+          },
+          { transaction }
+        );
 
         // Try automatic assignment if enabled
         let assignedProvider = null;
@@ -394,10 +419,14 @@ class BookingController {
             booking.city_id,
             transaction
           );
+          console.log(assignedProvider);
         } catch (assignError) {
-          console.error('Auto-assignment failed:', assignError);
+          console.error("Auto-assignment failed:", assignError);
+
           // Continue without assignment if auto-assignment fails
         }
+
+        console;
 
         await transaction.commit();
 
@@ -407,9 +436,12 @@ class BookingController {
             { model: BookingPayment },
             {
               model: ServiceProvider,
-              include: [{ model: User, attributes: ['name', 'email', 'mobile'] }]
-            }
-          ]
+              as: "provider",
+              include: [
+                { model: User, attributes: ["name", "email", "mobile"] },
+              ],
+            },
+          ],
         });
 
         return res.status(200).json({
@@ -417,26 +449,30 @@ class BookingController {
           message: assignedProvider
             ? `Booking confirmed and assigned to ${assignedProvider.business_type} provider`
             : "Booking confirmed, awaiting manual provider assignment",
-          booking: updatedBooking
+          booking: updatedBooking,
         });
       } else {
-        await payment.update({
-          payment_status: 'failed'
-        }, { transaction });
+        await payment.update(
+          {
+            payment_status: "failed",
+          },
+          { transaction }
+        );
 
         await transaction.commit();
         return res.status(200).json({
           success: false,
-          message: "Payment failed"
+          message: "Payment failed",
         });
       }
     } catch (error) {
-      await transaction.rollback();
+      if (transaction.finished !== "commit") {
+        await transaction.rollback();
+      }
       console.error("Payment Processing Error:", error);
       next(error);
     }
   }
-
 
   static async addToCart(req, res, next) {
     try {
@@ -460,31 +496,32 @@ class BookingController {
 
       if (!BookingController.validateTimeSlot(startTime)) {
         return res.status(400).json({
-          message: "Invalid time slot. Please select a time between 11:00 AM and 8:30 PM in 30-minute intervals"
+          message:
+            "Invalid time slot. Please select a time between 11:00 AM and 8:30 PM in 30-minute intervals",
         });
       }
 
       let booking = await Booking.findOne({
         where: {
           user_id: req.user.id,
-          status: "cart"
-        }
+          status: "cart",
+        },
       });
 
       if (!booking) {
         const existingBookings = await Booking.findAll({
-          attributes: ['booking_id']
+          attributes: ["booking_id"],
         });
 
         const newBookingId = IdGenerator.generateId(
           "BKG",
-          existingBookings.map(booking => booking.booking_id)
+          existingBookings.map((booking) => booking.booking_id)
         );
 
         // Format the location data for PostgreSQL
         const locationData = serviceLocation || {
-          type: 'Point',
-          coordinates: [0, 0]
+          type: "Point",
+          coordinates: [0, 0],
         };
 
         booking = await Booking.create({
@@ -497,13 +534,13 @@ class BookingController {
           status: "cart",
           service_address: serviceAddress,
           service_location: locationData,
-          customer_notes: customerNotes || ""
+          customer_notes: customerNotes || "",
         });
       }
 
       // Clear existing items
       await BookingItem.destroy({
-        where: { booking_id: booking.booking_id }
+        where: { booking_id: booking.booking_id },
       });
 
       // Add new items
@@ -524,34 +561,37 @@ class BookingController {
           item_type: item.itemType,
           quantity: item.quantity,
           unit_price: currentPrice,
-          total_price: totalPrice
+          total_price: totalPrice,
         });
       }
 
       // Update payment
       await BookingPayment.destroy({
-        where: { booking_id: booking.booking_id }
+        where: { booking_id: booking.booking_id },
       });
 
       const existingPaymentIds = await BookingPayment.findAll({
-        attributes: ['payment_id']
+        attributes: ["payment_id"],
       });
 
       const taxAmount = totalAmount * 0.18;
       const totalWithTax = totalAmount + taxAmount;
 
       await BookingPayment.create({
-        payment_id: IdGenerator.generateId("PAY", existingPaymentIds.map(p => p.payment_id)),
+        payment_id: IdGenerator.generateId(
+          "PAY",
+          existingPaymentIds.map((p) => p.payment_id)
+        ),
         booking_id: booking.booking_id,
-        payment_method: 'card',
-        payment_status: 'pending',
+        payment_method: "card",
+        payment_status: "pending",
         subtotal: totalAmount,
         tax_amount: taxAmount,
         total_amount: totalWithTax,
         tip_amount: 0, // Set default tip amount
         transaction_id: null, // Will be set during actual payment
         payment_date: null, // Will be set during actual payment
-        payment_response: null // Will be set during actual payment
+        payment_response: null, // Will be set during actual payment
       });
 
       const updatedBooking = await Booking.findByPk(booking.booking_id, {
@@ -560,11 +600,11 @@ class BookingController {
             model: BookingItem,
             include: [
               { model: ServiceItem, as: "serviceItem", required: false },
-              { model: PackageItem, as: "packageItem", required: false }
-            ]
+              { model: PackageItem, as: "packageItem", required: false },
+            ],
           },
-          { model: BookingPayment }
-        ]
+          { model: BookingPayment },
+        ],
       });
 
       res.status(200).json(updatedBooking);
@@ -587,8 +627,66 @@ class BookingController {
             model: BookingItem,
             include: [
               { model: ServiceItem, as: "serviceItem", required: false },
-              { model: PackageItem, as: "packageItem", required: false }
-            ]
+              { model: PackageItem, as: "packageItem", required: false },
+            ],
+          },
+          { model: BookingPayment },
+        ],
+      });
+      if (!booking) {
+        return res.status(404).json({ message: "No booking found" });
+      }
+
+      if (booking?.BookingPayment?.payment_status === "completed") {
+        return res
+          .status(405)
+          .json({ message: "This Transaction Already Compleated" });
+      }
+      res.status(200).json(booking);
+    } catch (error) {
+      console.error("Get Booking Error:", error);
+      next(error);
+    }
+  }
+
+  static async getBookingByCustomer(req, res, next) {
+    try {
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const booking = await Booking.findAll({
+        where: {
+          user_id: req.user.id,
+        },
+        include: [
+          {
+            model: BookingItem,
+            include: [
+              {
+                model: ServiceItem,
+                as: "serviceItem",
+                required: false,
+              },
+              {
+                model: PackageItem,
+                as: "packageItem",
+                required: false,
+                include: [
+                  {
+                    model: PackageSection,
+                    required: false,
+                    include: [
+                      {
+                        model: Package,
+                        as: "Package",
+                        required: false,
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
           },
           { model: BookingPayment },
         ],
@@ -652,13 +750,7 @@ class BookingController {
           {
             model: ServiceProvider,
             as: "provider",
-            required: false,
-            include: [
-              {
-                model: User,
-                attributes: ["name", "email", "mobile"],
-              },
-            ],
+            include: [{ model: User, attributes: ["name", "email", "mobile"] }],
           },
         ],
       });
@@ -683,18 +775,18 @@ class BookingController {
       const cart = await Booking.findOne({
         where: {
           user_id: req.user.id,
-          status: "cart"
+          status: "cart",
         },
         include: [
           {
             model: BookingItem,
             include: [
               { model: ServiceItem, as: "serviceItem", required: false },
-              { model: PackageItem, as: "packageItem", required: false }
-            ]
+              { model: PackageItem, as: "packageItem", required: false },
+            ],
           },
-          { model: BookingPayment }
-        ]
+          { model: BookingPayment },
+        ],
       });
 
       if (!cart) {
@@ -717,14 +809,16 @@ class BookingController {
       const { itemId, quantity } = req.body;
 
       if (!itemId || quantity === undefined) {
-        return res.status(400).json({ message: "Item ID and quantity are required" });
+        return res
+          .status(400)
+          .json({ message: "Item ID and quantity are required" });
       }
 
       const booking = await Booking.findOne({
         where: {
           user_id: req.user.id,
-          status: "cart"
-        }
+          status: "cart",
+        },
       });
 
       if (!booking) {
@@ -734,8 +828,8 @@ class BookingController {
       const bookingItem = await BookingItem.findOne({
         where: {
           booking_id: booking.booking_id,
-          item_id: itemId
-        }
+          item_id: itemId,
+        },
       });
 
       if (!bookingItem) {
@@ -748,13 +842,13 @@ class BookingController {
         const newTotalPrice = bookingItem.unit_price * quantity;
         await bookingItem.update({
           quantity,
-          total_price: newTotalPrice
+          total_price: newTotalPrice,
         });
       }
 
       // Recalculate totals
       const allItems = await BookingItem.findAll({
-        where: { booking_id: booking.booking_id }
+        where: { booking_id: booking.booking_id },
       });
 
       const subtotal = allItems.reduce(
@@ -763,20 +857,20 @@ class BookingController {
       );
 
       const payment = await BookingPayment.findOne({
-        where: { booking_id: booking.booking_id }
+        where: { booking_id: booking.booking_id },
       });
 
       await payment.update({
         subtotal,
         tax_amount: subtotal * 0.18,
-        total_amount: subtotal * 1.18 + (payment.tip_amount || 0)
+        total_amount: subtotal * 1.18 + (payment.tip_amount || 0),
       });
 
       res.status(200).json({
         message: "Cart updated successfully",
         booking: await booking.reload({
-          include: [{ model: BookingItem }, { model: BookingPayment }]
-        })
+          include: [{ model: BookingItem }, { model: BookingPayment }],
+        }),
       });
     } catch (error) {
       console.error("Update Cart Item Error:", error);
@@ -799,9 +893,9 @@ class BookingController {
       const booking = await Booking.findOne({
         where: {
           user_id: req.user.id,
-          status: "cart"
+          status: "cart",
         },
-        include: [{ model: BookingPayment }]
+        include: [{ model: BookingPayment }],
       });
 
       if (!booking) {
@@ -813,23 +907,25 @@ class BookingController {
       const tip = parseFloat(tipAmount) || 0;
 
       if (isNaN(subtotal) || isNaN(taxAmount) || isNaN(tip)) {
-        return res.status(400).json({ message: "Invalid numeric values in payment data" });
+        return res
+          .status(400)
+          .json({ message: "Invalid numeric values in payment data" });
       }
 
       const newTotalAmount = subtotal + tax + tip;
 
       const payment = await BookingPayment.findOne({
-        where: { booking_id: booking.booking_id }
+        where: { booking_id: booking.booking_id },
       });
 
       await payment.update({
         tip_amount: tipAmount,
-        total_amount: newTotalAmount
+        total_amount: newTotalAmount,
       });
 
       res.status(200).json({
         message: "Tip updated successfully",
-        payment: await payment.reload()
+        payment: await payment.reload(),
       });
     } catch (error) {
       console.error("Update Tip Error:", error);
@@ -846,27 +942,32 @@ class BookingController {
       const payment = await BookingPayment.findOne({
         where: {
           booking_id: bookingId,
-          payment_method: 'cash',
-          payment_status: 'pending'
+          payment_method: "cash",
+          payment_status: "pending",
         },
-        transaction
+        transaction,
       });
 
       if (!payment) {
-        return res.status(404).json({ message: "No pending cash payment found for this booking" });
+        return res
+          .status(404)
+          .json({ message: "No pending cash payment found for this booking" });
       }
 
-      await payment.update({
-        payment_status: 'completed',
-        completed_at: new Date()
-      }, { transaction });
+      await payment.update(
+        {
+          payment_status: "completed",
+          completed_at: new Date(),
+        },
+        { transaction }
+      );
 
       await transaction.commit();
 
       res.status(200).json({
         success: true,
         message: "Cash payment marked as completed",
-        payment: await payment.reload()
+        payment: await payment.reload(),
       });
     } catch (error) {
       await transaction.rollback();
@@ -880,7 +981,7 @@ class BookingController {
       const { bookingId } = req.params;
 
       const booking = await Booking.findOne({
-        where: { booking_id: bookingId }
+        where: { booking_id: bookingId },
       });
 
       if (!booking) {
@@ -889,25 +990,25 @@ class BookingController {
 
       const eligibleProviders = await ServiceProvider.findAll({
         where: {
-          status: 'active',
-          '$ProviderServiceCities.city_id$': booking.city_id
+          status: "active",
+          "$ProviderServiceCities.city_id$": booking.city_id,
         },
         include: [
           {
             model: ProviderServiceCity,
             where: { city_id: booking.city_id },
-            required: true
+            required: true,
           },
           {
             model: User,
-            attributes: ['name', 'email', 'mobile']
-          }
-        ]
+            attributes: ["name", "email", "mobile"],
+          },
+        ],
       });
 
       res.status(200).json({
         success: true,
-        providers: eligibleProviders
+        providers: eligibleProviders,
       });
     } catch (error) {
       console.error("Get Eligible Providers Error:", error);

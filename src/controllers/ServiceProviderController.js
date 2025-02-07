@@ -49,6 +49,14 @@ class ServiceProviderController {
           { model: User },
           { model: ServiceCategory, as: "serviceCategories" },
           { model: City, as: "serviceCities" },
+          {
+            model: ServiceProviderEmployee,
+            include: [
+              {
+                model: User,
+              },
+            ],
+          },
         ],
       });
 
@@ -70,6 +78,14 @@ class ServiceProviderController {
           { model: User },
           { model: ServiceCategory, as: "serviceCategories" },
           { model: City, as: "serviceCities" },
+          {
+            model: ServiceProviderEmployee,
+            include: [
+              {
+                model: User,
+              },
+            ],
+          },
         ],
       });
 
@@ -953,6 +969,41 @@ class ServiceProviderController {
       }
 
       await transaction.commit();
+
+      res.status(200).json({
+        message: "Provider profile updated successfully",
+        provider_id: providerId,
+      });
+    } catch (error) {
+      console.error("Provider update error:", error);
+      next(error);
+    }
+  }
+
+  static async updateProviderAvailability(req, res, next) {
+    try {
+      const providerId = req.params.id;
+      const updateData = req.body;
+
+      const provider = await ServiceProvider.findByPk(providerId);
+
+      if (!provider) {
+        return res.status(404).json({ error: "Provider not found" });
+      }
+
+      // Handle JSON fields
+      const jsonFields = ["availability_hours"];
+      jsonFields.forEach((field) => {
+        if (updateData[field] && typeof updateData[field] === "string") {
+          try {
+            updateData[field] = JSON.parse(updateData[field]);
+          } catch (error) {
+            console.error(`Error parsing ${field}:`, error);
+          }
+        }
+      });
+
+      await provider.update(updateData);
 
       res.status(200).json({
         message: "Provider profile updated successfully",
