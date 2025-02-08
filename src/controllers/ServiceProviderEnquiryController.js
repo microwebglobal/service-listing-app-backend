@@ -6,7 +6,7 @@ const {
 } = require("../models");
 const { generateRegistrationLink } = require("../utils/helpers.js");
 const { sequelize } = require("../models");
-
+const MailService = require("../utils/mail.js");
 class ServiceProviderEnquiryController {
   static async getAllEnquiries(req, res, next) {
     try {
@@ -153,6 +153,12 @@ class ServiceProviderEnquiryController {
 
       await t.commit();
 
+      try {
+        await MailService.sendEnquiryReceivedEmail(user, 'business');
+      } catch (emailError) {
+        console.error('Error sending enquiry email:', emailError);
+      }
+
       res.status(201).json({
         message: "Business enquiry created successfully",
         enquiry_id: enquiry.enquiry_id,
@@ -269,10 +275,24 @@ class ServiceProviderEnquiryController {
 
       await t.commit();
 
+      try {
+        await MailService.sendEnquiryReceivedEmail(user, 'individual');
+      } catch (emailError) {
+        console.error('Error sending enquiry email:', emailError);
+      }
+
       res.status(201).json({
         message: "Individual enquiry created successfully",
         enquiry_id: enquiry.enquiry_id,
       });
+
+      try {
+        await MailService.sendEnquiryReceivedEmail(user, 'individual');
+      } catch (emailError) {
+        console.error('Error sending enquiry email:', emailError);
+      }
+
+      
     } catch (error) {
       await t.rollback();
       console.error("Individual enquiry creation error:", {
@@ -342,6 +362,14 @@ class ServiceProviderEnquiryController {
           Date.now() + 7 * 24 * 60 * 60 * 1000
         ), // 7 days
       });
+      const user = await User.findByPk(enquiry.user_id);
+
+      try {
+        await MailService.sendEnquiryApprovedEmail(user, registrationLink);
+      } catch (emailError) {
+        console.error('Error sending approval email:', emailError);
+      }
+      
 
       res.status(200).json({
         message: "Enquiry approved",

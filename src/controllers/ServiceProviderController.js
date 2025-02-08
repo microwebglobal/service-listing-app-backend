@@ -11,6 +11,7 @@ const {
   ServiceProviderDocument,
 } = require("../models");
 const { sequelize } = require("../models");
+const MailService = require('../utils/mail.js');
 
 const {
   generateRegistrationLink,
@@ -100,109 +101,95 @@ class ServiceProviderController {
   }
 
   static async registerProvider(req, res, next) {
-    const t = await sequelize.transaction();
+    let t;
     try {
-      const {
-        enquiry_id,
-        business_registration_number,
-        service_radius,
-        availability_type,
-        availability_hours,
-        specializations,
-        profile_bio,
-        languages_spoken,
-        social_media_links,
-        payment_method,
-        payment_details,
-        categories,
-        cities,
-        employees,
-        whatsapp_number,
-        emergency_contact_name,
-        alternate_number,
-        reference_number,
-        reference_name,
-        aadhar_number,
-        pan_number,
-        certificates_awards,
+      t = await sequelize.transaction();
+      
+      const { 
+        enquiry_id, 
+        business_registration_number, 
+        service_radius, 
+        availability_type, 
+        availability_hours, 
+        specializations, 
+        profile_bio, 
+        languages_spoken, 
+        social_media_links, 
+        payment_method, 
+        payment_details, 
+        categories, 
+        cities, 
+        employees, 
+        whatsapp_number, 
+        emergency_contact_name, 
+        alternate_number, 
+        reference_number, 
+        reference_name, 
+        aadhar_number, 
+        pan_number, 
+        certificates_awards 
       } = req.body;
-
+  
       // Find and validate enquiry
-      const enquiry = await ServiceProviderEnquiry.findByPk(enquiry_id, {
-        transaction: t,
-      });
+      const enquiry = await ServiceProviderEnquiry.findByPk(enquiry_id, { transaction: t });
+      
       if (!enquiry) {
+        await t.rollback();
         return res.status(404).json({
           error: "Invalid registration link",
-          message: "This registration link is invalid or has expired",
+          message: "This registration link is invalid or has expired"
         });
       }
-
-      // Check enquiry status
+  
       if (enquiry.status === "completed") {
+        await t.rollback();
         return res.status(409).json({
           error: "Registration already completed",
-          message: "This registration has already been completed",
+          message: "This registration has already been completed"
         });
       }
-
-      // Check registration link expiration
-      if (
-        enquiry.registration_link_expires &&
-        new Date() > new Date(enquiry.registration_link_expires)
-      ) {
+  
+      if (enquiry.registration_link_expires && new Date() > new Date(enquiry.registration_link_expires)) {
+        await t.rollback();
         return res.status(410).json({
           error: "Registration link expired",
-          message:
-            "This registration link has expired. Please request a new one",
+          message: "This registration link has expired. Please request a new one"
         });
       }
-
+  
       // Parse JSON data
-      let parsedData = {};
+      let parsedData;
       try {
         parsedData = {
-          availabilityHours:
-            typeof availability_hours === "string"
-              ? JSON.parse(availability_hours)
-              : availability_hours,
-          socialMediaLinks:
-            typeof social_media_links === "string"
-              ? JSON.parse(social_media_links)
-              : social_media_links,
-          paymentDetails:
-            typeof payment_details === "string"
-              ? JSON.parse(payment_details)
-              : payment_details,
-          categories:
-            typeof categories === "string"
-              ? JSON.parse(categories)
-              : categories,
+          availabilityHours: typeof availability_hours === "string" ? JSON.parse(availability_hours) : availability_hours,
+          socialMediaLinks: typeof social_media_links === "string" ? JSON.parse(social_media_links) : social_media_links,
+          paymentDetails: typeof payment_details === "string" ? JSON.parse(payment_details) : payment_details,
+          categories: typeof categories === "string" ? JSON.parse(categories) : categories,
           cities: typeof cities === "string" ? JSON.parse(cities) : cities,
-          employees:
-            typeof employees === "string" ? JSON.parse(employees) : employees,
+          employees: typeof employees === "string" ? JSON.parse(employees) : employees
         };
       } catch (parseError) {
-        console.error("JSON parsing error:", parseError);
+        await t.rollback();
         return res.status(400).json({
           error: "Invalid JSON data in request",
-          details: parseError.message,
+          details: parseError.message
         });
       }
-
+  
+      // Update enquiry status
+      await ServiceProviderEnquiry.update({
+        status: "completed",
+        registration_link_expires: new Date(),
+        registration_completed_at: new Date()
+      }, { 
+        where: { enquiry_id },
+        transaction: t 
+      });
+  
       // Process arrays
-      const processedLanguages = Array.isArray(languages_spoken)
-        ? languages_spoken
-        : languages_spoken
-        ? [languages_spoken]
-        : [];
-
-      const processedSpecializations = Array.isArray(specializations)
-        ? specializations
-        : specializations
-        ? [specializations]
-        : [];
-
+      const processedLanguages = Array.isArray(languages_spoken) ? languages_spoken : languages_spoken ? [languages_spoken] : [];
+      const processedSpecializations = Array.isArray(specializations) ? specializations : specializations ? [specializations] : [];
+  
       // Prepare provider data
       const providerData = {
         enquiry_id: enquiry.enquiry_id,
@@ -230,188 +217,152 @@ class ServiceProviderController {
         social_media_links: parsedData.socialMediaLinks,
         payment_method: payment_method || "upi",
         payment_details: parsedData.paymentDetails,
-        status: "pending_approval",
+        status: "pending_approval"
       };
-
+  
       // Check for existing provider
       const existingProvider = await ServiceProvider.findOne({
         where: {
           user_id: enquiry.user_id,
-          status: "rejected",
+          status: "rejected"
         },
-        transaction: t,
+        transaction: t
       });
-
+  
+      // Create or update provider
       let provider;
       if (existingProvider) {
-        // Reset rejection fields and update with new data
-        provider = await existingProvider.update(
-          {
-            ...providerData,
-            rejection_reason: null,
-            rejection_date: null,
-            status: "pending_approval",
-          },
-          { transaction: t }
-        );
+        provider = await existingProvider.update({
+          ...providerData,
+          rejection_reason: null,
+          rejection_date: null,
+          status: "pending_approval"
+        }, { transaction: t });
       } else {
-        // Create new provider
-        provider = await ServiceProvider.create(providerData, {
-          transaction: t,
-        });
+        provider = await ServiceProvider.create(providerData, { transaction: t });
       }
-
+  
       // Handle employees
       if (parsedData.employees && Array.isArray(parsedData.employees)) {
-        await Promise.all(
-          parsedData.employees.map(async (employee) => {
-            try {
-              const user = await User.create(
-                {
-                  name: employee.name,
-                  mobile: employee.phone,
-                  tokenVersion: 1,
-                  gender: employee.gender,
-                  account_status: "pending",
-                  role: "business_employee",
-                },
-                { transaction: t }
-              );
-
-              await ServiceProviderEmployee.create(
-                {
-                  user_id: user.u_id,
-                  provider_id: provider.provider_id,
-                  role: employee.designation,
-                  qualification: employee.qualification,
-                  years_experience: 5,
-                  status: "inactive",
-                },
-                { transaction: t }
-              );
-            } catch (error) {
-              console.error(error);
-            }
-          })
-        );
+        await Promise.all(parsedData.employees.map(async (employee) => {
+          try {
+            const user = await User.create({
+              name: employee.name,
+              mobile: employee.phone,
+              tokenVersion: 1,
+              gender: employee.gender,
+              account_status: "pending",
+              role: "business_employee"
+            }, { transaction: t });
+  
+            await ServiceProviderEmployee.create({
+              user_id: user.u_id,
+              provider_id: provider.provider_id,
+              role: employee.designation,
+              qualification: employee.qualification,
+              years_experience: 5,
+              status: "inactive"
+            }, { transaction: t });
+          } catch (error) {
+            console.error("Error creating employee:", error);
+            throw error; // This will trigger transaction rollback
+          }
+        }));
       }
-
+  
       // Handle categories
       if (parsedData.categories && Array.isArray(parsedData.categories)) {
-        await Promise.all(
-          parsedData.categories.map(async (category) => {
-            try {
-              await ProviderServiceCategory.create(
-                {
-                  provider_id: provider.provider_id,
-                  category_id: category.id,
-                  experience_years: Number(category.experience_years) || 0,
-                  is_primary: Boolean(category.is_primary),
-                },
-                { transaction: t }
-              );
-            } catch (categoryError) {
-              console.error("Error creating category:", categoryError);
-            }
-          })
-        );
+        await Promise.all(parsedData.categories.map(async (category) => {
+          try {
+            await ProviderServiceCategory.create({
+              provider_id: provider.provider_id,
+              category_id: category.id,
+              experience_years: Number(category.experience_years) || 0,
+              is_primary: Boolean(category.is_primary)
+            }, { transaction: t });
+          } catch (error) {
+            console.error("Error creating category:", error);
+            throw error;
+          }
+        }));
       }
-
+  
       // Handle cities
       if (parsedData.cities && Array.isArray(parsedData.cities)) {
-        await Promise.all(
-          parsedData.cities.map(async (city) => {
-            try {
-              await ProviderServiceCity.create(
-                {
-                  provider_id: provider.provider_id,
-                  city_id: city.id,
-                  service_radius: Number(city.service_radius) || 0,
-                  is_primary: Boolean(city.is_primary),
-                },
-                { transaction: t }
-              );
-            } catch (cityError) {
-              console.error("Error creating city:", cityError);
-            }
-          })
-        );
+        await Promise.all(parsedData.cities.map(async (city) => {
+          try {
+            await ProviderServiceCity.create({
+              provider_id: provider.provider_id,
+              city_id: city.id,
+              service_radius: Number(city.service_radius) || 0,
+              is_primary: Boolean(city.is_primary)
+            }, { transaction: t });
+          } catch (error) {
+            console.error("Error creating city:", error);
+            throw error;
+          }
+        }));
       }
-
-      // Handle file upload
+  
+      // Handle file uploads
       if (req.files) {
-        Object.keys(req.files).forEach((fieldName) => {
+        const documentPromises = Object.keys(req.files).map((fieldName) => {
           const files = req.files[fieldName];
-
           const filesArray = Array.isArray(files) ? files : [files];
-
-          filesArray.forEach(async (file) => {
-            console.log("Fieldname:", file.fieldname);
-            console.log("File Path:", file?.path);
+          
+          return Promise.all(filesArray.map(async (file) => {
             if (file && file.path) {
               try {
-                console.log(fieldName);
-                await ServiceProviderDocument.create(
-                  {
-                    provider_id: provider.provider_id,
-                    document_type: file.fieldname,
-                    document_url: file.path,
-                  },
-                  { transaction: t }
-                );
+                await ServiceProviderDocument.create({
+                  provider_id: provider.provider_id,
+                  document_type: file.fieldname,
+                  document_url: file.path,
+                  verification_status: "pending"
+                }, { transaction: t });
               } catch (error) {
-                console.error(
-                  `Error inserting document for field: ${fieldName}`,
-                  error
-                );
+                console.error(`Error inserting document for field: ${fieldName}`, error);
+                throw error;
               }
-            } else {
-              console.error(`No valid file or path for field: ${fieldName}`);
             }
-          });
+          }));
         });
-      } else {
-        console.error("No files found");
+  
+        await Promise.all(documentPromises);
       }
-
-      // Update enquiry status
-      await ServiceProviderEnquiry.update(
-        {
-          status: "completed",
-          registration_link_expires: new Date(),
-          registration_completed_at: new Date(),
-        },
-        { where: { enquiry_id }, transaction: t }
-      );
-
-      // Commit the transaction
+  
+      // Send registration confirmation email
+      try {
+        const user = await User.findByPk(provider.user_id);
+        await MailService.sendRegistrationSuccessEmail(user);
+      } catch (emailError) {
+        console.error('Error sending registration email:', emailError);
+      }
+  
+      // Commit transaction
       await t.commit();
-
-      res.status(201).json({
-        message: existingProvider
-          ? "Provider registration resubmitted successfully"
-          : "Provider registered successfully",
-        provider_id: provider.provider_id,
+  
+      return res.status(201).json({
+        message: existingProvider ? "Provider registration resubmitted successfully" : "Provider registered successfully",
+        provider_id: provider.provider_id
       });
+  
     } catch (error) {
-      // Rollback the transaction in case of an error
-      await t.rollback();
-
+      if (t) await t.rollback();
       console.error("Provider registration error:", {
         message: error.message,
         stack: error.stack,
         name: error.name,
-        details: error.original?.detail || error.original?.message,
+        details: error.original?.detail || error.original?.message
       });
-
-      res.status(500).json({
+  
+      return res.status(500).json({
         error: "Provider registration failed",
         details: error.message,
         type: error.name,
         validation: error.errors?.map((e) => ({
           field: e.path,
-          message: e.message,
-        })),
+          message: e.message
+        }))
       });
     }
   }
@@ -556,6 +507,8 @@ class ServiceProviderController {
 
                 const passwordLink = generatePasswordLink(updatedUser);
                 console.log("Paswordlinkfor Employee ", passwordLink);
+                await MailService.sendPasswordSetupEmail(updatedUser, passwordLink);
+
               } catch (error) {
                 console.error("Error updating employee or user status:", error);
                 throw error; // Rollback the transaction if there's an error
@@ -594,6 +547,7 @@ class ServiceProviderController {
 
       const passwordLink = generatePasswordLink(provider.User);
       console.log("Paswordlinkfor Business Provider", passwordLink);
+      await MailService.sendPasswordSetupEmail(provider.User, passwordLink);
 
       await transaction.commit();
       res.status(200).json({
