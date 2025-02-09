@@ -47,4 +47,4 @@ jobs:
         script: |
           cd ~/qp/backend
           npm ci --production
-          pm2 start src/index.js --name qp-backend || pm2 restart qp-backend
+          pm2 start server.js --name qp-backend || pm2 restart qp-backend
