@@ -505,7 +505,7 @@ class ServiceProviderController {
                   },
                 });
 
-                const passwordLink = generatePasswordLink(updatedUser);
+                const passwordLink = await generatePasswordLink(updatedUser);
                 console.log("Paswordlinkfor Employee ", passwordLink);
                 await MailService.sendPasswordSetupEmail(updatedUser, passwordLink);
 
@@ -545,7 +545,7 @@ class ServiceProviderController {
         { transaction }
       );
 
-      const passwordLink = generatePasswordLink(provider.User);
+      const passwordLink = await generatePasswordLink(provider.User);
       console.log("Paswordlinkfor Business Provider", passwordLink);
       await MailService.sendPasswordSetupEmail(provider.User, passwordLink);
 
