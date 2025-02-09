@@ -36,10 +36,7 @@ class AuthController {
         throw createError(403, "Account is not active");
       }
 
-      const otp =
-        process.env.NODE_ENV === "development"
-          ? "123456"
-          : Math.floor(100000 + Math.random() * 900000).toString();
+      const otp = "123456";
 
       console.log(otp); //loggr to print otp
 
