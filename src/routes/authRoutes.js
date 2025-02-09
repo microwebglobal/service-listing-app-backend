@@ -1,13 +1,21 @@
 const express = require('express');
 const router = express.Router();
-// const AuthController = require('../controllers/authController');
+const AuthController = require('../controllers/authController');
 
-// Define authentication routes
-router.post('/login', (req, res) => {
-});
+// Create an instance of AuthController
+const authController = new AuthController();
 
-router.post('/register', (req, res) => {
-});
+// Customer Routes
+router.post('/customer/login/send-otp', authController.customerSendOTP);
+router.post('/customer/login/verify-otp', authController.customerVerifyOTP);
 
+// Admin Routes
+router.post('/admin/login', authController.adminLogin);
+
+// Service Provider Routes
+router.post('/provider/login', authController.providerLogin);
+
+// Common Routes
+router.post('/logout', authController.logout);
 
 module.exports = router;

@@ -1,84 +1,104 @@
-'use strict';
+"use strict";
 
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
-    await queryInterface.createTable('users', {
+    await queryInterface.createTable("users", {
       u_id: {
         type: Sequelize.INTEGER,
         primaryKey: true,
         autoIncrement: true,
-        allowNull: false
+        allowNull: false,
       },
       name: {
         type: Sequelize.STRING(100),
-        allowNull: false
+        allowNull: false,
       },
       email: {
         type: Sequelize.STRING(100),
-        allowNull: false,
-        unique: true
+        allowNull: true,
+        unique: true,
       },
       mobile: {
         type: Sequelize.STRING(15),
         allowNull: false,
-        unique: true
+        unique: true,
       },
       photo: {
         type: Sequelize.STRING(255),
-        allowNull: true
+        allowNull: true,
       },
       pw: {
         type: Sequelize.STRING(255),
-        allowNull: false
+        allowNull: true,
       },
       role: {
-        type: Sequelize.ENUM('admin', 'customer'),
-        defaultValue: 'customer',
-        allowNull: false
+        type: Sequelize.ENUM(
+          "admin",
+          "customer",
+          "service_provider",
+          "business_service_provider",
+          "business_employee"
+        ),
+        defaultValue: "customer",
+        allowNull: false,
       },
-      is_active: {
+      account_status: {
+        type: Sequelize.ENUM("pending", "active", "suspended", "inactive"),
+        defaultValue: "pending",
+        allowNull: false,
+      },
+      email_verified: {
         type: Sequelize.BOOLEAN,
-        defaultValue: true,
-        allowNull: false
+        defaultValue: false,
       },
-      created_by: {
-        type: Sequelize.STRING(100),
-        allowNull: false,
-        defaultValue: 'system'
+      mobile_verified: {
+        type: Sequelize.BOOLEAN,
+        defaultValue: false,
       },
-      updated_by: {
-        type: Sequelize.STRING(100),
+      otp: {
+        type: Sequelize.STRING(6),
+        allowNull: true,
+      },
+      otp_expires: {
+        type: Sequelize.DATE,
+        allowNull: true,
+      },
+      tokenVersion: {
+        type: Sequelize.INTEGER,
+        defaultValue: 0,
         allowNull: false,
-        defaultValue: 'system'
+      },
+      last_login: {
+        type: Sequelize.DATE,
+        allowNull: true,
+      },
+      gender: {
+        type: Sequelize.STRING(100),
+        allowNull: true,
+      },
+      nic: {
+        type: Sequelize.STRING(100),
+        allowNull: true,
+      },
+      dob: {
+        type: Sequelize.DATEONLY,
+        allowNull: true,
+      },
+      last_updated: {
+        type: Sequelize.DATE,
+        allowNull: false,
       },
       created_at: {
         type: Sequelize.DATE,
         allowNull: false,
-        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
       },
-      updated_at: {
-        type: Sequelize.DATE,
-        allowNull: false,
-        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
-        onUpdate: Sequelize.literal('CURRENT_TIMESTAMP')
-      }
-    }, {
-      timestamps: true,
-      indexes: [
-        {
-          unique: true,
-          fields: ['email']
-        },
-        {
-          unique: true,
-          fields: ['mobile']
-        }
-      ]
     });
+
+    await queryInterface.addIndex("users", ["mobile"]);
   },
 
   async down(queryInterface, Sequelize) {
-    await queryInterface.dropTable('users');
-  }
+    await queryInterface.dropTable("users");
+  },
 };

@@ -1,35 +1,51 @@
-const jwt = require('jsonwebtoken');
-const config = require('../config/config');
+const jwt = require("jsonwebtoken");
+const createError = require("http-errors");
+const { User } = require("../models");
 
-const verifyToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+require("dotenv").config();
 
-  if (token == null) return res.sendStatus(401);
+const authMiddleware = async (req, res, next) => {
+  try {
+    const accessToken =
+      req.cookies.accessToken || req.headers.authorization?.split(" ")[1];
+    if (!accessToken) {
+      throw createError(401, "Authentication required");
+    }
 
-  jwt.verify(token, config.ACCESS_TOKEN_SECRET, (err, user) => {
-    if (err) return res.sendStatus(403);
-    req.user = user;
+    const decoded = jwt.verify(accessToken, process.env.JWT_SECRET);
+
+    // Set user info from decoded token with both id and u_id
+    req.user = {
+      id: decoded.id,
+      u_id: decoded.id,
+      role: decoded.role,
+    };
+
     next();
-  });
+  } catch (error) {
+    console.error("Auth Middleware Error:", error);
+
+    if (
+      error.name === "JsonWebTokenError" ||
+      error.name === "TokenExpiredError"
+    ) {
+      return next(createError(401, "Invalid or expired token"));
+    }
+
+    next(error);
+  }
 };
 
-const checkRole = (...roles) => {
+const roleCheck = (...roles) => {
   return (req, res, next) => {
-    if (!req.user) {
-      return res.sendStatus(401);
+    if (!req.user || !roles.includes(req.user.role)) {
+      return next(createError(403, "Insufficient permissions"));
     }
-    
-    const hasRole = roles.some(role => req.user.role === role);
-    if (!hasRole) {
-      return res.sendStatus(403);
-    }
-    
     next();
   };
 };
 
 module.exports = {
-  verifyToken,
-  checkRole
+  authMiddleware,
+  roleCheck,
 };
