@@ -580,6 +580,7 @@ class ServiceProviderController {
   }
 
   static async updateServiceCategories(req, res, next) {
+    const transaction = await sequelize.transaction();
     try {
       const { categories } = req.body;
       const providerId = req.params.id;
@@ -587,35 +588,89 @@ class ServiceProviderController {
       const provider = await ServiceProvider.findByPk(providerId);
 
       if (!provider) {
+        await transaction.rollback();
         return res.status(404).json({ error: "Provider not found" });
       }
 
       // Delete existing categories
       await ProviderServiceCategory.destroy({
         where: { provider_id: providerId },
+        transaction
       });
 
-      // Add new categories
-      const categoryPromises = categories.map((category) =>
-        ProviderServiceCategory.create({
+      const categoryPromises = categories.map(async (category) => {
+        // Base category data
+        const categoryData = {
           provider_id: providerId,
           category_id: category.id,
           experience_years: Number(category.experience_years) || 0,
           is_primary: Boolean(category.is_primary),
-        })
-      );
+          status: 'active'
+        };
 
-      await Promise.all(categoryPromises);
+        // If specific services are provided
+        if (category.services) {
+          // Create entries for specific services
+          return Promise.all(category.services.map(async (service) => {
+            const serviceData = {
+              ...categoryData,
+              service_id: service.id
+            };
+
+            // If specific items are provided for this service
+            if (service.items) {
+              return Promise.all(service.items.map(item => 
+                ProviderServiceCategory.create({
+                  ...serviceData,
+                  item_id: item.id,
+                  price_adjustment: item.price_adjustment
+                }, { transaction })
+              ));
+            }
+
+            // Service level permission
+            return ProviderServiceCategory.create(serviceData, { transaction });
+          }));
+        }
+
+        // Category level permission
+        return ProviderServiceCategory.create(categoryData, { transaction });
+      });
+
+      await Promise.all(categoryPromises.flat());
+
+      await transaction.commit();
+
+      // Fetch updated permissions
+      const updatedPermissions = await ProviderServiceCategory.findAll({
+        where: { provider_id: providerId },
+        include: [
+          {
+            model: ServiceCategory,
+            attributes: ['category_id', 'name']
+          },
+          {
+            model: Service,
+            attributes: ['service_id', 'name']
+          },
+          {
+            model: ServiceItem,
+            attributes: ['item_id', 'name']
+          }
+        ]
+      });
 
       res.status(200).json({
         message: "Service categories updated successfully",
         provider_id: providerId,
-        categories_count: categories.length,
+        permissions: updatedPermissions
       });
     } catch (error) {
+      await transaction.rollback();
       next(error);
     }
   }
+
 
   static async updateServiceCities(req, res, next) {
     try {

@@ -408,89 +408,109 @@ class AdminBookingController {
         throw createError(404, "Booking not found");
       }
 
-      // Get service categories from booking items
-      const categoryIds = new Set();
-      for (const item of booking.BookingItems) {
-        if (item.serviceItem) {
-          // For service items, traverse the relationship to get category
-          const service = await ServiceItem.findOne({
-            where: { item_id: item.item_id },
-            include: [
-              {
+      // Get all items and their hierarchical relationships
+      const itemPermissionChecks = await Promise.all(
+        booking.BookingItems.map(async (item) => {
+          let itemData = {
+            categoryId: null,
+            serviceId: null,
+            itemId: item.item_id,
+            itemType: item.item_type,
+          };
+
+          if (item.item_type === 'service_item') {
+            const serviceItem = await ServiceItem.findOne({
+              where: { item_id: item.item_id },
+              include: [{
                 model: Service,
-                include: [
-                  {
-                    model: ServiceType,
-                    include: [
-                      {
-                        model: SubCategory,
-                        include: [
-                          {
-                            model: ServiceCategory,
-                          },
-                        ],
-                      },
-                    ],
-                  },
-                ],
-              },
-            ],
-          });
-          if (service?.Service?.ServiceType?.SubCategory?.category_id) {
-            console.log(
-              service?.Service?.ServiceType?.SubCategory?.category_id
-            );
-            categoryIds.add(
-              service.Service.ServiceType.SubCategory.category_id
-            );
-          }
-        } else if (item.packageItem) {
-          // Similar traversal for package items
-          const packageItem = await PackageItem.findOne({
-            where: { item_id: item.item_id },
-            include: [
-              {
+                include: [{
+                  model: ServiceType,
+                  include: [{
+                    model: SubCategory,
+                    include: [{
+                      model: ServiceCategory,
+                    }],
+                  }],
+                }],
+              }],
+            });
+
+            if (serviceItem?.Service?.ServiceType?.SubCategory?.ServiceCategory) {
+              itemData.categoryId = serviceItem.Service.ServiceType.SubCategory.ServiceCategory.category_id;
+              itemData.serviceId = serviceItem.Service.service_id;
+            }
+          } else if (item.item_type === 'package_item') {
+            const packageItem = await PackageItem.findOne({
+              where: { item_id: item.item_id },
+              include: [{
                 model: PackageSection,
-                include: [
-                  {
-                    model: Package,
-                    include: [
-                      {
-                        model: ServiceType,
-                        include: [
-                          {
-                            model: SubCategory,
-                            include: [
-                              {
-                                model: ServiceCategory,
-                              },
-                            ],
-                          },
-                        ],
-                      },
-                    ],
-                  },
-                ],
-              },
-            ],
-          });
-          if (
-            packageItem?.PackageSection?.Package?.ServiceType?.SubCategory
-              ?.category_id
-          ) {
-            console.log(
-              packageItem.PackageSection.Package.ServiceType.SubCategory
-                .category_id
-            );
-            categoryIds.add(
-              packageItem.PackageSection.Package.ServiceType.SubCategory
-                .category_id
-            );
+                include: [{
+                  model: Package,
+                  include: [{
+                    model: ServiceType,
+                    include: [{
+                      model: SubCategory,
+                      include: [{
+                        model: ServiceCategory,
+                      }],
+                    }],
+                  }],
+                }],
+              }],
+            });
+
+            if (packageItem?.PackageSection?.Package?.ServiceType?.SubCategory?.ServiceCategory) {
+              itemData.categoryId = packageItem.PackageSection.Package.ServiceType.SubCategory.ServiceCategory.category_id;
+              itemData.serviceId = packageItem.PackageSection.Package.package_id;
+            }
+          }
+
+          return itemData;
+        })
+      );
+
+      // Check provider permissions for each item
+      const providerPermissions = await ProviderServiceCategory.findAll({
+        where: {
+          provider_id: providerId,
+          status: 'active',
+          category_id: {
+            [Op.in]: [...new Set(itemPermissionChecks.map(item => item.categoryId).filter(Boolean))]
           }
         }
+      });
+
+      // Verify provider has permission for all items
+      const hasPermissionForAllItems = itemPermissionChecks.every(itemData => {
+        return providerPermissions.some(permission => {
+          // Check category level permission
+          if (permission.category_id === itemData.categoryId && !permission.service_id && !permission.item_id) {
+            return true;
+          }
+          
+          // Check service level permission
+          if (permission.category_id === itemData.categoryId && 
+              permission.service_id === itemData.serviceId && 
+              !permission.item_id) {
+            return true;
+          }
+          
+          // Check item level permission
+          if (permission.category_id === itemData.categoryId && 
+              permission.service_id === itemData.serviceId && 
+              permission.item_id === itemData.itemId) {
+            return true;
+          }
+
+          return false;
+        });
+      });
+
+      if (!hasPermissionForAllItems) {
+        throw createError(403, "Provider does not have permission for all services in this booking");
       }
-      console.log([...categoryIds]);
-      // Get provider details with category and city verification
+
+      // Get provider details
       const provider = await ServiceProvider.findOne({
         where: {
           provider_id: providerId,
@@ -506,25 +526,12 @@ class AdminBookingController {
             as: "providerCities",
             where: { city_id: booking.city_id },
             required: true,
-          },
-          {
-            model: ProviderServiceCategory,
-            as: "providerCategories",
-            where: {
-              category_id: {
-                [Op.in]: Array.from(categoryIds),
-              },
-            },
-            required: true,
-          },
+          }
         ],
       });
 
       if (!provider) {
-        throw createError(
-          404,
-          "Service provider not found or does not serve this city/category"
-        );
+        throw createError(404, "Service provider not found or not eligible");
       }
 
       // Check provider's service radius
@@ -534,57 +541,37 @@ class AdminBookingController {
           city_id: booking.city_id,
         },
       });
+
       if (booking.service_location && provider.primary_location) {
         const distance = sequelize.literal(`
-            ST_Distance(
-              ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON('${booking.service_location}'), 4326), 2163),
-              ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON('${provider.primary_location}'), 4326), 2163)
-            ) / 1000
-          `);
+          ST_Distance(
+            ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON('${booking.service_location}'), 4326), 2163),
+            ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON('${provider.primary_location}'), 4326), 2163)
+          ) / 1000
+        `);
 
         if (distance > cityServiceInfo.service_radius) {
-          throw createError(
-            400,
-            "Service location is outside provider's service radius for this city"
-          );
+          throw createError(400, "Service location is outside provider's service radius");
         }
       }
 
       // Check provider's availability
-      const availabilityData =
-        typeof provider.availability_hours === "string"
-          ? JSON.parse(provider.availability_hours)
-          : provider.availability_hours;
+      const availabilityData = typeof provider.availability_hours === "string"
+        ? JSON.parse(provider.availability_hours)
+        : provider.availability_hours;
 
-      const dayMapping = [
-        "sunday",
-        "monday",
-        "tuesday",
-        "wednesday",
-        "thursday",
-        "friday",
-        "saturday",
-      ];
-      const bookingTime = new Date(
-        `${booking.booking_date} ${booking.start_time}`
-      );
+      const dayMapping = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+      const bookingTime = new Date(`${booking.booking_date} ${booking.start_time}`);
       const dayOfWeek = dayMapping[bookingTime.getDay()];
       const timeOfDay = booking.start_time;
 
-      const availability = availabilityData
-        ? availabilityData[dayOfWeek]
-        : null;
-
-      const isAvailable =
-        availability?.isOpen &&
+      const availability = availabilityData ? availabilityData[dayOfWeek] : null;
+      const isAvailable = availability?.isOpen &&
         timeOfDay >= availability.start &&
         timeOfDay <= availability.end;
 
       if (!isAvailable) {
-        throw createError(
-          400,
-          "Service provider is not available at this time slot"
-        );
+        throw createError(400, "Service provider is not available at this time slot");
       }
 
       // Check for existing bookings
@@ -612,13 +599,9 @@ class AdminBookingController {
       });
 
       if (existingBooking) {
-        throw createError(
-          400,
-          "Service provider has another booking at this time slot"
-        );
+        throw createError(400, "Service provider has another booking at this time slot");
       }
 
-      // Assign the provider
       await booking.update(
         {
           provider_id: providerId,
@@ -629,7 +612,6 @@ class AdminBookingController {
 
       await transaction.commit();
 
-      // Get updated booking
       const updatedBooking = await Booking.findOne({
         where: { booking_id: id },
         include: [
@@ -649,7 +631,6 @@ class AdminBookingController {
       res.status(200).json(updatedBooking);
     } catch (error) {
       await transaction.rollback();
-      console.error("Error in assignServiceProvider:", error);
       next(error);
     }
   }

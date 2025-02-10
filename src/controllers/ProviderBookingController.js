@@ -13,7 +13,6 @@ const {
   PackageItem,
   City,
   ProviderServiceCity,
-  ProviderServiceCategory,
   ServiceCategory,
   sequelize,
 } = require("../models");

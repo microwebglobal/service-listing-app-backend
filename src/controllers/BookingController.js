@@ -13,7 +13,6 @@ const {
   ServiceProvider,
   User,
   ProviderServiceCity,
-  ProviderServiceCategory,
   AssignmentHistory,
   BookingAssignmentSettings,
   SystemSettings,
