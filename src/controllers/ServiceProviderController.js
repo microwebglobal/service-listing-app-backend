@@ -87,6 +87,7 @@ class ServiceProviderController {
         where: { user_id: req.params.id },
         include: [
           { model: User },
+          { model: ProviderServiceCategory, as: "providerCategories" },
           {
             model: ServiceCategory,
             as: "serviceCategories",
@@ -659,9 +660,10 @@ class ServiceProviderController {
   }
 
   static async updateServiceCategories(req, res, next) {
+    console.log(req.body[0].services);
     const transaction = await sequelize.transaction();
     try {
-      const { categories } = req.body;
+      const categories = req.body;
       const providerId = req.params.id;
 
       const provider = await ServiceProvider.findByPk(providerId);
@@ -674,45 +676,65 @@ class ServiceProviderController {
       // Delete existing categories
       await ProviderServiceCategory.destroy({
         where: { provider_id: providerId },
-        transaction
+        transaction,
       });
 
       const categoryPromises = categories.map(async (category) => {
-        // Base category data
+        console.log("Processing category:", category.id, category);
+
         const categoryData = {
           provider_id: providerId,
           category_id: category.id,
           experience_years: Number(category.experience_years) || 0,
           is_primary: Boolean(category.is_primary),
-          status: 'active'
+          status: "active",
         };
 
-        // If specific services are provided
         if (category.services) {
-          // Create entries for specific services
-          return Promise.all(category.services.map(async (service) => {
-            const serviceData = {
-              ...categoryData,
-              service_id: service.id
-            };
+          return Promise.all(
+            category.services.map(async (service) => {
+              if (!service.id) {
+                console.error("Service is missing ID:", service);
+                return;
+              }
 
-            // If specific items are provided for this service
-            if (service.items) {
-              return Promise.all(service.items.map(item => 
-                ProviderServiceCategory.create({
-                  ...serviceData,
-                  item_id: item.id,
-                  price_adjustment: item.price_adjustment
-                }, { transaction })
-              ));
-            }
+              const serviceData = {
+                ...categoryData,
+                service_id: service.id,
+              };
 
-            // Service level permission
-            return ProviderServiceCategory.create(serviceData, { transaction });
-          }));
+              console.log("Inserting service:", serviceData);
+
+              if (service.items) {
+                return Promise.all(
+                  service.items.map((item) => {
+                    if (!item.id) {
+                      console.error("Item is missing ID:", item);
+                      return;
+                    }
+
+                    const itemData = {
+                      ...serviceData,
+                      item_id: item.id,
+                      price_adjustment: item.price_adjustment || 0,
+                    };
+
+                    console.log("Inserting item:", itemData);
+
+                    return ProviderServiceCategory.create(itemData, {
+                      transaction,
+                    });
+                  })
+                );
+              }
+
+              return ProviderServiceCategory.create(serviceData, {
+                transaction,
+              });
+            })
+          );
         }
 
-        // Category level permission
         return ProviderServiceCategory.create(categoryData, { transaction });
       });
 
@@ -726,30 +748,29 @@ class ServiceProviderController {
         include: [
           {
             model: ServiceCategory,
-            attributes: ['category_id', 'name']
+            attributes: ["category_id", "name"],
           },
           {
             model: Service,
-            attributes: ['service_id', 'name']
+            attributes: ["service_id", "name"],
           },
           {
             model: ServiceItem,
-            attributes: ['item_id', 'name']
-          }
-        ]
+            attributes: ["item_id", "name"],
+          },
+        ],
       });
 
       res.status(200).json({
         message: "Service categories updated successfully",
         provider_id: providerId,
-        permissions: updatedPermissions
+        permissions: updatedPermissions,
       });
     } catch (error) {
       await transaction.rollback();
       next(error);
     }
   }
-
 
   static async updateServiceCities(req, res, next) {
     try {
