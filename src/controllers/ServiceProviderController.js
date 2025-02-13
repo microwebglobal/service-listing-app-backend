@@ -87,7 +87,15 @@ class ServiceProviderController {
         where: { user_id: req.params.id },
         include: [
           { model: User },
-          { model: ProviderServiceCategory, as: "providerCategories" },
+          {
+            model: ProviderServiceCategory,
+            as: "providerCategories",
+            include: {
+              model: ServiceCategory,
+
+              include: [{ model: SubCategory }],
+            },
+          },
           {
             model: ServiceCategory,
             as: "serviceCategories",
@@ -660,10 +668,10 @@ class ServiceProviderController {
   }
 
   static async updateServiceCategories(req, res, next) {
-    console.log(req.body[0].services);
+    console.log(req.body.categories[0].services);
     const transaction = await sequelize.transaction();
     try {
-      const categories = req.body;
+      const { categories } = req.body;
       const providerId = req.params.id;
 
       const provider = await ServiceProvider.findByPk(providerId);
@@ -680,11 +688,11 @@ class ServiceProviderController {
       });
 
       const categoryPromises = categories.map(async (category) => {
-        console.log("Processing category:", category.id, category);
+        console.log("Processing category:", category.category_id, category);
 
         const categoryData = {
           provider_id: providerId,
-          category_id: category.id,
+          category_id: category.category_id,
           experience_years: Number(category.experience_years) || 0,
           is_primary: Boolean(category.is_primary),
           status: "active",
@@ -693,14 +701,14 @@ class ServiceProviderController {
         if (category.services) {
           return Promise.all(
             category.services.map(async (service) => {
-              if (!service.id) {
+              if (!service.service_id) {
                 console.error("Service is missing ID:", service);
                 return;
               }
 
               const serviceData = {
                 ...categoryData,
-                service_id: service.id,
+                service_id: service.service_id,
               };
 
               console.log("Inserting service:", serviceData);
@@ -708,14 +716,14 @@ class ServiceProviderController {
               if (service.items) {
                 return Promise.all(
                   service.items.map((item) => {
-                    if (!item.id) {
+                    if (!item.item_id) {
                       console.error("Item is missing ID:", item);
                       return;
                     }
 
                     const itemData = {
                       ...serviceData,
-                      item_id: item.id,
+                      item_id: item.item_id,
                       price_adjustment: item.price_adjustment || 0,
                     };
 

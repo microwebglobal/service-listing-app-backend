@@ -15,11 +15,12 @@ const {
   ProviderServiceCity,
   AssignmentHistory,
   BookingAssignmentSettings,
+  ServiceProviderEmployee,
   SystemSettings,
   ServiceType,
   Package,
 } = require("../models");
-const { Op } = require("sequelize");
+const { Op, where } = require("sequelize");
 const IdGenerator = require("../utils/helper");
 const { sequelize } = require("../models");
 const { v4: uuidv4 } = require("uuid");
@@ -748,10 +749,10 @@ class BookingController {
           { model: BookingPayment },
           {
             model: ServiceProvider,
-            as: "provider", 
-            include: [{ model: User, attributes: ['name', 'email', 'mobile'] }]
-          }
-        ]
+            as: "provider",
+            include: [{ model: User, attributes: ["name", "email", "mobile"] }],
+          },
+        ],
       });
 
       if (!booking) {
@@ -1011,6 +1012,46 @@ class BookingController {
       });
     } catch (error) {
       console.error("Get Eligible Providers Error:", error);
+      next(error);
+    }
+  }
+
+  static async providerAcceptOrder(req, res, next) {
+    const transaction = await sequelize.transaction();
+
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+
+    const { id } = req.params;
+
+    try {
+      const booking = await Booking.findOne({
+        where: { booking_id: id },
+        transaction,
+      });
+
+      if (req.user.role === "business_service_provider") {
+        const { employee_id } = req.body;
+        const employee = await ServiceProviderEmployee.findOne(
+          {
+            where: { employee_id: employee_id },
+          },
+          transaction
+        );
+
+        employee.update({ status: "on_work" }, transaction);
+      }
+
+      if (!booking) {
+        throw createError(404, "Booking not found");
+      }
+      await booking.update({ status: "accepted" }, transaction);
+      await transaction.commit();
+      res.status(200).json({ message: "Booking Acepted" });
+    } catch (error) {
+      await transaction.rollback();
+      console.error("Error in updateBookingStatus:", error);
       next(error);
     }
   }
