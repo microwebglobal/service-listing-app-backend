@@ -2,13 +2,16 @@ const {
   ServiceItem,
   CitySpecificPricing,
   SpecialPricing,
+  CitySpecificBuffertime,
 } = require("../models");
-const City = require("../models/City");
+
 const IdGenerator = require("../utils/helper");
 const { Op } = require("sequelize");
 
 class ServiceItemController {
   static async createServiceItem(req, res, next) {
+    console.log(req.body);
+    console.log(req.body.bufferTime);
     try {
       const existingItems = await ServiceItem.findAll({
         attributes: ["item_id"],
@@ -23,6 +26,8 @@ class ServiceItemController {
         item_id: newItemId,
         service_id: req.body.service_id,
         name: req.body.name,
+        duration_hours: req.body?.duration_hours,
+        duration_minutes: req.body?.duration_minutes,
         description: req.body.description,
         overview: req.body.overview,
         base_price: req.body.base_price,
@@ -59,6 +64,21 @@ class ServiceItemController {
         );
       }
 
+      // Handle optional buffer times
+      if (req.body.bufferTime?.length > 0) {
+        await Promise.all(
+          req.body.bufferTime.map(async (time) => {
+            return CitySpecificBuffertime.create({
+              item_id: newItem.item_id,
+              item_type: "service_item",
+              city_id: time.city_id,
+              buffer_hours: Math.floor(time.buffer_hours),
+              buffer_minutes: Math.floor(time.buffer_minutes),
+            });
+          })
+        );
+      }
+
       // Fetch the created item with its pricing details
       const itemWithPricing = await ServiceItem.findByPk(newItem.item_id, {
         include: [CitySpecificPricing],
@@ -73,7 +93,13 @@ class ServiceItemController {
 
   static async updateServiceItem(req, res, next) {
     try {
-      const { item_id, cityPricing, ...updateData } = req.body;
+      const {
+        item_id,
+        cityPricing,
+        specialPricing,
+        bufferTime,
+        ...updateData
+      } = req.body;
       const [updated] = await ServiceItem.update(updateData, {
         where: { item_id: req.params.id },
       });
@@ -101,6 +127,60 @@ class ServiceItemController {
                 item_id: req.params.id,
                 item_type: "service_item",
                 price: pricing.price,
+              });
+            })
+          );
+        }
+      }
+
+      // Handle optional special pricing update
+      if (specialPricing?.length >= 0) {
+        // Delete existing pricing
+        await SpecialPricing.destroy({
+          where: {
+            item_id: req.params.id,
+            item_type: "service_item",
+          },
+        });
+
+        // Create new pricing entries if provided
+        if (specialPricing.length > 0) {
+          await Promise.all(
+            specialPricing.map(async (pricing) => {
+              return SpecialPricing.create({
+                item_id: req.params.id,
+                item_type: "service_item",
+                city_id: pricing.city_id,
+                special_price: pricing.special_price,
+                start_date: pricing.start_date,
+                end_date: pricing.end_date,
+                status: "active",
+              });
+            })
+          );
+        }
+      }
+
+      // Handle optional buffer time update
+      if (bufferTime?.length >= 0) {
+        // Delete existing buffer time
+        await CitySpecificBuffertime.destroy({
+          where: {
+            item_id: req.params.id,
+            item_type: "service_item",
+          },
+        });
+
+        // Create new buffer time entries if provided
+        if (bufferTime.length > 0) {
+          await Promise.all(
+            bufferTime.map(async (time) => {
+              return CitySpecificBuffertime.create({
+                item_id: req.params.id,
+                item_type: "service_item",
+                city_id: time.city_id,
+                buffer_hours: Math.floor(time.buffer_hours),
+                buffer_minutes: Math.floor(time.buffer_minutes),
               });
             })
           );
@@ -172,6 +252,7 @@ class ServiceItemController {
         where: { service_id: req.params.serviceId },
         include: [
           CitySpecificPricing,
+          CitySpecificBuffertime,
           {
             model: SpecialPricing,
             where: {

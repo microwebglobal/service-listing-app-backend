@@ -20,6 +20,13 @@ module.exports = (sequelize, DataTypes) => {
           item_type: "service_item",
         },
       });
+      ServiceItem.hasMany(models.CitySpecificBuffertime, {
+        foreignKey: "item_id",
+        constraints: false,
+        scope: {
+          item_type: "service_item",
+        },
+      });
     }
   }
 
@@ -43,6 +50,16 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
       },
       description: DataTypes.TEXT,
+      duration_hours: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+      },
+      duration_minutes: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+      },
       overview: DataTypes.TEXT,
       base_price: {
         type: DataTypes.DECIMAL(10, 2),

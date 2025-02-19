@@ -18,9 +18,11 @@ const {
   ServiceProviderEmployee,
   SystemSettings,
   ServiceType,
+  CitySpecificBuffertime,
   Package,
 } = require("../models");
 const { Op, where } = require("sequelize");
+const moment = require("moment");
 const IdGenerator = require("../utils/helper");
 const { sequelize } = require("../models");
 const { v4: uuidv4 } = require("uuid");
@@ -490,6 +492,8 @@ class BookingController {
         customerNotes,
       } = req.body;
 
+      console.log(req.body);
+
       if (!cityId || !items || !bookingDate || !startTime) {
         return res.status(400).json({ message: "Missing required fields" });
       }
@@ -524,13 +528,49 @@ class BookingController {
           coordinates: [0, 0],
         };
 
+        //calculate end time
+        const getEndTime = () => {
+          if (
+            !startTime ||
+            typeof startTime !== "string" ||
+            !startTime.includes(":")
+          ) {
+            console.error("Invalid startTime:", startTime);
+            return "00:00";
+          }
+
+          let totalMinutes = 0;
+          for (const item of items) {
+            const hours = Number(item.duration_hours) || 0;
+            const minutes = Number(item.duration_minutes) || 0;
+            totalMinutes += hours * 60 + minutes;
+          }
+
+          const [startHour, startMinute] = startTime.split(":").map(Number);
+          if (isNaN(startHour) || isNaN(startMinute)) {
+            console.error("Invalid start hour/minute:", startHour, startMinute);
+            return "00:00";
+          }
+
+          const startDate = new Date();
+          startDate.setHours(startHour, startMinute, 0, 0);
+          startDate.setMinutes(startDate.getMinutes() + totalMinutes);
+
+          const endHour = startDate.getHours().toString().padStart(2, "0");
+          const endMinute = startDate.getMinutes().toString().padStart(2, "0");
+
+          return `${endHour}:${endMinute}`;
+        };
+
+        const endTime = getEndTime();
+
         booking = await Booking.create({
           booking_id: newBookingId,
           user_id: req.user.id,
           city_id: cityId,
           booking_date: bookingDate,
           start_time: startTime,
-          end_time: startTime,
+          end_time: endTime,
           status: "cart",
           service_address: serviceAddress,
           service_location: locationData,
@@ -1011,7 +1051,7 @@ class BookingController {
         providers: eligibleProviders,
       });
     } catch (error) {
-      console.error("Get Eligible Providers Error:", error);
+      console.error("Get Eligible Providers Error: ", error);
       next(error);
     }
   }
@@ -1033,14 +1073,11 @@ class BookingController {
 
       if (req.user.role === "business_service_provider") {
         const { employee_id } = req.body;
-        const employee = await ServiceProviderEmployee.findOne(
-          {
-            where: { employee_id: employee_id },
-          },
+
+        await booking.update(
+          { status: "accepted", employee_id: employee_id },
           transaction
         );
-
-        employee.update({ status: "on_work" }, transaction);
       }
 
       if (!booking) {
@@ -1053,6 +1090,119 @@ class BookingController {
       await transaction.rollback();
       console.error("Error in updateBookingStatus:", error);
       next(error);
+    }
+  }
+
+  static async getAvailableEmployees(req, res, next) {
+    try {
+      const { providerId } = req.params;
+      const { booking_id, bookingDate, start_time, end_time } = req.query;
+
+      if (!bookingDate || !start_time || !end_time) {
+        return res.status(400).json({
+          message: "booking_date, start_time, and end_time are required",
+        });
+      }
+
+      const booking = await Booking.findOne({
+        where: { booking_id },
+        include: [
+          {
+            model: BookingItem,
+          },
+        ],
+      });
+
+      if (!booking) {
+        return res.status(404).json({ message: "Booking not found" });
+      }
+
+      let highestBufferTime = 0;
+
+      for (let bookingItem of booking.BookingItems) {
+        const bufferTime = await CitySpecificBuffertime.findOne({
+          where: {
+            city_id: booking.city_id,
+            item_id: bookingItem.item_id,
+          },
+        });
+
+        if (!bufferTime) {
+          return res.status(400).json({
+            message: `Buffer time not configured for city_id: ${booking.city_id} and item_id: ${bookingItem.item_id}`,
+          });
+        }
+
+        // Calculate the total buffer minutes for this item
+        const totalBufferMinutes =
+          bufferTime.buffer_hours * 60 + bufferTime.buffer_minutes;
+
+        // Track the highest buffer time across all items in the booking
+        highestBufferTime = Math.max(highestBufferTime, totalBufferMinutes);
+      }
+
+      // Calculate the adjusted end time
+      const adjustedEndTime = moment(end_time, "HH:mm:ss")
+        .add(highestBufferTime, "minutes")
+        .format("HH:mm:ss");
+
+      const adjustedStartTime = moment(start_time, "HH:mm:ss")
+        .subtract(highestBufferTime, "minutes")
+        .format("HH:mm:ss");
+
+      // loggers for debugging
+      console.log("highestBufferTime:", highestBufferTime);
+      console.log("startTime:", start_time);
+      console.log("endTime:", end_time);
+      console.log("adjustedStartTime:", adjustedStartTime);
+      console.log("adjustedEndTime:", adjustedEndTime);
+
+      // Find unavailable employees based on the adjusted times
+      const unavailableEmployees = await Booking.findAll({
+        attributes: ["employee_id"],
+        where: {
+          booking_date: bookingDate,
+          [Op.and]: [
+            {
+              start_time: { [Op.lt]: adjustedEndTime }, // Existing booking starts before new booking ends
+            },
+            {
+              end_time: { [Op.gt]: adjustedStartTime }, // Existing booking ends after new booking starts
+            },
+          ],
+        },
+        raw: true,
+      });
+
+      // Extract unavailable employee IDs
+      let unavailableEmployeeIds = unavailableEmployees
+        .map((emp) => emp.employee_id)
+        .filter((id) => id !== null);
+
+      // Build the where condition for available employees
+      const whereCondition =
+        unavailableEmployeeIds.length > 0
+          ? {
+              employee_id: { [Op.notIn]: unavailableEmployeeIds },
+              provider_id: providerId,
+            }
+          : { provider_id: providerId };
+
+      // Find available employees
+      const availableEmployees = await ServiceProviderEmployee.findAll({
+        where: whereCondition,
+        include: [
+          {
+            model: User,
+            attributes: ["name", "email", "mobile"],
+          },
+        ],
+      });
+
+      res.status(200).json({ availableEmployees });
+    } catch (error) {
+      console.error("Error in getAvailableEmployees:", error);
+      res.status(500).json({ message: "Internal Server Error" });
     }
   }
 }

@@ -418,50 +418,76 @@ class AdminBookingController {
             itemType: item.item_type,
           };
 
-          if (item.item_type === 'service_item') {
+          if (item.item_type === "service_item") {
             const serviceItem = await ServiceItem.findOne({
               where: { item_id: item.item_id },
-              include: [{
-                model: Service,
-                include: [{
-                  model: ServiceType,
-                  include: [{
-                    model: SubCategory,
-                    include: [{
-                      model: ServiceCategory,
-                    }],
-                  }],
-                }],
-              }],
+              include: [
+                {
+                  model: Service,
+                  include: [
+                    {
+                      model: ServiceType,
+                      include: [
+                        {
+                          model: SubCategory,
+                          include: [
+                            {
+                              model: ServiceCategory,
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
             });
 
-            if (serviceItem?.Service?.ServiceType?.SubCategory?.ServiceCategory) {
-              itemData.categoryId = serviceItem.Service.ServiceType.SubCategory.ServiceCategory.category_id;
+            if (
+              serviceItem?.Service?.ServiceType?.SubCategory?.ServiceCategory
+            ) {
+              itemData.categoryId =
+                serviceItem.Service.ServiceType.SubCategory.ServiceCategory.category_id;
               itemData.serviceId = serviceItem.Service.service_id;
             }
-          } else if (item.item_type === 'package_item') {
+          } else if (item.item_type === "package_item") {
             const packageItem = await PackageItem.findOne({
               where: { item_id: item.item_id },
-              include: [{
-                model: PackageSection,
-                include: [{
-                  model: Package,
-                  include: [{
-                    model: ServiceType,
-                    include: [{
-                      model: SubCategory,
-                      include: [{
-                        model: ServiceCategory,
-                      }],
-                    }],
-                  }],
-                }],
-              }],
+              include: [
+                {
+                  model: PackageSection,
+                  include: [
+                    {
+                      model: Package,
+                      include: [
+                        {
+                          model: ServiceType,
+                          include: [
+                            {
+                              model: SubCategory,
+                              include: [
+                                {
+                                  model: ServiceCategory,
+                                },
+                              ],
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
             });
 
-            if (packageItem?.PackageSection?.Package?.ServiceType?.SubCategory?.ServiceCategory) {
-              itemData.categoryId = packageItem.PackageSection.Package.ServiceType.SubCategory.ServiceCategory.category_id;
-              itemData.serviceId = packageItem.PackageSection.Package.package_id;
+            if (
+              packageItem?.PackageSection?.Package?.ServiceType?.SubCategory
+                ?.ServiceCategory
+            ) {
+              itemData.categoryId =
+                packageItem.PackageSection.Package.ServiceType.SubCategory.ServiceCategory.category_id;
+              itemData.serviceId =
+                packageItem.PackageSection.Package.package_id;
             }
           }
 
@@ -473,42 +499,58 @@ class AdminBookingController {
       const providerPermissions = await ProviderServiceCategory.findAll({
         where: {
           provider_id: providerId,
-          status: 'active',
+          status: "active",
           category_id: {
-            [Op.in]: [...new Set(itemPermissionChecks.map(item => item.categoryId).filter(Boolean))]
-          }
-        }
+            [Op.in]: [
+              ...new Set(
+                itemPermissionChecks
+                  .map((item) => item.categoryId)
+                  .filter(Boolean)
+              ),
+            ],
+          },
+        },
       });
 
       // Verify provider has permission for all items
-      const hasPermissionForAllItems = itemPermissionChecks.every(itemData => {
-        return providerPermissions.some(permission => {
-          // Check category level permission
-          if (permission.category_id === itemData.categoryId && !permission.service_id && !permission.item_id) {
-            return true;
-          }
-          
-          // Check service level permission
-          if (permission.category_id === itemData.categoryId && 
-              permission.service_id === itemData.serviceId && 
-              !permission.item_id) {
-            return true;
-          }
-          
-          // Check item level permission
-          if (permission.category_id === itemData.categoryId && 
-              permission.service_id === itemData.serviceId && 
-              permission.item_id === itemData.itemId) {
-            return true;
-          }
+      const hasPermissionForAllItems = itemPermissionChecks.every(
+        (itemData) => {
+          return providerPermissions.some((permission) => {
+            // Check category level permission
+            if (
+              permission.category_id === itemData.categoryId &&
+              !permission.service_id &&
+              !permission.item_id
+            ) {
+              return true;
+            }
 
-          return false;
-        });
-      });
+            // Check service level permission
+            if (
+              permission.category_id === itemData.categoryId &&
+              permission.service_id === itemData.serviceId &&
+              !permission.item_id
+            ) {
+              return true;
+            }
 
-      if (!hasPermissionForAllItems) {
-        throw createError(403, "Provider does not have permission for all services in this booking");
-      }
+            // Check item level permission
+            if (
+              permission.category_id === itemData.categoryId &&
+              permission.service_id === itemData.serviceId &&
+              permission.item_id === itemData.itemId
+            ) {
+              return true;
+            }
+
+            return false;
+          });
+        }
+      );
+
+      // if (!hasPermissionForAllItems) {
+      //   throw createError(403, "Provider does not have permission for all services in this booking");
+      // }
 
       // Get provider details
       const provider = await ServiceProvider.findOne({
@@ -526,7 +568,7 @@ class AdminBookingController {
             as: "providerCities",
             where: { city_id: booking.city_id },
             required: true,
-          }
+          },
         ],
       });
 
@@ -551,27 +593,47 @@ class AdminBookingController {
         `);
 
         if (distance > cityServiceInfo.service_radius) {
-          throw createError(400, "Service location is outside provider's service radius");
+          throw createError(
+            400,
+            "Service location is outside provider's service radius"
+          );
         }
       }
 
       // Check provider's availability
-      const availabilityData = typeof provider.availability_hours === "string"
-        ? JSON.parse(provider.availability_hours)
-        : provider.availability_hours;
+      const availabilityData =
+        typeof provider.availability_hours === "string"
+          ? JSON.parse(provider.availability_hours)
+          : provider.availability_hours;
 
-      const dayMapping = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
-      const bookingTime = new Date(`${booking.booking_date} ${booking.start_time}`);
+      const dayMapping = [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+      ];
+      const bookingTime = new Date(
+        `${booking.booking_date} ${booking.start_time}`
+      );
       const dayOfWeek = dayMapping[bookingTime.getDay()];
       const timeOfDay = booking.start_time;
 
-      const availability = availabilityData ? availabilityData[dayOfWeek] : null;
-      const isAvailable = availability?.isOpen &&
+      const availability = availabilityData
+        ? availabilityData[dayOfWeek]
+        : null;
+      const isAvailable =
+        availability?.isOpen &&
         timeOfDay >= availability.start &&
         timeOfDay <= availability.end;
 
       if (!isAvailable) {
-        throw createError(400, "Service provider is not available at this time slot");
+        throw createError(
+          400,
+          "Service provider is not available at this time slot"
+        );
       }
 
       // Check for existing bookings
@@ -580,7 +642,7 @@ class AdminBookingController {
           provider_id: providerId,
           booking_date: booking.booking_date,
           status: {
-            [Op.in]: ["assigned", "in_progress"],
+            [Op.in]: ["in_progress"],
           },
           [Op.or]: [
             {
@@ -599,7 +661,10 @@ class AdminBookingController {
       });
 
       if (existingBooking) {
-        throw createError(400, "Service provider has another booking at this time slot");
+        throw createError(
+          400,
+          "Service provider has another booking at this time slot"
+        );
       }
 
       await booking.update(

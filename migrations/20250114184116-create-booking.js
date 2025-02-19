@@ -28,6 +28,16 @@ module.exports = {
         onUpdate: "CASCADE",
         onDelete: "RESTRICT",
       },
+      employee_id: {
+        type: Sequelize.INTEGER,
+        allowNull: true,
+        references: {
+          model: "service_provider_employees",
+          key: "employee_id",
+        },
+        onUpdate: "CASCADE",
+        onDelete: "RESTRICT",
+      },
       city_id: {
         type: Sequelize.STRING,
         allowNull: false,

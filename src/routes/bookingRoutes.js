@@ -47,4 +47,10 @@ router.get(
   BookingController.getEligibleProviders
 );
 
+router.get(
+  "/available/:providerId/employees",
+  authMiddleware,
+  BookingController.getAvailableEmployees
+);
+
 module.exports = router;

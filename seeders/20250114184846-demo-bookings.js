@@ -7,7 +7,8 @@ module.exports = {
       {
         booking_id: "BK-20250115-001",
         user_id: 1, // Assuming user exists
-        provider_id: 1, // Assuming provider exists
+        provider_id: 1,
+        employee_id: 1,
         city_id: "CTY002", // Assuming city exists
         booking_date: "2025-01-20",
         start_time: "11:00:00",
@@ -25,6 +26,7 @@ module.exports = {
         booking_id: "BK-20250115-002",
         user_id: 2,
         provider_id: 1,
+        employee_id: 2,
         city_id: "CTY002",
         booking_date: "2025-01-21",
         start_time: "14:00:00",

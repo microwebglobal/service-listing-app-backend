@@ -14,6 +14,7 @@ const {
   City,
   ProviderServiceCity,
   ServiceCategory,
+  ServiceProviderEmployee,
   sequelize,
 } = require("../models");
 const { Op } = require("sequelize");
@@ -45,6 +46,16 @@ class ProviderBookingController {
           {
             model: City,
             attributes: ["city_id", "name"],
+          },
+          {
+            model: ServiceProviderEmployee,
+            as: "employee",
+            include: [
+              {
+                model: User,
+                attributes: ["name", "email", "mobile"],
+              },
+            ],
           },
           {
             model: BookingItem,

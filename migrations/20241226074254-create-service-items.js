@@ -24,6 +24,16 @@ module.exports = {
         allowNull: false,
       },
       description: Sequelize.TEXT,
+      duration_hours: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+      },
+      duration_minutes: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+      },
       icon_url: Sequelize.STRING(255),
       overview: Sequelize.TEXT,
       base_price: {

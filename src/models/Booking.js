@@ -12,6 +12,10 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: "provider_id",
         as: "provider",
       });
+      Booking.belongsTo(models.ServiceProviderEmployee, {
+        foreignKey: "employee_id",
+        as: "employee",
+      });
       Booking.belongsTo(models.City, {
         foreignKey: "city_id",
       });
@@ -45,6 +49,14 @@ module.exports = (sequelize, DataTypes) => {
         references: {
           model: "service_providers",
           key: "provider_id",
+        },
+      },
+      employee_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true, // Can be null initially during booking process
+        references: {
+          model: "service_provider_employees",
+          key: "employee_id",
         },
       },
       city_id: {
