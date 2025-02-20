@@ -4,12 +4,12 @@ const {
   PackageSection,
   CitySpecificPricing,
   SpecialPricing,
-  sequelize
+  sequelize,
 } = require("../models");
 const IdGenerator = require("../utils/helper");
 const { Op } = require("sequelize");
-const path = require('path');
-const fs = require('fs');
+const path = require("path");
+const fs = require("fs");
 
 class PackageItemController {
   static async getPackageItems(req, res, next) {
@@ -70,7 +70,9 @@ class PackageItemController {
       res.status(200).json({
         status: "success",
         data: transformedItems,
-        message: items.length ? "Package items retrieved successfully" : "No items found"
+        message: items.length
+          ? "Package items retrieved successfully"
+          : "No items found",
       });
     } catch (error) {
       next(error);
@@ -79,7 +81,7 @@ class PackageItemController {
 
   static async createPackageItem(req, res, next) {
     const transaction = await sequelize.transaction();
-    
+
     try {
       const {
         section_id,
@@ -96,14 +98,21 @@ class PackageItemController {
       // Validate required fields
       if (!section_id || !name || price === undefined) {
         if (req.file) {
-          const filePath = path.join(__dirname, '..', 'uploads', 'files', req.file.filename);
-          fs.unlink(filePath, err => {
-            if (err) console.error('Error deleting file:', err);
+          const filePath = path.join(
+            __dirname,
+            "..",
+            "uploads",
+            "files",
+            req.file.filename
+          );
+          fs.unlink(filePath, (err) => {
+            if (err) console.error("Error deleting file:", err);
           });
         }
         return res.status(400).json({
           status: "error",
-          message: "Missing required fields: section_id, name, and price are required"
+          message:
+            "Missing required fields: section_id, name, and price are required",
         });
       }
 
@@ -111,14 +120,20 @@ class PackageItemController {
       const section = await PackageSection.findByPk(section_id);
       if (!section) {
         if (req.file) {
-          const filePath = path.join(__dirname, '..', 'uploads', 'files', req.file.filename);
-          fs.unlink(filePath, err => {
-            if (err) console.error('Error deleting file:', err);
+          const filePath = path.join(
+            __dirname,
+            "..",
+            "uploads",
+            "files",
+            req.file.filename
+          );
+          fs.unlink(filePath, (err) => {
+            if (err) console.error("Error deleting file:", err);
           });
         }
         return res.status(404).json({
           status: "error",
-          message: `Section with ID ${section_id} not found`
+          message: `Section with ID ${section_id} not found`,
         });
       }
 
@@ -128,7 +143,7 @@ class PackageItemController {
       if (parsedSpecialPricing.error) {
         return res.status(400).json({
           status: "error",
-          message: parsedSpecialPricing.error
+          message: parsedSpecialPricing.error,
         });
       }
 
@@ -148,28 +163,34 @@ class PackageItemController {
       );
 
       // Create package item
-      const newItem = await PackageItem.create({
-        item_id: newItemID,
-        section_id,
-        name,
-        description: description || null,
-        price,
-        is_default: is_default || false,
-        is_none_option: is_none_option || false,
-        display_order: display_order || 0,
-        icon_url: iconUrl,
-      }, { transaction });
+      const newItem = await PackageItem.create(
+        {
+          item_id: newItemID,
+          section_id,
+          name,
+          description: description || null,
+          price,
+          is_default: is_default || false,
+          is_none_option: is_none_option || false,
+          display_order: display_order || 0,
+          icon_url: iconUrl,
+        },
+        { transaction }
+      );
 
       // Create city-specific pricing
       if (parsedCityPrices && Object.keys(parsedCityPrices).length > 0) {
         await Promise.all(
           Object.entries(parsedCityPrices).map(([cityId, price]) =>
-            CitySpecificPricing.create({
-              city_id: cityId,
-              item_id: newItemID,
-              item_type: "package_item",
-              price: price,
-            }, { transaction })
+            CitySpecificPricing.create(
+              {
+                city_id: cityId,
+                item_id: newItemID,
+                item_type: "package_item",
+                price: price,
+              },
+              { transaction }
+            )
           )
         );
       }
@@ -178,15 +199,18 @@ class PackageItemController {
       if (parsedSpecialPricing.data?.length > 0) {
         await Promise.all(
           parsedSpecialPricing.data.map((pricing) =>
-            SpecialPricing.create({
-              item_id: newItemID,
-              item_type: "package_item",
-              city_id: pricing.city_id,
-              special_price: pricing.special_price,
-              start_date: pricing.start_date,
-              end_date: pricing.end_date,
-              status: "active",
-            }, { transaction })
+            SpecialPricing.create(
+              {
+                item_id: newItemID,
+                item_type: "package_item",
+                city_id: pricing.city_id,
+                special_price: pricing.special_price,
+                start_date: pricing.start_date,
+                end_date: pricing.end_date,
+                status: "active",
+              },
+              { transaction }
+            )
           )
         );
       }
@@ -215,15 +239,21 @@ class PackageItemController {
       res.status(201).json({
         status: "success",
         data: this.transformItemResponse(createdItem),
-        message: "Package item created successfully"
+        message: "Package item created successfully",
       });
     } catch (error) {
       await transaction.rollback();
-      
+
       if (req.file) {
-        const filePath = path.join(__dirname, '..', 'uploads', 'files', req.file.filename);
-        fs.unlink(filePath, err => {
-          if (err) console.error('Error deleting file:', err);
+        const filePath = path.join(
+          __dirname,
+          "..",
+          "uploads",
+          "files",
+          req.file.filename
+        );
+        fs.unlink(filePath, (err) => {
+          if (err) console.error("Error deleting file:", err);
         });
       }
 
@@ -233,7 +263,7 @@ class PackageItemController {
 
   static async updatePackageItem(req, res, next) {
     const transaction = await sequelize.transaction();
-    
+
     try {
       const itemId = req.params.id;
       const {
@@ -252,14 +282,20 @@ class PackageItemController {
       const item = await PackageItem.findByPk(itemId);
       if (!item) {
         if (req.file) {
-          const filePath = path.join(__dirname, '..', 'uploads', 'files', req.file.filename);
-          fs.unlink(filePath, err => {
-            if (err) console.error('Error deleting file:', err);
+          const filePath = path.join(
+            __dirname,
+            "..",
+            "uploads",
+            "files",
+            req.file.filename
+          );
+          fs.unlink(filePath, (err) => {
+            if (err) console.error("Error deleting file:", err);
           });
         }
         return res.status(404).json({
           status: "error",
-          message: "Package item not found"
+          message: "Package item not found",
         });
       }
 
@@ -268,14 +304,20 @@ class PackageItemController {
         const section = await PackageSection.findByPk(section_id);
         if (!section) {
           if (req.file) {
-            const filePath = path.join(__dirname, '..', 'uploads', 'files', req.file.filename);
-            fs.unlink(filePath, err => {
-              if (err) console.error('Error deleting file:', err);
+            const filePath = path.join(
+              __dirname,
+              "..",
+              "uploads",
+              "files",
+              req.file.filename
+            );
+            fs.unlink(filePath, (err) => {
+              if (err) console.error("Error deleting file:", err);
             });
           }
           return res.status(404).json({
             status: "error",
-            message: `Section with ID ${section_id} not found`
+            message: `Section with ID ${section_id} not found`,
           });
         }
       }
@@ -286,15 +328,15 @@ class PackageItemController {
 
         // Delete old file if exists
         if (item.icon_url) {
-          const relativePath = item.icon_url.startsWith('/') 
-            ? item.icon_url.slice(1) 
+          const relativePath = item.icon_url.startsWith("/")
+            ? item.icon_url.slice(1)
             : item.icon_url;
-            
-          const oldFilePath = path.join(__dirname, '..', relativePath);
-          
+
+          const oldFilePath = path.join(__dirname, "..", relativePath);
+
           if (fs.existsSync(oldFilePath)) {
-            fs.unlink(oldFilePath, err => {
-              if (err) console.error('Error deleting old file:', err);
+            fs.unlink(oldFilePath, (err) => {
+              if (err) console.error("Error deleting old file:", err);
             });
           }
         }
@@ -303,37 +345,47 @@ class PackageItemController {
       }
 
       // Update item
-      await item.update({
-        name: name || item.name,
-        description: description !== undefined ? description : item.description,
-        price: price !== undefined ? price : item.price,
-        is_default: is_default !== undefined ? is_default : item.is_default,
-        is_none_option: is_none_option !== undefined ? is_none_option : item.is_none_option,
-        display_order: display_order !== undefined ? display_order : item.display_order,
-        section_id: section_id || item.section_id,
-      }, { transaction });
+      await item.update(
+        {
+          name: name || item.name,
+          description:
+            description !== undefined ? description : item.description,
+          price: price !== undefined ? price : item.price,
+          is_default: is_default !== undefined ? is_default : item.is_default,
+          is_none_option:
+            is_none_option !== undefined ? is_none_option : item.is_none_option,
+          display_order:
+            display_order !== undefined ? display_order : item.display_order,
+          section_id: section_id || item.section_id,
+        },
+        { transaction }
+      );
 
       // Update city-specific pricing
       if (city_prices) {
-        const parsedCityPrices = this.parsePriceData(city_prices);
-        
+        const parsedCityPrices =
+          PackageItemController.parsePriceData(city_prices);
+
         await CitySpecificPricing.destroy({
           where: {
             item_id: itemId,
             item_type: "package_item",
           },
-          transaction
+          transaction,
         });
 
         if (Object.keys(parsedCityPrices).length > 0) {
           await Promise.all(
             Object.entries(parsedCityPrices).map(([cityId, price]) =>
-              CitySpecificPricing.create({
-                city_id: cityId,
-                item_id: itemId,
-                item_type: "package_item",
-                price: price,
-              }, { transaction })
+              CitySpecificPricing.create(
+                {
+                  city_id: cityId,
+                  item_id: itemId,
+                  item_type: "package_item",
+                  price: price,
+                },
+                { transaction }
+              )
             )
           );
         }
@@ -341,11 +393,12 @@ class PackageItemController {
 
       // Update special pricing
       if (specialPricing) {
-        const parsedSpecialPricing = this.parseSpecialPricing(specialPricing);
+        const parsedSpecialPricing =
+          PackageItemController.parseSpecialPricing(specialPricing);
         if (parsedSpecialPricing.error) {
           return res.status(400).json({
             status: "error",
-            message: parsedSpecialPricing.error
+            message: parsedSpecialPricing.error,
           });
         }
 
@@ -354,21 +407,24 @@ class PackageItemController {
             item_id: itemId,
             item_type: "package_item",
           },
-          transaction
+          transaction,
         });
 
         if (parsedSpecialPricing.data?.length > 0) {
           await Promise.all(
             parsedSpecialPricing.data.map((pricing) =>
-              SpecialPricing.create({
-                item_id: itemId,
-                item_type: "package_item",
-                city_id: pricing.city_id,
-                special_price: pricing.special_price,
-                start_date: pricing.start_date,
-                end_date: pricing.end_date,
-                status: "active",
-              }, { transaction })
+              SpecialPricing.create(
+                {
+                  item_id: itemId,
+                  item_type: "package_item",
+                  city_id: pricing.city_id,
+                  special_price: pricing.special_price,
+                  start_date: pricing.start_date,
+                  end_date: pricing.end_date,
+                  status: "active",
+                },
+                { transaction }
+              )
             )
           );
         }
@@ -397,16 +453,22 @@ class PackageItemController {
 
       res.status(200).json({
         status: "success",
-        data: this.transformItemResponse(updatedItem),
-        message: "Package item updated successfully"
+        data: PackageItemController.transformItemResponse(updatedItem),
+        message: "Package item updated successfully",
       });
     } catch (error) {
       await transaction.rollback();
-      
+
       if (req.file) {
-        const filePath = path.join(__dirname, '..', 'uploads', 'files', req.file.filename);
-        fs.unlink(filePath, err => {
-          if (err) console.error('Error deleting file:', err);
+        const filePath = path.join(
+          __dirname,
+          "..",
+          "uploads",
+          "files",
+          req.file.filename
+        );
+        fs.unlink(filePath, (err) => {
+          if (err) console.error("Error deleting file:", err);
         });
       }
 
@@ -416,7 +478,7 @@ class PackageItemController {
 
   static async deletePackageItem(req, res, next) {
     const transaction = await sequelize.transaction();
-    
+
     try {
       const itemId = req.params.id;
 
@@ -424,20 +486,20 @@ class PackageItemController {
       if (!item) {
         return res.status(404).json({
           status: "error",
-          message: "Package item not found"
+          message: "Package item not found",
         });
       }
 
       // Delete associated file if exists
       if (item.icon_url) {
-        const relativePath = item.icon_url.startsWith('/') 
-          ? item.icon_url.slice(1) 
+        const relativePath = item.icon_url.startsWith("/")
+          ? item.icon_url.slice(1)
           : item.icon_url;
-          
-        const filePath = path.join(__dirname, '..', relativePath);
+
+        const filePath = path.join(__dirname, "..", relativePath);
         if (fs.existsSync(filePath)) {
-          fs.unlink(filePath, err => {
-            if (err) console.error('Error deleting file:', err);
+          fs.unlink(filePath, (err) => {
+            if (err) console.error("Error deleting file:", err);
           });
         }
       }
@@ -449,16 +511,16 @@ class PackageItemController {
             item_id: itemId,
             item_type: "package_item",
           },
-          transaction
+          transaction,
         }),
         SpecialPricing.destroy({
           where: {
             item_id: itemId,
             item_type: "package_item",
           },
-          transaction
+          transaction,
         }),
-        item.destroy({ transaction })
+        item.destroy({ transaction }),
       ]);
 
       await transaction.commit();
@@ -466,7 +528,7 @@ class PackageItemController {
       res.status(200).json({
         status: "success",
         message: "Package item and associated data deleted successfully",
-        data: { item_id: itemId }
+        data: { item_id: itemId },
       });
     } catch (error) {
       await transaction.rollback();
@@ -483,7 +545,7 @@ class PackageItemController {
       if (!section) {
         return res.status(404).json({
           status: "error",
-          message: `Section with ID ${sectionId} not found`
+          message: `Section with ID ${sectionId} not found`,
         });
       }
 
@@ -512,11 +574,16 @@ class PackageItemController {
         order: [["display_order", "ASC"]],
       });
 
-      res.status(200).json({
-        status: "success",
-        data: items.map(item => this.transformItemResponse(item)),
-        message: items.length ? "Items retrieved successfully" : "No items found for this section"
-      });
+      items.map((item) => console.log(item.dataValues, "||||")),
+        res.status(200).json({
+          status: "success",
+          data: items.map((item) =>
+            PackageItemController.transformItemResponse(item.dataValues)
+          ),
+          message: items.length
+            ? "Items retrieved successfully"
+            : "No items found for this section",
+        });
     } catch (error) {
       next(error);
     }
@@ -571,7 +638,7 @@ class PackageItemController {
       icon_url: item.icon_url,
       city_prices: item.CitySpecificPricings.reduce((acc, pricing) => {
         const specialPrice = item.SpecialPricings?.find(
-          sp => sp.city_id === pricing.city_id && sp.status === "active"
+          (sp) => sp.city_id === pricing.city_id && sp.status === "active"
         );
         acc[pricing.city_id] = specialPrice
           ? specialPrice.special_price
@@ -579,11 +646,13 @@ class PackageItemController {
         return acc;
       }, {}),
       special_prices: item.SpecialPricings || [],
-      section: item.PackageSection ? {
-        name: item.PackageSection.name,
-        description: item.PackageSection.description,
-        display_order: item.PackageSection.display_order,
-      } : null
+      section: item.PackageSection
+        ? {
+            name: item.PackageSection.name,
+            description: item.PackageSection.description,
+            display_order: item.PackageSection.display_order,
+          }
+        : null,
     };
   }
 }
