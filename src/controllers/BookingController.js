@@ -841,6 +841,7 @@ class BookingController {
   }
 
   static async updateCartItem(req, res, next) {
+    console.log(req.body);
     try {
       if (!req.user || !req.user.id) {
         return res.status(401).json({ message: "Authentication required" });
@@ -900,10 +901,15 @@ class BookingController {
         where: { booking_id: booking.booking_id },
       });
 
+      const subtotalNum = Number(subtotal);
+      const taxAmount = Number(subtotalNum * 0.18);
+      const tipAmount = Number(payment?.tip_amount) || 0;
+      const totalAmount = subtotalNum * 1.18 + tipAmount;
+
       await payment.update({
-        subtotal,
-        tax_amount: subtotal * 0.18,
-        total_amount: subtotal * 1.18 + (payment.tip_amount || 0),
+        subtotal: subtotalNum.toFixed(2),
+        tax_amount: taxAmount.toFixed(2),
+        total_amount: totalAmount.toFixed(2),
       });
 
       res.status(200).json({
@@ -1126,12 +1132,6 @@ class BookingController {
             item_id: bookingItem.item_id,
           },
         });
-
-        if (!bufferTime) {
-          return res.status(400).json({
-            message: `Buffer time not configured for city_id: ${booking.city_id} and item_id: ${bookingItem.item_id}`,
-          });
-        }
 
         // Calculate the total buffer minutes for this item
         const totalBufferMinutes =
