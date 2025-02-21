@@ -1,5 +1,17 @@
-const { ServiceCategory, ServiceProviderEmployee, User } = require("../models");
+const {
+  ServiceCategory,
+  ServiceProviderEmployee,
+  User,
+  ServiceProvider,
+  Booking,
+  BookingItem,
+  BookingPayment,
+  ServiceItem,
+  PackageItem,
+  City,
+} = require("../models");
 const { sequelize } = require("../models");
+
 class ServiceProviderEmployeeController {
   static async getAllEmployees(req, res, next) {
     try {
@@ -8,6 +20,84 @@ class ServiceProviderEmployeeController {
         include: [{ model: User }, { model: ServiceCategory }],
       });
       res.status(200).json(employees);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getEmployeeByUserId(req, res, next) {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    try {
+      const employees = await ServiceProviderEmployee.findOne({
+        where: { user_id: req.user.id },
+        include: [{ model: User }, { model: ServiceProvider }],
+      });
+      res.status(200).json(employees);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getEmployeeBookings(req, res, next) {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    try {
+      const bookings = await Booking.findAll({
+        where: { employee_id: req.params.id },
+        include: [
+          {
+            model: User,
+            as: "customer",
+            attributes: ["u_id", "name", "email", "mobile"],
+          },
+          {
+            model: ServiceProvider,
+            as: "provider",
+            include: [
+              {
+                model: User,
+                attributes: ["name", "email", "mobile"],
+              },
+            ],
+          },
+          {
+            model: City,
+            attributes: ["city_id", "name"],
+          },
+          {
+            model: ServiceProviderEmployee,
+            as: "employee",
+            include: [
+              {
+                model: User,
+                attributes: ["name", "email", "mobile"],
+              },
+            ],
+          },
+          {
+            model: BookingItem,
+            include: [
+              {
+                model: ServiceItem,
+                as: "serviceItem",
+                required: false,
+              },
+              {
+                model: PackageItem,
+                as: "packageItem",
+                required: false,
+              },
+            ],
+          },
+          {
+            model: BookingPayment,
+          },
+        ],
+      });
+      res.status(200).json(bookings);
     } catch (error) {
       next(error);
     }

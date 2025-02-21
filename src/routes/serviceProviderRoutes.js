@@ -68,6 +68,16 @@ router.get(
   "/providers/:providerId/employees",
   ServiceProviderEmployeeController.getAllEmployees
 );
+router.get(
+  "/user/employee",
+  authMiddleware,
+  ServiceProviderEmployeeController.getEmployeeByUserId
+);
+router.get(
+  "/employee/bookings/:id",
+  authMiddleware,
+  ServiceProviderEmployeeController.getEmployeeBookings
+);
 router.post(
   "/providers/:providerId/employees",
   ServiceProviderEmployeeController.addEmployee

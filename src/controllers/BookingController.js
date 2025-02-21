@@ -1124,6 +1124,7 @@ class BookingController {
       }
 
       let highestBufferTime = 0;
+      let totalBufferMinutes = 0;
 
       for (let bookingItem of booking.BookingItems) {
         const bufferTime = await CitySpecificBuffertime.findOne({
@@ -1133,9 +1134,22 @@ class BookingController {
           },
         });
 
-        // Calculate the total buffer minutes for this item
-        const totalBufferMinutes =
-          bufferTime.buffer_hours * 60 + bufferTime.buffer_minutes;
+        if (bufferTime) {
+          totalBufferMinutes =
+            bufferTime.buffer_hours * 60 + bufferTime.buffer_minutes;
+        } else {
+          // If no any buffer times for booking items then aplying global buffer time
+          const globalBufferTime = await SystemSettings.findOne({
+            where: {
+              category: "provider_assignment",
+              key: "global_buffer_time",
+            },
+          });
+
+          totalBufferMinutes = Number(
+            globalBufferTime?.value ? JSON.parse(globalBufferTime.value) : 0
+          );
+        }
 
         // Track the highest buffer time across all items in the booking
         highestBufferTime = Math.max(highestBufferTime, totalBufferMinutes);
