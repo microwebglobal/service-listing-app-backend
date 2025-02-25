@@ -14,7 +14,8 @@ const ServiceProviderRoutes = require("./serviceProviderRoutes");
 const BookingRoutes = require("./bookingRoutes");
 const AuthRoutes = require("./authRoutes");
 const Addresses = require("./addresses");
-const AdminBookingRoutes=require("./adminbookingRoutes");
+const AdminBookingRoutes = require("./adminbookingRoutes");
+const SystemSettings = require("./systemSettings");
 // Import middlewares
 
 // Health check route
@@ -40,7 +41,8 @@ router.use("/", ServiceManagement);
 router.use("/", PackageRoutes);
 router.use("/", BookingRoutes);
 router.use("/auth", AuthRoutes);
-router.use("/admin",AdminBookingRoutes);
+router.use("/admin", AdminBookingRoutes);
+router.use("/", SystemSettings);
 
 // Protected routes
 router.use(

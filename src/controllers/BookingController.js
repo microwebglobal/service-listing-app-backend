@@ -217,11 +217,12 @@ class BookingController {
         where: {
           status: "active",
           business_type: providerType,
-          "$ProviderServiceCities.city_id$": cityId,
+          "$providerCities.city_id$": cityId,
         },
         include: [
           {
             model: ProviderServiceCity,
+            as: "providerCities",
             where: { city_id: cityId },
             required: true,
           },
@@ -248,6 +249,10 @@ class BookingController {
           random_number: randomNumber,
           daily_booking_count: dailyBookingCount,
           attempt_number: 1,
+          distance_score: 7.8,
+          rating_score: 1.2,
+          workload_score: 5.3,
+          provider_score: 2,
           status: "assigned",
           created_at: new Date(),
           updated_at: new Date(),
