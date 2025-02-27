@@ -100,6 +100,14 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.GEOMETRY("POINT"),
         allowNull: false,
       },
+      otp: {
+        type: DataTypes.STRING(6),
+        allowNull: true,
+      },
+      otp_expires: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
       customer_notes: {
         type: DataTypes.TEXT,
         allowNull: true,

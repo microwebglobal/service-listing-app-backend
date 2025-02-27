@@ -86,6 +86,14 @@ module.exports = {
         type: Sequelize.TEXT,
         allowNull: true,
       },
+      otp: {
+        type: Sequelize.STRING(6),
+        allowNull: true,
+      },
+      otp_expires: {
+        type: Sequelize.DATE,
+        allowNull: true,
+      },
       cancellation_reason: {
         type: Sequelize.TEXT,
         allowNull: true,

@@ -88,6 +88,84 @@ class ProviderBookingController {
       next(error);
     }
   }
+
+  static async bookingSendOTP(req, res, next) {
+    try {
+      console.log(req.body);
+      const { mobile, bookingId } = req.body;
+
+      if (!mobile) {
+        throw createError(400, "Mobile number is required");
+      }
+
+      if (!bookingId) {
+        throw createError(400, "Booking Id is required");
+      }
+
+      const booking = await Booking.findOne({
+        where: { booking_id: bookingId },
+      });
+
+      if (!booking) {
+        throw createError(404, "Booking not found");
+      }
+
+      const otp = "123456";
+
+      console.log(`OTP for ${mobile}:`, otp);
+
+      await booking.update({
+        otp,
+        otp_expires: new Date(Date.now() + 5 * 60 * 1000),
+      });
+
+      res.json({
+        success: true,
+        message: "OTP sent successfully",
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async bookingVerifyOTP(req, res, next) {
+    try {
+      const { otp, bookingId } = req.body;
+
+      if (!bookingId || !otp) {
+        throw createError(400, "Booking Id and OTP are required");
+      }
+
+      const booking = await Booking.findOne({
+        where: { booking_id: bookingId },
+      });
+
+      if (!booking) {
+        throw createError(404, "Booking not found");
+      }
+
+      if (!booking.otp || booking.otp !== otp) {
+        throw createError(400, "Invalid OTP");
+      }
+
+      if (new Date() > new Date(booking.otp_expires)) {
+        throw createError(400, "OTP has expired");
+      }
+
+      await booking.update({
+        otp: null,
+        otp_expires: null,
+        status: "in_progress",
+      });
+
+      res.json({
+        success: true,
+        message: "OTP verified successfully And Booking In Progress",
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = ProviderBookingController;

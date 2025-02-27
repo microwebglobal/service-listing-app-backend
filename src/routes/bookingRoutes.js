@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const BookingController = require("../controllers/BookingController");
 const { authMiddleware } = require("../middlewares/auth.middleware");
+const ProviderBookingController = require("../controllers/ProviderBookingController");
 
 // Cart Management Routes
 router.post("/cart/add", authMiddleware, BookingController.addToCart);
@@ -34,6 +35,8 @@ router.put(
   authMiddleware,
   BookingController.providerAcceptOrder
 );
+router.post("/booking/send-otp", ProviderBookingController.bookingSendOTP);
+router.post("/booking/verify-otp", ProviderBookingController.bookingVerifyOTP);
 
 // Provider Assignment Routes
 router.post(
