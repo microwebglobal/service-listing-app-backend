@@ -212,12 +212,23 @@ class BookingController {
       const randomNumber = Math.floor(Math.random() * 10) + 1;
       const providerType = randomNumber <= 7 ? "individual" : "business";
 
+      //get booking to check already have an provider
+      const currentBooking = await Booking.findOne({
+        where: { booking_id: bookingId },
+        transaction,
+      });
+
+      const currentProviderId = currentBooking?.provider_id;
+
       // Find eligible providers
       const eligibleProviders = await ServiceProvider.findAll({
         where: {
           status: "active",
           business_type: providerType,
           "$providerCities.city_id$": cityId,
+          provider_id: {
+            [Op.ne]: currentProviderId, // Exclude the current provider
+          },
         },
         include: [
           {
@@ -253,7 +264,7 @@ class BookingController {
           rating_score: 1.2,
           workload_score: 5.3,
           provider_score: 2,
-          status: "assigned",
+          status: "pending",
           created_at: new Date(),
           updated_at: new Date(),
         },
@@ -1082,6 +1093,11 @@ class BookingController {
         transaction,
       });
 
+      const bookingHistory = await AssignmentHistory.findOne({
+        where: { booking_id: id, status: "pending" },
+        transaction,
+      });
+
       if (req.user.role === "business_service_provider") {
         const { employee_id } = req.body;
 
@@ -1094,7 +1110,15 @@ class BookingController {
       if (!booking) {
         throw createError(404, "Booking not found");
       }
+
       await booking.update({ status: "accepted" }, transaction);
+
+      if (bookingHistory) {
+        await bookingHistory.update({
+          status: "accepted",
+        }),
+          transaction;
+      }
       await transaction.commit();
       res.status(200).json({ message: "Booking Acepted" });
     } catch (error) {
@@ -1222,6 +1246,56 @@ class BookingController {
     } catch (error) {
       console.error("Error in getAvailableEmployees:", error);
       res.status(500).json({ message: "Internal Server Error" });
+    }
+  }
+
+  static async providerRejectBooking(req, res, next) {
+    const { bookingId } = req.body;
+
+    const transaction = await sequelize.transaction();
+
+    try {
+      const assignment = await AssignmentHistory.findOne({
+        where: { booking_id: bookingId, status: "pending" },
+        include: Booking,
+      });
+
+      if (!assignment) {
+        return res
+          .status(404)
+          .json({ message: "Booking not found or already processed." });
+      }
+
+      await assignment.update({ status: "rejected" }, { transaction });
+
+      console.log(`Reassigning provider for booking ${bookingId}...`);
+      const newAssignedProvider = await BookingController.assignServiceProvider(
+        assignment.booking_id,
+        assignment?.Booking?.city_id,
+        transaction
+      );
+
+      if (newAssignedProvider) {
+        console.log(`New provider assigned:`, newAssignedProvider);
+        await transaction.commit();
+        return res.status(200).json({
+          message: "Booking rejected and provider reassigned successfully.",
+          newAssignedProvider,
+        });
+      } else {
+        await transaction.commit();
+        return res
+          .status(400)
+          .json({ message: "No available providers for reassignment." });
+      }
+    } catch (error) {
+      await transaction.rollback();
+      console.error("Rejection and reassignment failed:", error);
+      return res.status(500).json({
+        message:
+          "An error occurred while rejecting and reassigning the booking.",
+        error,
+      });
     }
   }
 }
