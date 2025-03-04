@@ -40,6 +40,14 @@ module.exports = {
         type: Sequelize.DECIMAL(10, 2),
         allowNull: false,
       },
+      advance_percentage: {
+        type: Sequelize.DECIMAL(5, 2),
+        allowNull: false,
+      },
+      is_home_visit: {
+        type: Sequelize.BOOLEAN,
+        allowNull: false,
+      },
       created_at: {
         type: Sequelize.DATE,
         allowNull: false,

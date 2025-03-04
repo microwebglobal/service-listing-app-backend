@@ -65,6 +65,14 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false,
       },
+      advance_percentage: {
+        type: DataTypes.DECIMAL(5, 2),
+        allowNull: false,
+      },
+      is_home_visit: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+      },
       icon_url: DataTypes.STRING(255),
     },
     {
