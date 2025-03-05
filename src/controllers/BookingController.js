@@ -382,8 +382,10 @@ class BookingController {
     const transaction = await sequelize.transaction();
 
     try {
-      const { amount, bookingId, paymentMethod, cardNumber, expiry, cvv } =
+      const { paymentType, bookingId, paymentMethod, cardNumber, expiry, cvv } =
         req.body;
+
+      console.log("Booking Details:", req.body);
 
       if (!req.user || !req.user.id) {
         return res.status(401).json({ message: "Authentication required" });
@@ -408,14 +410,28 @@ class BookingController {
         isSuccess = Math.random() > 0.2; // 80% success rate for card
       } else if (paymentMethod === "cash") {
         isSuccess = true; // Cash payments always proceed
+      } else if (paymentMethod === "net_banking") {
+        isSuccess = true; // Bank payments always proceed
       }
 
       if (isSuccess) {
+        let paymentStatus;
+
+        if (paymentType === "advance") {
+          paymentStatus = "advance_only_paid";
+        } else if (paymentType === "full" && paymentMethod === "cash") {
+          paymentStatus = "pending";
+        } else if (
+          paymentType === "full" &&
+          (paymentMethod === "net_banking" || paymentMethod === "card")
+        ) {
+          paymentStatus = "completed";
+        }
         // Update payment
         await payment.update(
           {
             payment_method: paymentMethod,
-            payment_status: paymentMethod === "cash" ? "pending" : "completed",
+            payment_status: paymentStatus,
             transaction_id: uuidv4(),
           },
           { transaction }
@@ -601,6 +617,7 @@ class BookingController {
 
       // Add new items
       let totalAmount = 0;
+      let totalAdvanceAmount = 0;
       for (const item of items) {
         const currentPrice = await BookingController.getCurrentPrice(
           item.itemId,
@@ -608,8 +625,18 @@ class BookingController {
           cityId
         );
 
+        const bookedItem = await ServiceItem.findOne({
+          where: { item_id: item.itemId },
+          attributes: ["advance_percentage", "is_home_visit"],
+        });
+
+        const advancePercentage = bookedItem?.advance_percentage;
+
+        const advanceAmount = currentPrice * (advancePercentage / 100);
+
         const totalPrice = currentPrice * item.quantity;
         totalAmount += totalPrice;
+        totalAdvanceAmount += advanceAmount;
 
         await BookingItem.create({
           booking_id: booking.booking_id,
@@ -618,6 +645,7 @@ class BookingController {
           quantity: item.quantity,
           unit_price: currentPrice,
           total_price: totalPrice,
+          advance_payment: advanceAmount,
         });
       }
 
@@ -644,6 +672,7 @@ class BookingController {
         subtotal: totalAmount,
         tax_amount: taxAmount,
         total_amount: totalWithTax,
+        advance_payment: totalAdvanceAmount,
         tip_amount: 0, // Set default tip amount
         transaction_id: null, // Will be set during actual payment
         payment_date: null, // Will be set during actual payment
