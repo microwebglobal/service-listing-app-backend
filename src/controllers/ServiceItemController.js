@@ -3,6 +3,7 @@ const {
   CitySpecificPricing,
   SpecialPricing,
   CitySpecificBuffertime,
+  ServiceCommission,
 } = require("../models");
 
 const IdGenerator = require("../utils/helper");
@@ -81,6 +82,20 @@ class ServiceItemController {
         );
       }
 
+      // Handle commition rates
+      if (req.body.commitionRate?.length > 0) {
+        await Promise.all(
+          req.body.commitionRate.map(async (commition) => {
+            return ServiceCommission.create({
+              city_id: commition.city_id,
+              item_id: newItem.item_id,
+              item_type: "service_item",
+              commission_rate: commition.rate,
+            });
+          })
+        );
+      }
+
       // Fetch the created item with its pricing details
       const itemWithPricing = await ServiceItem.findByPk(newItem.item_id, {
         include: [CitySpecificPricing],
@@ -100,6 +115,7 @@ class ServiceItemController {
         cityPricing,
         specialPricing,
         bufferTime,
+        commitionRate,
         ...updateData
       } = req.body;
       const [updated] = await ServiceItem.update(updateData, {
@@ -189,6 +205,31 @@ class ServiceItemController {
         }
       }
 
+      //Handle Commition rates updates
+      if (commitionRate?.length >= 0) {
+        // Delete existing pricing
+        await ServiceCommission.destroy({
+          where: {
+            item_id: req.params.id,
+            item_type: "service_item",
+          },
+        });
+
+        // Create new pricing entries if provided
+        if (commitionRate.length > 0) {
+          await Promise.all(
+            commitionRate.map(async (commition) => {
+              return ServiceCommission.create({
+                city_id: commition.city_id,
+                item_id: req.params.id,
+                item_type: "service_item",
+                commission_rate: commition.rate,
+              });
+            })
+          );
+        }
+      }
+
       const updatedItem = await ServiceItem.findByPk(req.params.id, {
         include: [CitySpecificPricing],
       });
@@ -255,6 +296,7 @@ class ServiceItemController {
         include: [
           CitySpecificPricing,
           CitySpecificBuffertime,
+          ServiceCommission,
           {
             model: SpecialPricing,
             where: {

@@ -11,7 +11,7 @@ cron.schedule("* * * * * *", async () => {
 
   const tenMinutesAgo = currentTimeLocal
     .clone()
-    .subtract(1, "minutes")
+    .subtract(10, "minutes")
     .format("YYYY-MM-DD HH:mm:ss.sSSSZ");
 
   const tenMinutesAgoDate = moment(

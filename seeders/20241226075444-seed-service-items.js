@@ -79,6 +79,29 @@ module.exports = {
       ],
       {}
     );
+
+    await queryInterface.bulkInsert(
+      "service_commissions",
+      [
+        {
+          city_id: "CTY001",
+          item_id: "ITEM001",
+          item_type: "service_item",
+          commission_rate: 5,
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+        {
+          city_id: "CTY002",
+          item_id: "ITEM001",
+          item_type: "service_item",
+          commission_rate: 10,
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+      ],
+      {}
+    );
   },
 
   down: async (queryInterface, Sequelize) => {

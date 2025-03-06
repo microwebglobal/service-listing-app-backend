@@ -27,6 +27,13 @@ module.exports = (sequelize, DataTypes) => {
           item_type: "service_item",
         },
       });
+      ServiceItem.hasMany(models.ServiceCommission, {
+        foreignKey: "item_id",
+        constraints: false,
+        scope: {
+          item_type: "service_item",
+        },
+      });
     }
   }
 
