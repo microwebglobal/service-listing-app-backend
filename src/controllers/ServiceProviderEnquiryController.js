@@ -154,9 +154,9 @@ class ServiceProviderEnquiryController {
       await t.commit();
 
       try {
-        await MailService.sendEnquiryReceivedEmail(user, 'business');
+        await MailService.sendEnquiryReceivedEmail(user, "business");
       } catch (emailError) {
-        console.error('Error sending enquiry email:', emailError);
+        console.error("Error sending enquiry email:", emailError);
       }
 
       res.status(201).json({
@@ -205,6 +205,8 @@ class ServiceProviderEnquiryController {
         location,
         skills,
       } = req.body;
+
+      console.log(req.body);
 
       // Create user without specifying u_id
       const user = await User.create(
@@ -276,9 +278,9 @@ class ServiceProviderEnquiryController {
       await t.commit();
 
       try {
-        await MailService.sendEnquiryReceivedEmail(user, 'individual');
+        await MailService.sendEnquiryReceivedEmail(user, "individual");
       } catch (emailError) {
-        console.error('Error sending enquiry email:', emailError);
+        console.error("Error sending enquiry email:", emailError);
       }
 
       res.status(201).json({
@@ -287,12 +289,10 @@ class ServiceProviderEnquiryController {
       });
 
       try {
-        await MailService.sendEnquiryReceivedEmail(user, 'individual');
+        await MailService.sendEnquiryReceivedEmail(user, "individual");
       } catch (emailError) {
-        console.error('Error sending enquiry email:', emailError);
+        console.error("Error sending enquiry email:", emailError);
       }
-
-      
     } catch (error) {
       await t.rollback();
       console.error("Individual enquiry creation error:", {
@@ -367,9 +367,8 @@ class ServiceProviderEnquiryController {
       try {
         await MailService.sendEnquiryApprovedEmail(user, registrationLink);
       } catch (emailError) {
-        console.error('Error sending approval email:', emailError);
+        console.error("Error sending approval email:", emailError);
       }
-      
 
       res.status(200).json({
         message: "Enquiry approved",
