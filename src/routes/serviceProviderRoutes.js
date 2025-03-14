@@ -99,5 +99,13 @@ router.get(
   "/provider/bookings/:id",
   ProviderBookingController.getBookingByProvider
 );
+router.post(
+  "/booking/edit/send-otp",
+  ProviderBookingController.bookingEditSendOTP
+);
+router.post(
+  "/booking/edit/verify-otp",
+  ProviderBookingController.bookingEditVerifyOTP
+);
 
 module.exports = router;
