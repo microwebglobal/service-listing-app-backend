@@ -1,4 +1,4 @@
-const { User, ServiceProvider } = require("../models");
+const { User, ServiceProvider, ServiceProviderEmployee } = require("../models");
 const createError = require("http-errors");
 const jwt = require("jsonwebtoken");
 const { Op } = require("sequelize");
@@ -175,6 +175,10 @@ class AuthController {
         throw createError(403, "Account is not active");
       }
 
+      const employee = await ServiceProviderEmployee.findOne({
+        where: { user_id: user?.u_id },
+      });
+
       const provider = await ServiceProvider.findOne({
         where: { user_id: user?.u_id },
       });
@@ -189,6 +193,7 @@ class AuthController {
         user: {
           id: user.u_id,
           provider: provider?.provider_id,
+          employee: employee?.employee_id,
           name: user.name,
           email: user.email,
           role: user.role,
