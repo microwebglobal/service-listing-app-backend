@@ -13,14 +13,16 @@ const {
   ServiceProvider,
   User,
   ProviderServiceCity,
-  ProviderServiceCategory,
   AssignmentHistory,
   BookingAssignmentSettings,
+  ServiceProviderEmployee,
   SystemSettings,
   ServiceType,
+  CitySpecificBuffertime,
   Package,
 } = require("../models");
-const { Op } = require("sequelize");
+const { Op, where } = require("sequelize");
+const moment = require("moment");
 const IdGenerator = require("../utils/helper");
 const { sequelize } = require("../models");
 const { v4: uuidv4 } = require("uuid");
@@ -210,16 +212,28 @@ class BookingController {
       const randomNumber = Math.floor(Math.random() * 10) + 1;
       const providerType = randomNumber <= 7 ? "individual" : "business";
 
+      //get booking to check already have an provider
+      const currentBooking = await Booking.findOne({
+        where: { booking_id: bookingId },
+        transaction,
+      });
+
+      const currentProviderId = currentBooking?.provider_id;
+
       // Find eligible providers
       const eligibleProviders = await ServiceProvider.findAll({
         where: {
           status: "active",
           business_type: providerType,
-          "$ProviderServiceCities.city_id$": cityId,
+          "$providerCities.city_id$": cityId,
+          provider_id: {
+            [Op.ne]: currentProviderId, // Exclude the current provider
+          },
         },
         include: [
           {
             model: ProviderServiceCity,
+            as: "providerCities",
             where: { city_id: cityId },
             required: true,
           },
@@ -246,7 +260,11 @@ class BookingController {
           random_number: randomNumber,
           daily_booking_count: dailyBookingCount,
           attempt_number: 1,
-          status: "assigned",
+          distance_score: 7.8,
+          rating_score: 1.2,
+          workload_score: 5.3,
+          provider_score: 2,
+          status: "pending",
           created_at: new Date(),
           updated_at: new Date(),
         },
@@ -364,8 +382,10 @@ class BookingController {
     const transaction = await sequelize.transaction();
 
     try {
-      const { amount, bookingId, paymentMethod, cardNumber, expiry, cvv } =
+      const { paymentType, bookingId, paymentMethod, cardNumber, expiry, cvv } =
         req.body;
+
+      console.log("Booking Details:", req.body);
 
       if (!req.user || !req.user.id) {
         return res.status(401).json({ message: "Authentication required" });
@@ -390,14 +410,28 @@ class BookingController {
         isSuccess = Math.random() > 0.2; // 80% success rate for card
       } else if (paymentMethod === "cash") {
         isSuccess = true; // Cash payments always proceed
+      } else if (paymentMethod === "net_banking") {
+        isSuccess = true; // Bank payments always proceed
       }
 
       if (isSuccess) {
+        let paymentStatus;
+
+        if (paymentType === "advance") {
+          paymentStatus = "advance_only_paid";
+        } else if (paymentType === "full" && paymentMethod === "cash") {
+          paymentStatus = "pending";
+        } else if (
+          paymentType === "full" &&
+          (paymentMethod === "net_banking" || paymentMethod === "card")
+        ) {
+          paymentStatus = "completed";
+        }
         // Update payment
         await payment.update(
           {
             payment_method: paymentMethod,
-            payment_status: paymentMethod === "cash" ? "pending" : "completed",
+            payment_status: paymentStatus,
             transaction_id: uuidv4(),
           },
           { transaction }
@@ -490,6 +524,8 @@ class BookingController {
         customerNotes,
       } = req.body;
 
+      console.log(req.body);
+
       if (!cityId || !items || !bookingDate || !startTime) {
         return res.status(400).json({ message: "Missing required fields" });
       }
@@ -524,13 +560,49 @@ class BookingController {
           coordinates: [0, 0],
         };
 
+        //calculate end time
+        const getEndTime = () => {
+          if (
+            !startTime ||
+            typeof startTime !== "string" ||
+            !startTime.includes(":")
+          ) {
+            console.error("Invalid startTime:", startTime);
+            return "00:00";
+          }
+
+          let totalMinutes = 0;
+          for (const item of items) {
+            const hours = Number(item.duration_hours) || 0;
+            const minutes = Number(item.duration_minutes) || 0;
+            totalMinutes += hours * 60 + minutes;
+          }
+
+          const [startHour, startMinute] = startTime.split(":").map(Number);
+          if (isNaN(startHour) || isNaN(startMinute)) {
+            console.error("Invalid start hour/minute:", startHour, startMinute);
+            return "00:00";
+          }
+
+          const startDate = new Date();
+          startDate.setHours(startHour, startMinute, 0, 0);
+          startDate.setMinutes(startDate.getMinutes() + totalMinutes);
+
+          const endHour = startDate.getHours().toString().padStart(2, "0");
+          const endMinute = startDate.getMinutes().toString().padStart(2, "0");
+
+          return `${endHour}:${endMinute}`;
+        };
+
+        const endTime = getEndTime();
+
         booking = await Booking.create({
           booking_id: newBookingId,
           user_id: req.user.id,
           city_id: cityId,
           booking_date: bookingDate,
           start_time: startTime,
-          end_time: startTime,
+          end_time: endTime,
           status: "cart",
           service_address: serviceAddress,
           service_location: locationData,
@@ -545,6 +617,7 @@ class BookingController {
 
       // Add new items
       let totalAmount = 0;
+      let totalAdvanceAmount = 0;
       for (const item of items) {
         const currentPrice = await BookingController.getCurrentPrice(
           item.itemId,
@@ -552,8 +625,18 @@ class BookingController {
           cityId
         );
 
+        const bookedItem = await ServiceItem.findOne({
+          where: { item_id: item.itemId },
+          attributes: ["advance_percentage", "is_home_visit"],
+        });
+
+        const advancePercentage = bookedItem?.advance_percentage;
+
+        const advanceAmount = currentPrice * (advancePercentage / 100);
+
         const totalPrice = currentPrice * item.quantity;
         totalAmount += totalPrice;
+        totalAdvanceAmount += advanceAmount;
 
         await BookingItem.create({
           booking_id: booking.booking_id,
@@ -562,6 +645,7 @@ class BookingController {
           quantity: item.quantity,
           unit_price: currentPrice,
           total_price: totalPrice,
+          advance_payment: advanceAmount,
         });
       }
 
@@ -588,6 +672,7 @@ class BookingController {
         subtotal: totalAmount,
         tax_amount: taxAmount,
         total_amount: totalWithTax,
+        advance_payment: totalAdvanceAmount,
         tip_amount: 0, // Set default tip amount
         transaction_id: null, // Will be set during actual payment
         payment_date: null, // Will be set during actual payment
@@ -749,10 +834,10 @@ class BookingController {
           { model: BookingPayment },
           {
             model: ServiceProvider,
-            as: "provider", 
-            include: [{ model: User, attributes: ['name', 'email', 'mobile'] }]
-          }
-        ]
+            as: "provider",
+            include: [{ model: User, attributes: ["name", "email", "mobile"] }],
+          },
+        ],
       });
 
       if (!booking) {
@@ -801,6 +886,7 @@ class BookingController {
   }
 
   static async updateCartItem(req, res, next) {
+    console.log(req.body);
     try {
       if (!req.user || !req.user.id) {
         return res.status(401).json({ message: "Authentication required" });
@@ -860,10 +946,15 @@ class BookingController {
         where: { booking_id: booking.booking_id },
       });
 
+      const subtotalNum = Number(subtotal);
+      const taxAmount = Number(subtotalNum * 0.18);
+      const tipAmount = Number(payment?.tip_amount) || 0;
+      const totalAmount = subtotalNum * 1.18 + tipAmount;
+
       await payment.update({
-        subtotal,
-        tax_amount: subtotal * 0.18,
-        total_amount: subtotal * 1.18 + (payment.tip_amount || 0),
+        subtotal: subtotalNum.toFixed(2),
+        tax_amount: taxAmount.toFixed(2),
+        total_amount: totalAmount.toFixed(2),
       });
 
       res.status(200).json({
@@ -1011,8 +1102,229 @@ class BookingController {
         providers: eligibleProviders,
       });
     } catch (error) {
-      console.error("Get Eligible Providers Error:", error);
+      console.error("Get Eligible Providers Error: ", error);
       next(error);
+    }
+  }
+
+  static async providerAcceptOrder(req, res, next) {
+    const transaction = await sequelize.transaction();
+
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+
+    const { id } = req.params;
+
+    try {
+      const booking = await Booking.findOne({
+        where: { booking_id: id },
+        transaction,
+      });
+
+      const bookingHistory = await AssignmentHistory.findOne({
+        where: { booking_id: id, status: "pending" },
+        transaction,
+      });
+
+      if (req.user.role === "business_service_provider") {
+        const { employee_id } = req.body;
+
+        await booking.update(
+          { status: "accepted", employee_id: employee_id },
+          transaction
+        );
+      }
+
+      if (!booking) {
+        throw createError(404, "Booking not found");
+      }
+
+      await booking.update({ status: "accepted" }, transaction);
+
+      if (bookingHistory) {
+        await bookingHistory.update({
+          status: "accepted",
+        }),
+          transaction;
+      }
+      await transaction.commit();
+      res.status(200).json({ message: "Booking Acepted" });
+    } catch (error) {
+      await transaction.rollback();
+      console.error("Error in updateBookingStatus:", error);
+      next(error);
+    }
+  }
+
+  static async getAvailableEmployees(req, res, next) {
+    try {
+      const { providerId } = req.params;
+      const { booking_id, bookingDate, start_time, end_time } = req.query;
+
+      if (!bookingDate || !start_time || !end_time) {
+        return res.status(400).json({
+          message: "booking_date, start_time, and end_time are required",
+        });
+      }
+
+      const booking = await Booking.findOne({
+        where: { booking_id },
+        include: [
+          {
+            model: BookingItem,
+          },
+        ],
+      });
+
+      if (!booking) {
+        return res.status(404).json({ message: "Booking not found" });
+      }
+
+      let highestBufferTime = 0;
+      let totalBufferMinutes = 0;
+
+      for (let bookingItem of booking.BookingItems) {
+        const bufferTime = await CitySpecificBuffertime.findOne({
+          where: {
+            city_id: booking.city_id,
+            item_id: bookingItem.item_id,
+          },
+        });
+
+        if (bufferTime) {
+          totalBufferMinutes =
+            bufferTime.buffer_hours * 60 + bufferTime.buffer_minutes;
+        } else {
+          // If no any buffer times for booking items then aplying global buffer time
+          const globalBufferTime = await SystemSettings.findOne({
+            where: {
+              category: "provider_assignment",
+              key: "global_buffer_time",
+            },
+          });
+
+          totalBufferMinutes = Number(
+            globalBufferTime?.value ? JSON.parse(globalBufferTime.value) : 0
+          );
+        }
+
+        // Track the highest buffer time across all items in the booking
+        highestBufferTime = Math.max(highestBufferTime, totalBufferMinutes);
+      }
+
+      // Calculate the adjusted end time
+      const adjustedEndTime = moment(end_time, "HH:mm:ss")
+        .add(highestBufferTime, "minutes")
+        .format("HH:mm:ss");
+
+      const adjustedStartTime = moment(start_time, "HH:mm:ss")
+        .subtract(highestBufferTime, "minutes")
+        .format("HH:mm:ss");
+
+      // loggers for debugging
+      console.log("highestBufferTime:", highestBufferTime);
+      console.log("startTime:", start_time);
+      console.log("endTime:", end_time);
+      console.log("adjustedStartTime:", adjustedStartTime);
+      console.log("adjustedEndTime:", adjustedEndTime);
+
+      // Find unavailable employees based on the adjusted times
+      const unavailableEmployees = await Booking.findAll({
+        attributes: ["employee_id"],
+        where: {
+          booking_date: bookingDate,
+          [Op.and]: [
+            {
+              start_time: { [Op.lt]: adjustedEndTime }, // Existing booking starts before new booking ends
+            },
+            {
+              end_time: { [Op.gt]: adjustedStartTime }, // Existing booking ends after new booking starts
+            },
+          ],
+        },
+        raw: true,
+      });
+
+      // Extract unavailable employee IDs
+      let unavailableEmployeeIds = unavailableEmployees
+        .map((emp) => emp.employee_id)
+        .filter((id) => id !== null);
+
+      // Build the where condition for available employees
+      const whereCondition =
+        unavailableEmployeeIds.length > 0
+          ? {
+              employee_id: { [Op.notIn]: unavailableEmployeeIds },
+              provider_id: providerId,
+            }
+          : { provider_id: providerId };
+
+      // Find available employees
+      const availableEmployees = await ServiceProviderEmployee.findAll({
+        where: whereCondition,
+        include: [
+          {
+            model: User,
+            attributes: ["name", "email", "mobile"],
+          },
+        ],
+      });
+
+      res.status(200).json({ availableEmployees });
+    } catch (error) {
+      console.error("Error in getAvailableEmployees:", error);
+      res.status(500).json({ message: "Internal Server Error" });
+    }
+  }
+
+  static async providerRejectBooking(req, res, next) {
+    const { bookingId } = req.body;
+
+    const transaction = await sequelize.transaction();
+
+    try {
+      const assignment = await AssignmentHistory.findOne({
+        where: { booking_id: bookingId, status: "pending" },
+        include: Booking,
+      });
+
+      if (!assignment) {
+        return res
+          .status(404)
+          .json({ message: "Booking not found or already processed." });
+      }
+
+      await assignment.update({ status: "rejected" }, { transaction });
+
+      console.log(`Reassigning provider for booking ${bookingId}...`);
+      const newAssignedProvider = await BookingController.assignServiceProvider(
+        assignment.booking_id,
+        assignment?.Booking?.city_id,
+        transaction
+      );
+
+      if (newAssignedProvider) {
+        console.log(`New provider assigned:`, newAssignedProvider);
+        await transaction.commit();
+        return res.status(200).json({
+          message: "Booking rejected and provider reassigned successfully.",
+          newAssignedProvider,
+        });
+      } else {
+        await transaction.commit();
+        return res
+          .status(400)
+          .json({ message: "No available providers for reassignment." });
+      }
+    } catch (error) {
+      await transaction.rollback();
+      console.error("Rejection and reassignment failed:", error);
+      return res.status(500).json({
+        message:
+          "An error occurred while rejecting and reassigning the booking.",
+        error,
+      });
     }
   }
 }

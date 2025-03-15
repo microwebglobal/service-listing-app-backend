@@ -68,6 +68,16 @@ router.get(
   "/providers/:providerId/employees",
   ServiceProviderEmployeeController.getAllEmployees
 );
+router.get(
+  "/user/employee",
+  authMiddleware,
+  ServiceProviderEmployeeController.getEmployeeByUserId
+);
+router.get(
+  "/employee/bookings/:id",
+  authMiddleware,
+  ServiceProviderEmployeeController.getEmployeeBookings
+);
 router.post(
   "/providers/:providerId/employees",
   ServiceProviderEmployeeController.addEmployee
@@ -88,6 +98,14 @@ router.put("/provider/password/:id", UserController.setUserPassword);
 router.get(
   "/provider/bookings/:id",
   ProviderBookingController.getBookingByProvider
+);
+router.post(
+  "/booking/edit/send-otp",
+  ProviderBookingController.bookingEditSendOTP
+);
+router.post(
+  "/booking/edit/verify-otp",
+  ProviderBookingController.bookingEditVerifyOTP
 );
 
 module.exports = router;

@@ -62,6 +62,10 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false,
       },
+      advance_payment: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: false,
+      },
     },
     {
       sequelize,

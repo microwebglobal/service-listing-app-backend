@@ -159,7 +159,11 @@ class AuthController {
       const user = await User.findOne({
         where: {
           email,
-          role: ["service_provider", "business_service_provider"],
+          role: [
+            "service_provider",
+            "business_service_provider",
+            "business_employee",
+          ],
         },
       });
 
@@ -184,7 +188,7 @@ class AuthController {
         success: true,
         user: {
           id: user.u_id,
-          provider: provider.provider_id,
+          provider: provider?.provider_id,
           name: user.name,
           email: user.email,
           role: user.role,
