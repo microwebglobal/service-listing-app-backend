@@ -28,6 +28,12 @@ router.put(
   roleCheck("admin"),
   ServiceProviderEnquiryController.approveEnquiry
 );
+router.put(
+  "/enquiry/:id/reject",
+  authMiddleware,
+  roleCheck("admin"),
+  ServiceProviderEnquiryController.rejectEnquiry
+);
 
 // Provider routes
 router.get(

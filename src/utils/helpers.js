@@ -155,10 +155,42 @@ const generateEmailValidationLink = async (user) => {
   }
 };
 
+const generateRejectionLink = async (enquiry, reason) => {
+  try {
+    const tokenData = {
+      eid: enquiry.enquiry_id,
+      uid: enquiry.user_id,
+      t: enquiry.business_type[0],
+      rs: reason,
+      ts: Math.floor(Date.now() / 1000),
+    };
+
+    const randomBytes = crypto.randomBytes(8).toString("base64url");
+    tokenData.n = randomBytes;
+
+    const token = jwt.sign(
+      tokenData,
+      config.development.registration.secretKey,
+      {
+        expiresIn: "7d",
+        algorithm: "HS256",
+        noTimestamp: true,
+      }
+    );
+
+    const rejectionLink = `${process.env.FRONTEND_URL}/service-provider/reject/${token}`;
+
+    return rejectionLink;
+  } catch (error) {
+    throw new Error("Failed to generate registration link");
+  }
+};
+
 module.exports = {
   generateRegistrationLink,
   validateRegistrationLink,
   invalidateRegistrationLink,
   generatePasswordLink,
   generateEmailValidationLink,
+  generateRejectionLink,
 };
