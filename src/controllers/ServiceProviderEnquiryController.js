@@ -4,7 +4,10 @@ const {
   ServiceCategory,
   City,
 } = require("../models");
-const { generateRegistrationLink } = require("../utils/helpers.js");
+const {
+  generateRegistrationLink,
+  generateRejectionLink,
+} = require("../utils/helpers.js");
 const { sequelize } = require("../models");
 const MailService = require("../utils/mail.js");
 class ServiceProviderEnquiryController {
@@ -373,6 +376,33 @@ class ServiceProviderEnquiryController {
       res.status(200).json({
         message: "Enquiry approved",
         registration_link: registrationLink,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async rejectEnquiry(req, res, next) {
+    try {
+      const { reason } = req.body;
+      const enquiry = await ServiceProviderEnquiry.findByPk(req.params.id);
+      if (!enquiry) {
+        return res.status(404).json({ error: "Enquiry not found" });
+      }
+
+      await enquiry.update({
+        status: "rejected",
+      });
+      const user = await User.findByPk(enquiry.user_id);
+
+      try {
+        await MailService.sendEnquiryRejectEmail(user, reason);
+      } catch (emailError) {
+        console.error("Error sending approval email:", emailError);
+      }
+
+      res.status(200).json({
+        message: "Enquiry approved",
       });
     } catch (error) {
       next(error);
