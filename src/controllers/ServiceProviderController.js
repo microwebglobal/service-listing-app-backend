@@ -125,6 +125,7 @@ class ServiceProviderController {
   }
 
   static async registerProvider(req, res, next) {
+    console.log(req.body);
     let t;
     try {
       t = await sequelize.transaction();
@@ -310,6 +311,7 @@ class ServiceProviderController {
                 {
                   name: employee.name,
                   mobile: employee.phone,
+                  email: employee.email,
                   tokenVersion: 1,
                   gender: employee.gender,
                   account_status: "pending",
