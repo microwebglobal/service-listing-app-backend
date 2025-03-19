@@ -1,39 +1,39 @@
-const nodemailer = require('nodemailer');
+const nodemailer = require("nodemailer");
 
 const transporter = nodemailer.createTransport({
-    host: 'server353.web-hosting.com',
-    port: 465,
-    secure: true,
-    auth: {
-        user: 'no-reply@microwebglobal.com',
-        pass: '_U#az=0FD*kq'
-    },
-    tls: {
-        rejectUnauthorized: false
-    }
+  host: "server353.web-hosting.com",
+  port: 465,
+  secure: true,
+  auth: {
+    user: "no-reply@microwebglobal.com",
+    pass: "_U#az=0FD*kq",
+  },
+  tls: {
+    rejectUnauthorized: false,
+  },
 });
 
 class MailService {
-    static async sendMail(to, subject, html) {
-        try {
-            const mailOptions = {
-                from: 'no-reply@microwebglobal.com',
-                to,
-                subject,
-                html
-            };
+  static async sendMail(to, subject, html) {
+    try {
+      const mailOptions = {
+        from: "no-reply@microwebglobal.com",
+        to,
+        subject,
+        html,
+      };
 
-            const info = await transporter.sendMail(mailOptions);
-            console.log('Email sent successfully:', info.messageId);
-            return info;
-        } catch (error) {
-            console.error('Error sending email:', error);
-            return null;
-        }
+      const info = await transporter.sendMail(mailOptions);
+      console.log("Email sent successfully:", info.messageId);
+      return info;
+    } catch (error) {
+      console.error("Error sending email:", error);
+      return null;
     }
+  }
 
-    static getPasswordSetupTemplate(userName, passwordLink) {
-        return `
+  static getPasswordSetupTemplate(userName, passwordLink) {
+    return `
         <!DOCTYPE html>
         <html>
         <head>
@@ -81,10 +81,10 @@ class MailService {
         </body>
         </html>
         `;
-    }
+  }
 
-    static getRegistrationSuccessTemplate(userName) {
-        return `
+  static getRegistrationSuccessTemplate(userName) {
+    return `
         <!DOCTYPE html>
         <html>
         <head>
@@ -111,28 +111,28 @@ class MailService {
         </body>
         </html>
         `;
-    }
+  }
 
-    static async sendPasswordSetupEmail(user, passwordLink) {
-        const template = this.getPasswordSetupTemplate(user.name, passwordLink);
-        return this.sendMail(
-            user.email,
-            'Set Up Your Password - Service Provider Account',
-            template
-        );
-    }
+  static async sendPasswordSetupEmail(user, passwordLink) {
+    const template = this.getPasswordSetupTemplate(user.name, passwordLink);
+    return this.sendMail(
+      user.email,
+      "Set Up Your Password - Service Provider Account",
+      template
+    );
+  }
 
-    static async sendRegistrationSuccessEmail(user) {
-        const template = this.getRegistrationSuccessTemplate(user.name);
-        return this.sendMail(
-            user.email,
-            'Registration Received - Service Provider Account',
-            template
-        );
-    }
+  static async sendRegistrationSuccessEmail(user) {
+    const template = this.getRegistrationSuccessTemplate(user.name);
+    return this.sendMail(
+      user.email,
+      "Registration Received - Service Provider Account",
+      template
+    );
+  }
 
-    static getEnquiryReceivedTemplate(userName, businessType) {
-        return `
+  static getEnquiryReceivedTemplate(userName, businessType) {
+    return `
         <!DOCTYPE html>
         <html>
         <head>
@@ -159,10 +159,10 @@ class MailService {
         </body>
         </html>
         `;
-    }
+  }
 
-    static getEnquiryApprovedTemplate(userName, registrationLink) {
-        return `
+  static getEnquiryApprovedTemplate(userName, registrationLink) {
+    return `
         <!DOCTYPE html>
         <html>
         <head>
@@ -210,25 +210,75 @@ class MailService {
         </body>
         </html>
         `;
-    }
+  }
 
-    static async sendEnquiryReceivedEmail(user, businessType) {
-        const template = this.getEnquiryReceivedTemplate(user.name, businessType);
-        return this.sendMail(
-            user.email,
-            'Service Provider Enquiry Received',
-            template
-        );
-    }
+  static getEnquiryRejectedTemplate(userName, reason) {
+    return `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Enquiry Rejected</title>
+            <style>
+                .container {
+                    font-family: Arial, sans-serif;
+                    max-width: 600px;
+                    margin: 0 auto;
+                    padding: 20px;
+                    border: 1px solid #ddd;
+                    border-radius: 5px;
+                    background-color: #f8f8f8;
+                }
+                .reason {
+                    font-style: italic;
+                    color: #d9534f;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h2>Enquiry Rejected</h2>
+                <p>Hello ${userName},</p>
+                <p>We regret to inform you that your service provider enquiry has been rejected.</p>
+                <p><strong>Reason:</strong> <span class="reason">${reason}</span></p>
+                <p>If you believe this was a mistake or need further clarification, please contact our support team.</p>
+                <p>Best regards,<br>Your Platform Team</p>
+            </div>
+        </body>
+        </html>
+        `;
+  }
 
-    static async sendEnquiryApprovedEmail(user, registrationLink) {
-        const template = this.getEnquiryApprovedTemplate(user.name, registrationLink);
-        return this.sendMail(
-            user.email,
-            'Service Provider Enquiry Approved - Complete Your Registration',
-            template
-        );
-    }
+  static async sendEnquiryReceivedEmail(user, businessType) {
+    const template = this.getEnquiryReceivedTemplate(user.name, businessType);
+    return this.sendMail(
+      user.email,
+      "Service Provider Enquiry Received",
+      template
+    );
+  }
+
+  static async sendEnquiryApprovedEmail(user, registrationLink) {
+    const template = this.getEnquiryApprovedTemplate(
+      user.name,
+      registrationLink
+    );
+    return this.sendMail(
+      user.email,
+      "Service Provider Enquiry Approved - Complete Your Registration",
+      template
+    );
+  }
+
+  static async sendEnquiryRejectEmail(user, reason) {
+    const template = this.getEnquiryRejectedTemplate(user.name, reason);
+    return this.sendMail(
+      user.email,
+      "Service Provider Enquiry Rejected - Plaese Re-Apply",
+      template
+    );
+  }
 }
 
 module.exports = MailService;

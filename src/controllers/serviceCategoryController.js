@@ -3,9 +3,14 @@ const {
   SubCategory,
   CategoryCities,
   City,
+  Service,
+  SpecialPricing,
+  CitySpecificPricing,
+  ServiceType,
+  ServiceItem,
 } = require("../models");
 const IdGenerator = require("../utils/helper");
-const { Op } = require("sequelize");
+const { Op, where } = require("sequelize");
 const { sequelize } = require("../models");
 const path = require("path");
 const fs = require("fs");
@@ -56,27 +61,60 @@ class ServiceCategoryController {
 
   static async getCategoryById(req, res, next) {
     try {
-      const cityId = req.query.city_id;
-      if (!cityId) {
-        return res.status(400).json({ error: "city_id is required" });
-      }
+      const { cityId } = req.query;
+      const isCityIdUndefined = cityId === "undefined" || cityId === undefined;
 
       const category = await ServiceCategory.findByPk(req.params.id, {
         include: [
           {
             model: SubCategory,
-          },
-          {
-            model: CategoryCities,
-            as: "categoryMappings",
-            where: {
-              city_id: cityId,
-              status: "active",
-            },
-            required: true,
+            include: [
+              {
+                model: ServiceType,
+                include: [
+                  {
+                    model: Service,
+                    include: [
+                      {
+                        model: ServiceItem,
+                        include: [
+                          {
+                            model: CitySpecificPricing,
+                            attributes: ["price"],
+                            where: {
+                              city_id: cityId,
+                            },
+                            required: false,
+                          },
+                          {
+                            model: SpecialPricing,
+                            where: {
+                              status: "active",
+                              ...(isCityIdUndefined
+                                ? {}
+                                : {
+                                    city_id: cityId,
+                                    start_date: { [Op.lte]: new Date() },
+                                    end_date: { [Op.gte]: new Date() },
+                                  }),
+                            },
+                            attributes: ["special_price"],
+                            required: false,
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
           },
         ],
       });
+
+      console.log(
+        category.SubCategories[0].ServiceTypes[0].Services[0].ServiceItems[0]
+      );
 
       if (!category) {
         return res
@@ -140,19 +178,21 @@ class ServiceCategoryController {
 
   static async createCategory(req, res, next) {
     const transaction = await sequelize.transaction();
-    
+
     try {
       console.log("File:", req.file);
       console.log("Body:", req.body);
 
       if (!req.file) {
-        return res.status(400).json({ error: 'No file uploaded' });
+        return res.status(400).json({ error: "No file uploaded" });
       }
 
       // Parse city IDs from the request body
-      const cityIds = JSON.parse(req.body.cities || '[]');
+      const cityIds = JSON.parse(req.body.cities || "[]");
       if (!Array.isArray(cityIds) || cityIds.length === 0) {
-        return res.status(400).json({ error: 'At least one city must be selected' });
+        return res
+          .status(400)
+          .json({ error: "At least one city must be selected" });
       }
 
       const iconUrl = `/uploads/images/${req.file.filename}`;
@@ -165,19 +205,22 @@ class ServiceCategoryController {
       const newCategoryId = IdGenerator.generateId("CAT", existingIds);
 
       // Create the category
-      const newCategory = await ServiceCategory.create({
-        category_id: newCategoryId,
-        name: req.body.name,
-        slug: req.body.slug,
-        icon_url: iconUrl,
-        display_order: req.body.display_order || 0,
-      }, { transaction });
+      const newCategory = await ServiceCategory.create(
+        {
+          category_id: newCategoryId,
+          name: req.body.name,
+          slug: req.body.slug,
+          icon_url: iconUrl,
+          display_order: req.body.display_order || 0,
+        },
+        { transaction }
+      );
 
       // Create city mappings
-      const cityMappings = cityIds.map(cityId => ({
+      const cityMappings = cityIds.map((cityId) => ({
         category_id: newCategoryId,
         city_id: cityId,
-        status: 'active'
+        status: "active",
       }));
 
       await CategoryCities.bulkCreate(cityMappings, { transaction });
@@ -185,25 +228,34 @@ class ServiceCategoryController {
       await transaction.commit();
 
       // Fetch the created category with its associations
-      const categoryWithAssociations = await ServiceCategory.findByPk(newCategoryId, {
-        include: [
-          {
-            model: City,
-            as: 'cities',
-            through: { attributes: [] }
-          }
-        ]
-      });
+      const categoryWithAssociations = await ServiceCategory.findByPk(
+        newCategoryId,
+        {
+          include: [
+            {
+              model: City,
+              as: "cities",
+              through: { attributes: [] },
+            },
+          ],
+        }
+      );
 
       res.status(201).json(categoryWithAssociations);
     } catch (error) {
       await transaction.rollback();
-      
+
       // Clean up uploaded file if database operation fails
       if (req.file) {
-        const filePath = path.join(__dirname, '..', 'uploads', 'images', req.file.filename);
-        fs.unlink(filePath, err => {
-          if (err) console.error('Error deleting file:', err);
+        const filePath = path.join(
+          __dirname,
+          "..",
+          "uploads",
+          "images",
+          req.file.filename
+        );
+        fs.unlink(filePath, (err) => {
+          if (err) console.error("Error deleting file:", err);
         });
       }
       next(error);
@@ -212,16 +264,22 @@ class ServiceCategoryController {
 
   static async updateCategory(req, res, next) {
     const transaction = await sequelize.transaction();
-    
+
     try {
       const { category_id, cities, ...updateData } = req.body;
-      
+
       const oldCategory = await ServiceCategory.findByPk(req.params.id);
       if (!oldCategory) {
         if (req.file) {
-          const filePath = path.join(__dirname, '..', 'uploads', 'images', req.file.filename);
-          fs.unlink(filePath, err => {
-            if (err) console.error('Error deleting file:', err);
+          const filePath = path.join(
+            __dirname,
+            "..",
+            "uploads",
+            "images",
+            req.file.filename
+          );
+          fs.unlink(filePath, (err) => {
+            if (err) console.error("Error deleting file:", err);
           });
         }
         return res.status(404).json({ error: "Category not found" });
@@ -233,15 +291,15 @@ class ServiceCategoryController {
 
         // Delete old file if it exists
         if (oldCategory.icon_url) {
-          const relativePath = oldCategory.icon_url.startsWith('/') 
-            ? oldCategory.icon_url.slice(1) 
+          const relativePath = oldCategory.icon_url.startsWith("/")
+            ? oldCategory.icon_url.slice(1)
             : oldCategory.icon_url;
-            
-          const oldFilePath = path.join(__dirname, '..', relativePath);
-          
+
+          const oldFilePath = path.join(__dirname, "..", relativePath);
+
           if (fs.existsSync(oldFilePath)) {
-            fs.unlink(oldFilePath, err => {
-              if (err) console.error('Error deleting old file:', err);
+            fs.unlink(oldFilePath, (err) => {
+              if (err) console.error("Error deleting old file:", err);
             });
           }
         }
@@ -250,25 +308,25 @@ class ServiceCategoryController {
       // Update category basic info
       await ServiceCategory.update(updateData, {
         where: { category_id: req.params.id },
-        transaction
+        transaction,
       });
 
       // Update city mappings if provided
       if (cities) {
         const cityIds = JSON.parse(cities);
-        
+
         // Delete existing mappings
         await CategoryCities.destroy({
           where: { category_id: req.params.id },
-          transaction
+          transaction,
         });
 
         // Create new mappings
         if (Array.isArray(cityIds) && cityIds.length > 0) {
-          const newMappings = cityIds.map(cityId => ({
+          const newMappings = cityIds.map((cityId) => ({
             category_id: req.params.id,
             city_id: cityId,
-            status: 'active'
+            status: "active",
           }));
 
           await CategoryCities.bulkCreate(newMappings, { transaction });
@@ -281,20 +339,26 @@ class ServiceCategoryController {
         include: [
           {
             model: City,
-            as: 'cities',
-            through: { attributes: [] }
-          }
-        ]
+            as: "cities",
+            through: { attributes: [] },
+          },
+        ],
       });
 
       res.status(200).json(updatedCategory);
     } catch (error) {
       await transaction.rollback();
-      
+
       if (req.file) {
-        const filePath = path.join(__dirname, '..', 'uploads', 'images', req.file.filename);
-        fs.unlink(filePath, err => {
-          if (err) console.error('Error deleting file:', err);
+        const filePath = path.join(
+          __dirname,
+          "..",
+          "uploads",
+          "images",
+          req.file.filename
+        );
+        fs.unlink(filePath, (err) => {
+          if (err) console.error("Error deleting file:", err);
         });
       }
       next(error);
@@ -310,10 +374,10 @@ class ServiceCategoryController {
 
       // Delete the associated image file if it exists
       if (category.icon_url) {
-        const filePath = path.join(__dirname, '..', category.icon_url);
+        const filePath = path.join(__dirname, "..", category.icon_url);
         if (fs.existsSync(filePath)) {
-          fs.unlink(filePath, err => {
-            if (err) console.error('Error deleting file:', err);
+          fs.unlink(filePath, (err) => {
+            if (err) console.error("Error deleting file:", err);
           });
         }
       }

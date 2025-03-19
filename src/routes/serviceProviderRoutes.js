@@ -28,6 +28,12 @@ router.put(
   roleCheck("admin"),
   ServiceProviderEnquiryController.approveEnquiry
 );
+router.put(
+  "/enquiry/:id/reject",
+  authMiddleware,
+  roleCheck("admin"),
+  ServiceProviderEnquiryController.rejectEnquiry
+);
 
 // Provider routes
 router.get(
@@ -98,6 +104,14 @@ router.put("/provider/password/:id", UserController.setUserPassword);
 router.get(
   "/provider/bookings/:id",
   ProviderBookingController.getBookingByProvider
+);
+router.post(
+  "/booking/edit/send-otp",
+  ProviderBookingController.bookingEditSendOTP
+);
+router.post(
+  "/booking/edit/verify-otp",
+  ProviderBookingController.bookingEditVerifyOTP
 );
 
 module.exports = router;
