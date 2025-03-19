@@ -80,6 +80,7 @@ class ServiceProviderEnquiryController {
         business_website,
         service_location,
         categories,
+        cities,
         number_of_employees,
         email,
         gender,
@@ -152,6 +153,24 @@ class ServiceProviderEnquiryController {
         }
 
         await enquiry.setServiceCategories(validCategories, { transaction: t });
+      }
+
+      // Handle cities
+      if (Array.isArray(cities) && cities.length > 0) {
+        const validCities = await City.findAll({
+          where: { city_id: cities },
+          transaction: t,
+        });
+
+        if (validCities.length !== cities.length) {
+          await t.rollback();
+          return res.status(400).json({
+            error: "Invalid cities",
+            details: "One or more city IDs are invalid",
+          });
+        }
+
+        await enquiry.setCities(validCities, { transaction: t });
       }
 
       await t.commit();

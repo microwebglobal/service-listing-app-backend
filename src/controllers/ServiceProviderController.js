@@ -387,10 +387,12 @@ class ServiceProviderController {
       if (req.files) {
         const documentPromises = Object.keys(req.files).map((fieldName) => {
           const files = req.files[fieldName];
+          console.log(req.files);
           const filesArray = Array.isArray(files) ? files : [files];
 
           return Promise.all(
             filesArray.map(async (file) => {
+              console.log(file);
               if (file && file.path) {
                 try {
                   await ServiceProviderDocument.create(
