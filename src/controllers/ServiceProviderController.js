@@ -460,6 +460,8 @@ class ServiceProviderController {
   static async updateProviderStatus(req, res, next) {
     const transaction = await sequelize.transaction();
 
+    console.log(req.body);
+
     try {
       const { status, rejection_reason } = req.body;
       const providerId = req.params.id;
@@ -495,6 +497,14 @@ class ServiceProviderController {
         ],
         transaction,
       });
+
+      const providerDocuments = await ServiceProviderDocument.findAll({
+        where: {
+          provider_id: providerId,
+        },
+      });
+
+      console.log(providerDocuments);
 
       if (!provider) {
         await transaction.rollback();
@@ -539,6 +549,35 @@ class ServiceProviderController {
               },
               { transaction }
             );
+
+            if (providerDocuments && providerDocuments.length > 0) {
+              const documentIds = providerDocuments.map(
+                (doc) => doc.document_id
+              );
+
+              await ServiceProviderDocument.update(
+                {
+                  verification_status: "rejected",
+                  verification_notes: "document-not-verified",
+                },
+                {
+                  where: {
+                    document_id: documentIds,
+                  },
+                  transaction,
+                }
+              );
+            }
+
+            try {
+              await MailService.sendProviderRejectEmail(
+                provider.User,
+                rejection_reason,
+                newRegistrationLink
+              );
+            } catch (emailError) {
+              console.error("Error sending rejection email:", emailError);
+            }
 
             await transaction.commit();
             return res.status(200).json({
@@ -626,7 +665,7 @@ class ServiceProviderController {
       await provider.update(
         {
           status,
-          // Clear rejection fields if status is being changed from rejected
+
           ...(provider.status === "rejected"
             ? {
                 rejection_reason: null,

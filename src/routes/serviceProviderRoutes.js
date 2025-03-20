@@ -10,6 +10,7 @@ const ServiceProviderController = require("../controllers/ServiceProviderControl
 const ServiceProviderEmployeeController = require("../controllers/ServiceProviderEmployeeController");
 const UserController = require("../controllers/userController.js");
 const ProviderBookingController = require("../controllers/ProviderBookingController.js");
+const ProviderDocumentController = require("../controllers/ProviderDocumentController.js");
 
 //const { authenticate, authorize } = require('../middleware/auth');
 
@@ -69,6 +70,17 @@ router.put(
   "/provider/availability/:id",
   ServiceProviderController.updateProviderAvailability
 );
+
+//provider document routes
+router.put(
+  "/provider/doc/approve/:document_id",
+  ProviderDocumentController.approveProviderDocument
+);
+router.put(
+  "/provider/doc/reject/:document_id",
+  ProviderDocumentController.rejectProviderDocument
+);
+
 // Employee routes
 router.get(
   "/providers/:providerId/employees",
@@ -112,6 +124,14 @@ router.post(
 router.post(
   "/booking/edit/verify-otp",
   ProviderBookingController.bookingEditVerifyOTP
+);
+router.post(
+  "/booking/stop/",
+  ProviderBookingController.providerStopOngoingBooking
+);
+router.post(
+  "/booking/stop/verify-otp",
+  ProviderBookingController.providerStopOngoingBookingVerify
 );
 
 module.exports = router;
