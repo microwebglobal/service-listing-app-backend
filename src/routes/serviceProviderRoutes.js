@@ -133,5 +133,13 @@ router.post(
   "/booking/stop/verify-otp",
   ProviderBookingController.providerStopOngoingBookingVerify
 );
+router.get(
+  "/booking/:id/payment/",
+  ProviderBookingController.getOngoingBookingPayment
+);
+router.put(
+  "/booking/:id/payment/collect",
+  ProviderBookingController.collectOngoingBookingPayment
+);
 
 module.exports = router;

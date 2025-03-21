@@ -17,7 +17,7 @@ const {
   ServiceProviderEmployee,
   sequelize,
 } = require("../models");
-const { Op } = require("sequelize");
+const { Op, where } = require("sequelize");
 const IdGenerator = require("../utils/helper");
 const createError = require("http-errors");
 
@@ -522,6 +522,65 @@ class ProviderBookingController {
         success: true,
         message: "OTP verified successfully And Booking Completed",
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getOngoingBookingPayment(req, res, next) {
+    try {
+      const providerId = req.params.id;
+
+      if (!providerId) {
+        throw createError(400, "Provider Id is required");
+      }
+
+      const booking = await Booking.findOne({
+        where: {
+          provider_id: providerId,
+          status: "in_progress",
+        },
+      });
+
+      const bookingPayments = await BookingPayment.findAll({
+        where: { booking_id: booking.booking_id },
+      });
+      res.status(200).json({ booking: booking, payment: bookingPayments });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async collectOngoingBookingPayment(req, res, next) {
+    try {
+      const bookingId = req.params.id;
+      const { providerId } = req.body;
+
+      if (!providerId) {
+        throw createError(400, "Provider Id is required");
+      }
+
+      if (!bookingId) {
+        throw createError(400, "Booking Id is required");
+      }
+
+      const [updatedCount] = await BookingPayment.update(
+        {
+          payment_status: "completed",
+          cash_collected_by: providerId,
+        },
+        {
+          where: { booking_id: bookingId },
+        }
+      );
+
+      if (updatedCount === 0) {
+        return res.status(404).json({ message: "No matching payments found" });
+      }
+
+      res
+        .status(200)
+        .json({ message: "Payments updated successfully", updatedCount });
     } catch (error) {
       next(error);
     }
