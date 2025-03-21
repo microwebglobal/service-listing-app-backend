@@ -452,8 +452,7 @@ class ProviderBookingController {
 
   static async providerStopOngoingBooking(req, res, next) {
     try {
-      //not fully implemented
-      const bookingId = req.params.id;
+      const { mobile, bookingId } = req.body;
 
       if (!bookingId) {
         throw createError(400, "Booking Id is required");
@@ -479,6 +478,49 @@ class ProviderBookingController {
       res.json({
         success: true,
         message: "OTP sent successfully",
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async providerStopOngoingBookingVerify(req, res, next) {
+    try {
+      const { otp, bookingId } = req.body;
+
+      if (!bookingId || !otp) {
+        throw createError(400, "Booking Id and OTP are required");
+      }
+
+      const booking = await Booking.findOne({
+        where: { booking_id: bookingId },
+      });
+
+      if (!booking) {
+        throw createError(404, "Booking not found");
+      }
+
+      if (!booking.otp || booking.otp !== otp) {
+        throw createError(400, "Invalid OTP");
+      }
+
+      if (new Date() > new Date(booking.otp_expires)) {
+        throw createError(400, "OTP has expired");
+      }
+
+      if (booking.status !== "in_progress") {
+        throw createError(400, "Booking not started");
+      }
+
+      await booking.update({
+        otp: null,
+        otp_expires: null,
+        status: "completed",
+      });
+
+      res.json({
+        success: true,
+        message: "OTP verified successfully And Booking Completed",
       });
     } catch (error) {
       next(error);

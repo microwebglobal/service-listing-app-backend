@@ -279,6 +279,71 @@ class MailService {
       template
     );
   }
+
+  static getProviderRejectTemplate(userName, reason, reRegistrationLink) {
+    return `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Enquiry Approved</title>
+            <style>
+                .button {
+                    display: inline-block;
+                    padding: 10px 20px;
+                    background-color: #007bff;
+                    color: #ffffff !important;
+                    text-decoration: none;
+                    border-radius: 5px;
+                    margin: 20px 0;
+                }
+                .container {
+                    font-family: Arial, sans-serif;
+                    max-width: 600px;
+                    margin: 0 auto;
+                    padding: 20px;
+                }
+                .link-text {
+                    word-break: break-all;
+                    color: #007bff;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h2>Enquiry Approved!</h2>
+                <p>Hello ${userName},</p>
+                <p>We're pleased to inform you that your service provider enquiry has been rejected.</p>
+                <p>Reason: ${reason}</p>
+                <p>Please click the button below to complete your registration:</p>
+                <p>
+                    <a href="${reRegistrationLink}" class="button">Complete Registration</a>
+                </p>
+                <p>Or copy and paste this link in your browser:</p>
+                <p class="link-text">
+                    ${reRegistrationLink}
+                </p>
+                <p>This registration link will expire in 7 days for security reasons.</p>
+                <p>Best regards,<br>Your Platform Team</p>
+            </div>
+        </body>
+        </html>
+        `;
+  }
+
+  static async sendProviderRejectEmail(user, reason, reRegistrationLink) {
+    const template = this.getProviderRejectTemplate(
+      user.name,
+      reason,
+      reRegistrationLink
+    );
+    return this.sendMail(
+      user.email,
+      "Service Provider Rejected - Plaese Re-Apply",
+      template
+    );
+  }
 }
 
 module.exports = MailService;
