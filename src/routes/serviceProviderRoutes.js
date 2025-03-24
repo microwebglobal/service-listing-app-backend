@@ -141,5 +141,9 @@ router.put(
   "/booking/:id/payment/collect",
   ProviderBookingController.collectOngoingBookingPayment
 );
+router.get(
+  "/booking/:id/payment/history",
+  ProviderBookingController.getProviderBookingPaymentHistory
+);
 
 module.exports = router;

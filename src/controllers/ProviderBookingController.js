@@ -466,6 +466,24 @@ class ProviderBookingController {
         throw createError(404, "Booking not found");
       }
 
+      // Fetch all payments for the booking
+      const bookingPayments = await BookingPayment.findAll({
+        where: { booking_id: bookingId },
+      });
+
+      if (!bookingPayments.length) {
+        throw createError(400, "No payments found for this booking");
+      }
+
+      // Check if all payments are completed
+      const allPaymentsCompleted = bookingPayments.every(
+        (payment) => payment.payment_status === "completed"
+      );
+
+      if (!allPaymentsCompleted) {
+        throw createError(400, "Payment is not completed for this booking");
+      }
+
       const otp = "123456";
 
       console.log(`OTP for ${mobile}:`, otp);
@@ -542,9 +560,14 @@ class ProviderBookingController {
         },
       });
 
+      if (!booking) {
+        return res.status(200).json({ message: "No ongoing Booking found" });
+      }
+
       const bookingPayments = await BookingPayment.findAll({
         where: { booking_id: booking.booking_id },
       });
+
       res.status(200).json({ booking: booking, payment: bookingPayments });
     } catch (error) {
       next(error);
@@ -570,7 +593,12 @@ class ProviderBookingController {
           cash_collected_by: providerId,
         },
         {
-          where: { booking_id: bookingId },
+          where: {
+            booking_id: bookingId,
+            payment_status: {
+              [Op.or]: ["advance_only_paid", "pending"],
+            },
+          },
         }
       );
 
@@ -581,6 +609,27 @@ class ProviderBookingController {
       res
         .status(200)
         .json({ message: "Payments updated successfully", updatedCount });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getProviderBookingPaymentHistory(req, res, next) {
+    try {
+      const providerId = req.params.id;
+
+      const payments = await BookingPayment.findAll({
+        where: {
+          cash_collected_by: providerId,
+          payment_status: "completed",
+        },
+      });
+
+      if (!payments) {
+        return res.status(404).json({ message: "No matching payments found" });
+      }
+
+      res.status(200).json({ payments });
     } catch (error) {
       next(error);
     }
