@@ -29,4 +29,7 @@ router.get("/service-providers", AdminBookingController.getServiceProviders);
 // GET booking analytics
 //router.get('/bookings/analytics', AdminBookingController.getBookingAnalytics);
 
+//GET all transactions
+router.get("/transactions", AdminBookingController.getAllBookingTransactions);
+
 module.exports = router;

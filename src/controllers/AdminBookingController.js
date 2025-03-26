@@ -793,7 +793,15 @@ class AdminBookingController {
       res.status(200).json(updatedBooking);
     } catch (error) {
       await transaction.rollback();
-      console.error("Error in updateBookingStatus:", error);
+      next(error);
+    }
+  }
+
+  static async getAllBookingTransactions(req, res, next) {
+    try {
+      const transactions = await BookingPayment.findAll();
+      res.status(200).json(transactions);
+    } catch (error) {
       next(error);
     }
   }
