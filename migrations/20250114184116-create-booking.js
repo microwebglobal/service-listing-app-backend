@@ -106,6 +106,21 @@ module.exports = {
         type: Sequelize.DATE,
         allowNull: true,
       },
+      penalty_amount: {
+        type: Sequelize.DECIMAL(10, 2),
+        defaultValue: 0,
+      },
+      penalty_status: {
+        type: Sequelize.ENUM(
+          "no_penalty",
+          "pending",
+          "fully_settled_advance",
+          "partially_settled_advance",
+          "apply_next_booking",
+          "completed"
+        ),
+        allowNull: true,
+      },
       created_at: {
         type: Sequelize.DATE,
         allowNull: false,

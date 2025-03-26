@@ -3,6 +3,7 @@ const router = express.Router();
 const BookingController = require("../controllers/BookingController");
 const { authMiddleware } = require("../middlewares/auth.middleware");
 const ProviderBookingController = require("../controllers/ProviderBookingController");
+const CustomerBookingController = require("../controllers/CustomerBookingController");
 
 // Cart Management Routes
 router.post("/cart/add", authMiddleware, BookingController.addToCart);
@@ -54,6 +55,19 @@ router.get(
   "/available/:providerId/employees",
   authMiddleware,
   BookingController.getAvailableEmployees
+);
+
+//customer booking mngment routes
+router.get(
+  "/booking/cancel/:id",
+  authMiddleware,
+  CustomerBookingController.customerCancellBooking
+);
+
+router.put(
+  "/booking/cancel/confirm/:id",
+  authMiddleware,
+  CustomerBookingController.customerConfirmCancellBooking
 );
 
 module.exports = router;

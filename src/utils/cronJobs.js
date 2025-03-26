@@ -4,9 +4,15 @@ const { AssignmentHistory, Booking, sequelize } = require("../models");
 const BookingController = require("../controllers/BookingController");
 const { Op } = require("sequelize");
 
-cron.schedule("* * * * * *", async () => {
-  //   console.log("Running provider reassignment check...");
+let isJobActive = false; // Flag to control whether the cron job is active or paused
 
+let reassignmentCronJob = cron.schedule("*/10 * * * *", async () => {
+  if (!isJobActive) {
+    console.log("Cron job is paused, skipping execution.");
+    return; // Skip the cron job if it's paused
+  }
+
+  // Your original cron job logic
   const currentTimeLocal = moment().tz("Asia/Colombo");
 
   const tenMinutesAgo = currentTimeLocal
@@ -29,14 +35,12 @@ cron.schedule("* * * * * *", async () => {
     include: Booking,
   });
 
-  //   console.log("Unaccepted bookings:", unacceptedBookings);
+  // console.log("Unaccepted bookings:", unacceptedBookings);
 
   for (let assignment of unacceptedBookings) {
     const transaction = await sequelize.transaction();
     try {
-      //   console.log(
-      //     `Reassigning provider for booking ${assignment.booking_id}...`
-      //   );
+      // console.log(`Reassigning provider for booking ${assignment.booking_id}...`);
 
       await assignment.update({ status: "timeout" }, { transaction });
 
@@ -46,18 +50,31 @@ cron.schedule("* * * * * *", async () => {
         transaction
       );
 
-      //   if (newAssignedProvider) {
-      //     console.log(`New provider assigned:`);
-      //   } else {
-      //     console.log("No available providers for reassignment.");
-      //   }
+      if (newAssignedProvider) {
+        console.log(`New provider assigned:`);
+      }
 
       await transaction.commit();
     } catch (error) {
       await transaction.rollback();
-      console.error("Reassignment failed:", error);
     }
   }
 });
 
 console.log("Reassignment cron job started.");
+
+// Function to pause the cron job
+function stopCronJob() {
+  isJobActive = false;
+  console.log("Cron job paused.");
+}
+
+// Function to resume the cron job
+function resumeCronJob() {
+  isJobActive = true;
+  console.log("Cron job resumed.");
+}
+
+// Example of stopping and resuming the cron job after a delay (for testing purposes)
+setTimeout(stopCronJob, 30000); // Stop after 30 seconds
+setTimeout(resumeCronJob, 60000); // Resume after 60 seconds
