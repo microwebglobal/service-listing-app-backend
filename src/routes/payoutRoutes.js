@@ -13,4 +13,6 @@ router.get(
   AdminPayoutsController.generateDailyPayoutSummary
 );
 
+router.put("/logs/settle/:logId", AdminPayoutsController.settleDailyPayout);
+
 module.exports = router;

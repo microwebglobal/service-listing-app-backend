@@ -137,6 +137,10 @@ router.get(
   "/booking/:id/payment/",
   ProviderBookingController.getOngoingBookingPayment
 );
+router.get(
+  "/booking/:id/payment/employee",
+  ProviderBookingController.getOngoingEmployeeBookingPayment
+);
 router.put(
   "/booking/:id/payment/collect",
   ProviderBookingController.collectOngoingBookingPayment

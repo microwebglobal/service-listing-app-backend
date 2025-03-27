@@ -587,6 +587,35 @@ class ProviderBookingController {
     }
   }
 
+  static async getOngoingEmployeeBookingPayment(req, res, next) {
+    try {
+      const providerId = req.params.id;
+
+      if (!providerId) {
+        throw createError(400, "Provider Id is required");
+      }
+
+      const booking = await Booking.findOne({
+        where: {
+          employee_id: providerId,
+          status: "in_progress",
+        },
+      });
+
+      if (!booking) {
+        return res.status(200).json({ message: "No ongoing Booking found" });
+      }
+
+      const bookingPayments = await BookingPayment.findAll({
+        where: { booking_id: booking.booking_id },
+      });
+
+      res.status(200).json({ booking: booking, payment: bookingPayments });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async collectOngoingBookingPayment(req, res, next) {
     try {
       const bookingId = req.params.id;

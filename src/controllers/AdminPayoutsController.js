@@ -69,10 +69,10 @@ class AdminPayoutsController {
         return res.status(404).json({ message: "No providers found." });
       }
 
-      // Deleting existing logs for today
       await DailyPayoutLogs.destroy({
         where: {
           date: date,
+          payout_status: "pending",
         },
       });
 
@@ -196,6 +196,36 @@ class AdminPayoutsController {
       return res.status(200).json({
         message: "Daily payout summaries have been generated successfully.",
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async settleDailyPayout(req, res, next) {
+    try {
+      const { logId } = req.params;
+      const { amount, providerId } = req.body;
+
+      await DailyPayoutLogs.update(
+        { payout_status: "completed" },
+        { where: { log_id: logId } }
+      );
+
+      const serviceProvider = await ServiceProvider.findOne({
+        where: { provider_id: providerId },
+        include: [{ model: User }],
+      });
+
+      if (!serviceProvider || !serviceProvider.User) {
+        return res.status(404).json({ error: "Service provider not found" });
+      }
+
+      const accBalance = parseFloat(serviceProvider.User.acc_balance || 0);
+      const currentBalance = accBalance - parseFloat(amount);
+
+      await serviceProvider.User.update({ acc_balance: currentBalance });
+
+      return res.status(200).json({ message: "Payout settled successfully" });
     } catch (error) {
       next(error);
     }
