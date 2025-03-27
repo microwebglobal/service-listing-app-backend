@@ -66,6 +66,9 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false,
       },
+      service_commition: {
+        type: DataTypes.DECIMAL(10, 2),
+      },
     },
     {
       sequelize,

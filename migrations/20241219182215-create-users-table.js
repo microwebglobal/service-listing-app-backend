@@ -85,6 +85,14 @@ module.exports = {
         type: Sequelize.DATEONLY,
         allowNull: true,
       },
+      acc_balance: {
+        type: Sequelize.DECIMAL(10, 2),
+        defaultValue: 0,
+      },
+      balance_updated_at: {
+        type: Sequelize.DATE,
+        defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
+      },
       last_updated: {
         type: Sequelize.DATE,
         allowNull: false,

@@ -75,6 +75,27 @@ module.exports = {
         created_at: new Date(),
         updated_at: new Date(),
       },
+      {
+        category: "booking",
+        key: "booking_cancellation_penalty_global",
+        value: JSON.stringify(20),
+        data_type: "number",
+        description:
+          "Penalty percentager for booking cancellation after grace period",
+        is_encrypted: false,
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+      {
+        category: "booking",
+        key: "booking_grace_period_global",
+        value: JSON.stringify(8),
+        data_type: "number",
+        description: "Global grace period for customer bookings",
+        is_encrypted: false,
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
     ]);
 
     // Seed default booking assignment settings

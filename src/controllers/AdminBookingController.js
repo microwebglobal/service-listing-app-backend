@@ -793,7 +793,116 @@ class AdminBookingController {
       res.status(200).json(updatedBooking);
     } catch (error) {
       await transaction.rollback();
-      console.error("Error in updateBookingStatus:", error);
+      next(error);
+    }
+  }
+
+  static async getAllBookingTransactions(req, res, next) {
+    try {
+      const transactions = await BookingPayment.findAll();
+      res.status(200).json(transactions);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getAllCanceledBookingsByCustomer(req, res, next) {
+    try {
+      const bookings = await Booking.findAll({
+        where: {
+          cancelled_by: "customer",
+        },
+        include: [{ model: BookingPayment }],
+      });
+
+      if (!bookings || bookings.length === 0) {
+        return res.status(404).json({ message: "No bookings found" });
+      }
+
+      res.status(200).json(bookings);
+    } catch (error) {
+      console.error("Get Customer Bookings Error:", error);
+      next(error);
+    }
+  }
+
+  static async adminSettleBookingPenalty(req, res, next) {
+    try {
+      const { bookingId, type, penaltyAmount } = req.body;
+
+      console.log("Received Request Data:", req.body);
+
+      const booking = await Booking.findOne({
+        where: { booking_id: bookingId },
+        include: [
+          { model: BookingPayment, required: false }, // Payment might be null
+          { model: User, as: "customer" }, // Ensure alias is correctly set in models
+        ],
+      });
+
+      if (!booking) {
+        return res.status(404).json({ message: "Booking not found" });
+      }
+
+      console.log("Booking Data:", booking.toJSON());
+
+      if (!booking.BookingPayment) {
+        return res
+          .status(400)
+          .json({ message: "Booking payment details missing" });
+      }
+
+      if (!booking.customer) {
+        return res.status(400).json({ message: "Customer details missing" });
+      }
+
+      let bookingStatus;
+      let remainingBalance;
+      let accountBalance;
+
+      if (type === "advance") {
+        if (
+          parseFloat(booking.BookingPayment.advance_payment) >=
+          parseFloat(penaltyAmount)
+        ) {
+          bookingStatus = "fully_settled_advance";
+          remainingBalance =
+            parseFloat(booking.BookingPayment.advance_payment) -
+            parseFloat(penaltyAmount);
+          accountBalance =
+            parseFloat(booking.customer.acc_balance) - remainingBalance;
+        } else {
+          bookingStatus = "partially_settled_advance";
+          remainingBalance =
+            parseFloat(penaltyAmount) -
+            parseFloat(booking.BookingPayment.advance_payment);
+          accountBalance =
+            parseFloat(booking.customer.acc_balance) + remainingBalance;
+        }
+      } else if (type === "full") {
+        bookingStatus = "completed";
+        remainingBalance =
+          parseFloat(booking.BookingPayment.total_amount) -
+          parseFloat(penaltyAmount);
+        accountBalance =
+          parseFloat(booking.customer.acc_balance) +
+          parseFloat(remainingBalance);
+      } else {
+        bookingStatus = "apply_next_booking";
+      }
+
+      console.log("Booking Status:", bookingStatus);
+      console.log("New Account Balance:", accountBalance);
+
+      // Update customer balance
+      await booking.customer.update({ acc_balance: accountBalance });
+
+      // Update booking penalty status
+      await booking.update({ penalty_status: bookingStatus });
+
+      return res.status(200).json({ message: "Success" });
+    } catch (error) {
+      console.error("Error in adminSettleBookingPenalty:", error);
       next(error);
     }
   }

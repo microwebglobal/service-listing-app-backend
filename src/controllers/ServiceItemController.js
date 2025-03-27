@@ -32,6 +32,8 @@ class ServiceItemController {
         description: req.body.description,
         overview: req.body.overview,
         base_price: req.body.base_price,
+        grace_period: req.body.grace_period || null,
+        penalty_percentage: req.body.penalty_percentage || null,
         advance_percentage: req.body.advance_percentage || 0,
         is_home_visit: req.body.is_home_visit,
       });

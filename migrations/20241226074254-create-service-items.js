@@ -40,6 +40,12 @@ module.exports = {
         type: Sequelize.DECIMAL(10, 2),
         allowNull: false,
       },
+      grace_period: {
+        type: Sequelize.DECIMAL(5, 2),
+      },
+      penalty_percentage: {
+        type: Sequelize.DECIMAL(5, 2),
+      },
       advance_percentage: {
         type: Sequelize.DECIMAL(5, 2),
         allowNull: false,

@@ -14,10 +14,11 @@ const {
   City,
   ProviderServiceCity,
   ServiceCategory,
+  ServiceCommission,
   ServiceProviderEmployee,
   sequelize,
 } = require("../models");
-const { Op } = require("sequelize");
+const { Op, where } = require("sequelize");
 const IdGenerator = require("../utils/helper");
 const createError = require("http-errors");
 
@@ -385,6 +386,7 @@ class ProviderBookingController {
 
       // Process and insert add-ons into booking_items table
       let totalAmount = 0;
+      let totalCommition = 0;
 
       if (addOns && addOns.length > 0) {
         const bookingItems = addOns.map((addOn) => {
@@ -395,6 +397,15 @@ class ProviderBookingController {
 
           totalAmount = totalAmount + unit_price;
 
+          const serviceCommition = ServiceCommission.findOne({
+            where: { city_id: booking.city_id, item_id: addOn.item_id },
+          });
+
+          const commition =
+            (parseFloat(serviceCommition?.commission_rate) / 100) * unit_price;
+
+          totalCommition = totalCommition + commition;
+
           return {
             booking_id: booking.booking_id,
             item_id: addOn.item_id,
@@ -403,6 +414,7 @@ class ProviderBookingController {
             unit_price: unit_price,
             total_price: unit_price * 1,
             advance_payment: 0,
+            service_commition: commition || 0,
           };
         });
 
@@ -430,6 +442,7 @@ class ProviderBookingController {
         total_amount: totalWithTax,
         advance_payment: 0,
         tip_amount: 0, // Set default tip amount
+        service_commition: totalCommition || 0,
         transaction_id: null, // Will be set during actual payment
         payment_date: null, // Will be set during actual payment
         payment_response: null, // Will be set during actual payment
@@ -464,6 +477,24 @@ class ProviderBookingController {
 
       if (!booking) {
         throw createError(404, "Booking not found");
+      }
+
+      // Fetch all payments for the booking
+      const bookingPayments = await BookingPayment.findAll({
+        where: { booking_id: bookingId },
+      });
+
+      if (!bookingPayments.length) {
+        throw createError(400, "No payments found for this booking");
+      }
+
+      // Check if all payments are completed
+      const allPaymentsCompleted = bookingPayments.every(
+        (payment) => payment.payment_status === "completed"
+      );
+
+      if (!allPaymentsCompleted) {
+        throw createError(400, "Payment is not completed for this booking");
       }
 
       const otp = "123456";
@@ -522,6 +553,126 @@ class ProviderBookingController {
         success: true,
         message: "OTP verified successfully And Booking Completed",
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getOngoingBookingPayment(req, res, next) {
+    try {
+      const providerId = req.params.id;
+
+      if (!providerId) {
+        throw createError(400, "Provider Id is required");
+      }
+
+      const booking = await Booking.findOne({
+        where: {
+          provider_id: providerId,
+          status: "in_progress",
+        },
+      });
+
+      if (!booking) {
+        return res.status(200).json({ message: "No ongoing Booking found" });
+      }
+
+      const bookingPayments = await BookingPayment.findAll({
+        where: { booking_id: booking.booking_id },
+      });
+
+      res.status(200).json({ booking: booking, payment: bookingPayments });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getOngoingEmployeeBookingPayment(req, res, next) {
+    try {
+      const providerId = req.params.id;
+
+      if (!providerId) {
+        throw createError(400, "Provider Id is required");
+      }
+
+      const booking = await Booking.findOne({
+        where: {
+          employee_id: providerId,
+          status: "in_progress",
+        },
+      });
+
+      if (!booking) {
+        return res.status(200).json({ message: "No ongoing Booking found" });
+      }
+
+      const bookingPayments = await BookingPayment.findAll({
+        where: { booking_id: booking.booking_id },
+      });
+
+      res.status(200).json({ booking: booking, payment: bookingPayments });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async collectOngoingBookingPayment(req, res, next) {
+    try {
+      const bookingId = req.params.id;
+      const { providerId } = req.body;
+
+      if (!providerId) {
+        throw createError(400, "Provider Id is required");
+      }
+
+      if (!bookingId) {
+        throw createError(400, "Booking Id is required");
+      }
+
+      const [updatedCount] = await BookingPayment.update(
+        {
+          payment_status: "completed",
+          cash_collected_by: providerId,
+          payment_method: "cash",
+        },
+        {
+          where: {
+            booking_id: bookingId,
+            payment_status: {
+              [Op.or]: ["advance_only_paid", "pending"],
+            },
+          },
+        }
+      );
+
+      if (updatedCount === 0) {
+        return res.status(404).json({ message: "No matching payments found" });
+      }
+
+      res
+        .status(200)
+        .json({ message: "Payments updated successfully", updatedCount });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getProviderBookingPaymentHistory(req, res, next) {
+    try {
+      const providerId = req.params.id;
+
+      const payments = await BookingPayment.findAll({
+        where: {
+          cash_collected_by: providerId,
+          payment_status: "completed",
+        },
+      });
+
+      if (!payments) {
+        return res.status(404).json({ message: "No matching payments found" });
+      }
+
+      res.status(200).json({ payments });
     } catch (error) {
       next(error);
     }
