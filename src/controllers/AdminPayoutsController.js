@@ -60,9 +60,8 @@ class AdminPayoutsController {
     try {
       const { date } = req.params;
 
-      // Step 1: Fetch all provider IDs from the ServiceProvider table
       const providers = await ServiceProvider.findAll({
-        attributes: ["provider_id"], // Fetching only the provider IDs
+        attributes: ["provider_id"],
       });
 
       if (!providers || providers.length === 0) {
@@ -76,7 +75,6 @@ class AdminPayoutsController {
         },
       });
 
-      // Step 2: Iterate over all providers and calculate the total payout for each
       const payouts = [];
 
       for (const provider of providers) {
@@ -84,7 +82,6 @@ class AdminPayoutsController {
 
         console.log("Processing Provider ID:", providerId);
 
-        // Fetch completed bookings for the current provider and date
         const bookings = await Booking.findAll({
           where: {
             provider_id: providerId,
@@ -114,11 +111,9 @@ class AdminPayoutsController {
         let totalPayout = 0;
         let totalCommition = 0;
 
-        // Loop through each booking and each booking item to calculate the total payout
         for (const booking of bookings) {
           console.log("Booking ID:", booking.booking_id);
 
-          // Fetch all payments for the current booking
           const bookingPayments = await BookingPayment.findAll({
             where: { booking_id: booking.booking_id },
           });
@@ -130,7 +125,6 @@ class AdminPayoutsController {
           //     bookingPayments
           //   );
 
-          // Calculate the total payout
           bookingPayments.forEach((payment) => {
             const advancedAmount = parseFloat(payment.advance_payment);
 
@@ -177,7 +171,6 @@ class AdminPayoutsController {
           acc_balance: accBalance,
         });
 
-        // Add the result to the payouts array
         payouts.push({
           providerId,
           date,
