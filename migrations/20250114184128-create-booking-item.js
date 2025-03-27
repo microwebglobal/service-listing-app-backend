@@ -58,6 +58,7 @@ module.exports = {
           "payment_pending",
           "confirmed",
           "assigned",
+          "accepted",
           "in_progress",
           "completed",
           "cancelled",
@@ -163,6 +164,9 @@ module.exports = {
       advance_payment: {
         type: Sequelize.DECIMAL(10, 2),
         allowNull: false,
+      },
+      service_commition: {
+        type: Sequelize.DECIMAL(10, 2),
       },
       created_at: {
         type: Sequelize.DATE,

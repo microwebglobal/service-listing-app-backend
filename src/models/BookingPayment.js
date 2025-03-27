@@ -77,6 +77,9 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: true,
       },
+      service_commition: {
+        type: DataTypes.DECIMAL(10, 2),
+      },
       refund_status: {
         type: DataTypes.ENUM("pending", "completed", "failed"),
         allowNull: true,

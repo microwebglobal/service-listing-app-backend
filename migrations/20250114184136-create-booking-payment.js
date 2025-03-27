@@ -44,6 +44,9 @@ module.exports = {
         type: Sequelize.DECIMAL(10, 2),
         allowNull: false,
       },
+      service_commition: {
+        type: Sequelize.DECIMAL(10, 2),
+      },
       payment_method: {
         type: Sequelize.ENUM("pending", "card", "upi", "net_banking", "cash"),
         allowNull: false,

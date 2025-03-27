@@ -112,43 +112,69 @@ class AdminPayoutsController {
         }
 
         let totalPayout = 0;
+        let totalCommition = 0;
 
         // Loop through each booking and each booking item to calculate the total payout
-        bookings.forEach((booking) => {
-          console.log("Booking ID:", booking.booking_id); // Log booking ID for debugging
+        for (const booking of bookings) {
+          console.log("Booking ID:", booking.booking_id);
 
-          booking.BookingItems.forEach((bookingItem) => {
-            console.log("Booking Item ID:", bookingItem.id); // Log booking item ID
-            const serviceCommission =
-              bookingItem.serviceItem.ServiceCommissions[0];
+          // Fetch all payments for the current booking
+          const bookingPayments = await BookingPayment.findAll({
+            where: { booking_id: booking.booking_id },
+          });
 
-            if (serviceCommission) {
-              console.log(
-                "Service Commission Rate:",
-                serviceCommission.commission_rate
-              );
+          //   console.log(
+          //     "Payments for Booking ID",
+          //     booking.booking_id,
+          //     ":",
+          //     bookingPayments
+          //   );
 
-              // Calculate the payout for each BookingItem
-              const itemPayout =
-                parseFloat(bookingItem.total_price) * (95 / 100);
-              console.log(
-                `Item Payout for Booking Item ID ${bookingItem.id}:`,
-                itemPayout
-              );
+          // Calculate the total payout
+          bookingPayments.forEach((payment) => {
+            const advancedAmount = parseFloat(payment.advance_payment);
 
-              totalPayout += itemPayout;
+            console.log("total payments", payment.total_amount);
+            const serviceCommission = parseFloat(
+              payment?.service_commition || 0
+            );
+
+            totalCommition += serviceCommission;
+
+            if (payment.payment_method === "cash") {
+              if (advancedAmount > 0) {
+                const payout = advancedAmount - serviceCommission;
+                totalPayout += payout;
+              } else if (advancedAmount === 0) {
+                const payout = 0 - serviceCommission;
+                totalPayout += payout;
+              }
+            } else {
+              const payout = payment.total_amount - serviceCommission;
+              totalPayout += payout;
             }
           });
-        });
+          console.log(totalPayout);
+          console.log("Total Commition", totalCommition);
+        }
 
-        console.log(`Total Payout for Provider ID ${providerId}:`, totalPayout);
+        // console.log(`Total Payout for Provider ID ${providerId}:`, totalPayout);
 
-        // Step 3: Store the daily payout log for this provider
         await DailyPayoutLogs.create({
           provider_id: providerId,
           date: date,
           payout_status: "pending",
           payout_amount: totalPayout,
+        });
+
+        const user = await User.findOne({
+          user_id: provider.user_id,
+        });
+
+        const accBalance = parseFloat(user.acc_balance) + totalPayout;
+
+        user.update({
+          acc_balance: accBalance,
         });
 
         // Add the result to the payouts array
@@ -159,22 +185,19 @@ class AdminPayoutsController {
         });
       }
 
-      console.log("Payout Array:", payouts);
+      //   console.log("Payout Array:", payouts);
 
-      // If no payout was generated, return an appropriate message
       if (payouts.length === 0) {
         return res.status(404).json({
           message: "No payouts generated for any provider on the given date.",
         });
       }
 
-      // Step 4: Return the generated payouts
       return res.status(200).json({
         message: "Daily payout summaries have been generated successfully.",
-        payouts,
       });
     } catch (error) {
-      next(error); // Passing errors to the next middleware
+      next(error);
     }
   }
 }

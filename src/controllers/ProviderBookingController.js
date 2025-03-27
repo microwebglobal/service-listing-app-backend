@@ -14,6 +14,7 @@ const {
   City,
   ProviderServiceCity,
   ServiceCategory,
+  ServiceCommission,
   ServiceProviderEmployee,
   sequelize,
 } = require("../models");
@@ -385,6 +386,7 @@ class ProviderBookingController {
 
       // Process and insert add-ons into booking_items table
       let totalAmount = 0;
+      let totalCommition = 0;
 
       if (addOns && addOns.length > 0) {
         const bookingItems = addOns.map((addOn) => {
@@ -395,6 +397,15 @@ class ProviderBookingController {
 
           totalAmount = totalAmount + unit_price;
 
+          const serviceCommition = ServiceCommission.findOne({
+            where: { city_id: booking.city_id, item_id: addOn.item_id },
+          });
+
+          const commition =
+            (parseFloat(serviceCommition?.commission_rate) / 100) * unit_price;
+
+          totalCommition = totalCommition + commition;
+
           return {
             booking_id: booking.booking_id,
             item_id: addOn.item_id,
@@ -403,6 +414,7 @@ class ProviderBookingController {
             unit_price: unit_price,
             total_price: unit_price * 1,
             advance_payment: 0,
+            service_commition: commition || 0,
           };
         });
 
@@ -430,6 +442,7 @@ class ProviderBookingController {
         total_amount: totalWithTax,
         advance_payment: 0,
         tip_amount: 0, // Set default tip amount
+        service_commition: totalCommition || 0,
         transaction_id: null, // Will be set during actual payment
         payment_date: null, // Will be set during actual payment
         payment_response: null, // Will be set during actual payment
@@ -591,6 +604,7 @@ class ProviderBookingController {
         {
           payment_status: "completed",
           cash_collected_by: providerId,
+          payment_method: "cash",
         },
         {
           where: {
