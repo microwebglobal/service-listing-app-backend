@@ -463,7 +463,7 @@ class ServiceProviderController {
     console.log(req.body);
 
     try {
-      const { status, rejection_reason } = req.body;
+      const { status, rejection_reason, rejected_fields } = req.body;
       const providerId = req.params.id;
 
       // Validate status
@@ -573,6 +573,7 @@ class ServiceProviderController {
               await MailService.sendProviderRejectEmail(
                 provider.User,
                 rejection_reason,
+                rejected_fields,
                 newRegistrationLink
               );
             } catch (emailError) {
