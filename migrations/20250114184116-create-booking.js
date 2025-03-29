@@ -1,9 +1,9 @@
 "use strict";
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    //  
+    // Create ENUM types if they don't exist
     await queryInterface.sequelize.query(`
-      DO $
+      DO $$
       BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'enum_bookings_status') THEN
           CREATE TYPE "enum_bookings_status" AS ENUM(
@@ -25,7 +25,7 @@ module.exports = {
           );
         END IF;
       END
-      $;
+      $$;
     `);
 
     // Then create the table
