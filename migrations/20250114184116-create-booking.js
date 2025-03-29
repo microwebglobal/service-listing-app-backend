@@ -1,7 +1,33 @@
 "use strict";
-
 module.exports = {
   up: async (queryInterface, Sequelize) => {
+    await queryInterface.sequelize.query(`
+      DO $
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'enum_bookings_status') THEN
+          CREATE TYPE "enum_bookings_status" AS ENUM(
+            'cart', 'payment_pending', 'confirmed', 'assigned', 'accepted', 
+            'in_progress', 'completed', 'cancelled', 'refunded'
+          );
+        END IF;
+        
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'enum_bookings_cancelled_by') THEN
+          CREATE TYPE "enum_bookings_cancelled_by" AS ENUM(
+            'customer', 'provider', 'admin'
+          );
+        END IF;
+        
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'enum_bookings_penalty_status') THEN
+          CREATE TYPE "enum_bookings_penalty_status" AS ENUM(
+            'no_penalty', 'pending', 'fully_settled_advance', 
+            'partially_settled_advance', 'apply_next_booking', 'completed'
+          );
+        END IF;
+      END
+      $;
+    `);
+
+    // Then create the table
     await queryInterface.createTable("bookings", {
       booking_id: {
         type: Sequelize.STRING,
@@ -132,7 +158,7 @@ module.exports = {
         defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
       },
     });
-
+    
     // Add indexes
     await queryInterface.addIndex("bookings", ["user_id"]);
     await queryInterface.addIndex("bookings", ["provider_id"]);
@@ -140,8 +166,13 @@ module.exports = {
     await queryInterface.addIndex("bookings", ["status"]);
     await queryInterface.addIndex("bookings", ["booking_date"]);
   },
-
+  
   down: async (queryInterface, Sequelize) => {
     await queryInterface.dropTable("bookings");
+    
+    // Drop the ENUM types
+    await queryInterface.sequelize.query(`DROP TYPE IF EXISTS "enum_bookings_status";`);
+    await queryInterface.sequelize.query(`DROP TYPE IF EXISTS "enum_bookings_cancelled_by";`);
+    await queryInterface.sequelize.query(`DROP TYPE IF EXISTS "enum_bookings_penalty_status";`);
   },
 };
