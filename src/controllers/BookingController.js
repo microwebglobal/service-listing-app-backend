@@ -12,6 +12,7 @@ const {
   ServiceCategory,
   ServiceProvider,
   User,
+  ServiceCommission,
   ProviderServiceCity,
   AssignmentHistory,
   BookingAssignmentSettings,
@@ -393,6 +394,7 @@ class BookingController {
 
       const booking = await Booking.findOne({
         where: { booking_id: bookingId },
+        include: [{ model: User, as: "customer" }],
         transaction,
       });
 
@@ -400,6 +402,9 @@ class BookingController {
         where: { booking_id: bookingId },
         transaction,
       });
+
+      const accBalance = parseFloat(booking?.customer?.acc_balance);
+      let remainingBalance = accBalance;
 
       let isSuccess = false;
 
@@ -417,16 +422,30 @@ class BookingController {
       if (isSuccess) {
         let paymentStatus;
 
+        console.log(paymentMethod);
+        console.log(paymentType);
+
         if (paymentType === "advance") {
           paymentStatus = "advance_only_paid";
+          if (accBalance > 0) {
+            remainingBalance = 0;
+          }
         } else if (paymentType === "full" && paymentMethod === "cash") {
           paymentStatus = "pending";
+          if (accBalance > 0) {
+            remainingBalance = accBalance;
+          }
         } else if (
           paymentType === "full" &&
           (paymentMethod === "net_banking" || paymentMethod === "card")
         ) {
           paymentStatus = "completed";
+          if (accBalance > 0) {
+            remainingBalance = 0;
+          }
         }
+
+        console.log(paymentStatus);
         // Update payment
         await payment.update(
           {
@@ -436,6 +455,10 @@ class BookingController {
           },
           { transaction }
         );
+
+        await booking.customer.update({
+          acc_balance: remainingBalance,
+        });
 
         // Update booking
         await booking.update(
@@ -618,6 +641,7 @@ class BookingController {
       // Add new items
       let totalAmount = 0;
       let totalAdvanceAmount = 0;
+      let totalServiceCommition = 0;
       for (const item of items) {
         const currentPrice = await BookingController.getCurrentPrice(
           item.itemId,
@@ -630,6 +654,13 @@ class BookingController {
           attributes: ["advance_percentage", "is_home_visit"],
         });
 
+        const serviceCommiton = await ServiceCommission.findOne({
+          where: { city_id: cityId, item_id: item.itemId },
+        });
+
+        const serviceCommitionRate =
+          parseFloat(serviceCommiton?.commission_rate) / 100;
+
         const advancePercentage = bookedItem?.advance_percentage;
 
         const advanceAmount = currentPrice * (advancePercentage / 100);
@@ -638,6 +669,14 @@ class BookingController {
         totalAmount += totalPrice;
         totalAdvanceAmount += advanceAmount;
 
+        const serviceCommitionAmount = totalPrice * serviceCommitionRate;
+
+        totalServiceCommition += serviceCommitionAmount;
+
+        console.log(serviceCommitionRate);
+        console.log(serviceCommitionAmount);
+        console.log(totalServiceCommition);
+
         await BookingItem.create({
           booking_id: booking.booking_id,
           item_id: item.itemId,
@@ -645,6 +684,7 @@ class BookingController {
           quantity: item.quantity,
           unit_price: currentPrice,
           total_price: totalPrice,
+          service_commition: serviceCommitionAmount,
           advance_payment: advanceAmount,
         });
       }
@@ -674,6 +714,7 @@ class BookingController {
         total_amount: totalWithTax,
         advance_payment: totalAdvanceAmount,
         tip_amount: 0, // Set default tip amount
+        service_commition: totalServiceCommition || 0,
         transaction_id: null, // Will be set during actual payment
         payment_date: null, // Will be set during actual payment
         payment_response: null, // Will be set during actual payment
@@ -716,6 +757,7 @@ class BookingController {
             ],
           },
           { model: BookingPayment },
+          { model: User, as: "customer" },
         ],
       });
       if (!booking) {
@@ -871,6 +913,7 @@ class BookingController {
             ],
           },
           { model: BookingPayment },
+          { model: User, as: "customer" },
         ],
       });
 

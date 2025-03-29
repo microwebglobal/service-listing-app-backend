@@ -169,6 +169,27 @@ class UserController {
       next(error);
     }
   }
+
+  static async getUserAccBalance(req, res, next) {
+    try {
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const user = User.findOne({
+        where: { u_id: req.user.id },
+      });
+
+      const accBalance = user.acc_balance;
+
+      return res.status(200).json({
+        message: "Acc balance fetched sucessfully",
+        accBalance,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = UserController;

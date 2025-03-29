@@ -32,4 +32,15 @@ router.get("/service-providers", AdminBookingController.getServiceProviders);
 //GET all transactions
 router.get("/transactions", AdminBookingController.getAllBookingTransactions);
 
+//GET all customer cancelled bookings
+router.get(
+  "/bookings/cancel/cus",
+  AdminBookingController.getAllCanceledBookingsByCustomer
+);
+
+//Handle cancelled bookings
+router.post(
+  "/bookings/cancel/handle",
+  AdminBookingController.adminSettleBookingPenalty
+);
 module.exports = router;

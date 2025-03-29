@@ -121,6 +121,14 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.DATEONLY,
         allowNull: true,
       },
+      acc_balance: {
+        type: DataTypes.DECIMAL(10, 2),
+        defaultValue: 0,
+      },
+      balance_updated_at: {
+        type: DataTypes.DATE,
+        defaultValue: DataTypes.NOW,
+      },
       last_updated: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW,

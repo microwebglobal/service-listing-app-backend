@@ -124,6 +124,21 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.DATE,
         allowNull: true,
       },
+      penalty_amount: {
+        type: DataTypes.DECIMAL(10, 2),
+        defaultValue: 0,
+      },
+      penalty_status: {
+        type: DataTypes.ENUM(
+          "no_penalty",
+          "pending",
+          "fully_settled_advance",
+          "partially_settled_advance",
+          "apply_next_booking",
+          "completed"
+        ),
+        allowNull: true,
+      },
     },
     {
       sequelize,
