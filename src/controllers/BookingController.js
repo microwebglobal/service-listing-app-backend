@@ -394,6 +394,7 @@ class BookingController {
 
       const booking = await Booking.findOne({
         where: { booking_id: bookingId },
+        include: [{ model: User, as: "customer" }],
         transaction,
       });
 
@@ -401,6 +402,9 @@ class BookingController {
         where: { booking_id: bookingId },
         transaction,
       });
+
+      const accBalance = parseFloat(booking?.customer?.acc_balance);
+      let remainingBalance = accBalance;
 
       let isSuccess = false;
 
@@ -423,13 +427,22 @@ class BookingController {
 
         if (paymentType === "advance") {
           paymentStatus = "advance_only_paid";
+          if (accBalance > 0) {
+            remainingBalance = 0;
+          }
         } else if (paymentType === "full" && paymentMethod === "cash") {
           paymentStatus = "pending";
+          if (accBalance > 0) {
+            remainingBalance = accBalance;
+          }
         } else if (
           paymentType === "full" &&
           (paymentMethod === "net_banking" || paymentMethod === "card")
         ) {
           paymentStatus = "completed";
+          if (accBalance > 0) {
+            remainingBalance = 0;
+          }
         }
 
         console.log(paymentStatus);
@@ -442,6 +455,10 @@ class BookingController {
           },
           { transaction }
         );
+
+        await booking.customer.update({
+          acc_balance: remainingBalance,
+        });
 
         // Update booking
         await booking.update(
@@ -740,6 +757,7 @@ class BookingController {
             ],
           },
           { model: BookingPayment },
+          { model: User, as: "customer" },
         ],
       });
       if (!booking) {
@@ -895,6 +913,7 @@ class BookingController {
             ],
           },
           { model: BookingPayment },
+          { model: User, as: "customer" },
         ],
       });
 
