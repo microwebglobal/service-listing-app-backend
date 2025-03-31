@@ -24,6 +24,7 @@ const {
   generateRegistrationLink,
   generatePasswordLink,
   extractTokenPayload,
+  generateReRgistrationLink,
 } = require("../utils/helpers.js");
 
 class ServiceProviderController {
@@ -554,7 +555,7 @@ class ServiceProviderController {
 
         if (provider.enquiry) {
           try {
-            const newRegistrationLink = await generateRegistrationLink(
+            const newRegistrationLink = await generateReRgistrationLink(
               provider.enquiry
             );
 

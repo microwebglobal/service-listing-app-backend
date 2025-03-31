@@ -2,6 +2,11 @@ const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const config = require("../config/config");
 
+// Generate registration link
+const generateReRgistrationLink = async (enquiry) => {
+  return generateRegistrationLink(enquiry) + "?reReg=true";
+};
+
 const generateRegistrationLink = async (enquiry) => {
   try {
     const tokenData = {
@@ -219,4 +224,5 @@ module.exports = {
   generateEmailValidationLink,
   generateRejectionLink,
   extractTokenPayload,
+  generateReRgistrationLink,
 };
