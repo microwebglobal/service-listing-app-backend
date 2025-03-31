@@ -3,19 +3,13 @@ const createError = require("http-errors");
 const { generateEmailValidationLink } = require("../utils/helpers");
 
 class CustomerProfileController {
-  static async getAllProfiles(req, res, next) {
+  static async getAllCustomers(req, res, next) {
     try {
-      const profiles = await CustomerProfile.findAll({
-        order: [["cp_id", "DESC"]],
-        include: [
-          {
-            model: User,
-            as: "user",
-            attributes: ["name", "email"],
-          },
-        ],
+      const customers = await User.findAll({
+        where: { role: "customer" },
+        order: [["u_id", "DESC"]],
       });
-      res.status(200).json(profiles);
+      res.status(200).json(customers);
     } catch (error) {
       next(error);
     }
@@ -41,6 +35,42 @@ class CustomerProfileController {
       res.status(200).json(profile);
     } catch (error) {
       next(error);
+    }
+  }
+
+  static async updateCustomerProfileStatus(req, res) {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!status || !["active", "inactive"].includes(status)) {
+      return res.status(400).json({
+        message: "Invalid status. Allowed values are 'active' or 'inactive'.",
+      });
+    }
+
+    try {
+      const customer = await User.findOne({
+        where: { u_id: id },
+      });
+
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found." });
+      }
+
+      await customer.update({ account_status: status });
+
+      return res.status(200).json({
+        message: "Customer profile status updated successfully.",
+        customer: {
+          u_id: customer.u_id,
+          status: customer.account_status,
+        },
+      });
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({
+        message: "An error occurred while updating the customer status.",
+      });
     }
   }
 
