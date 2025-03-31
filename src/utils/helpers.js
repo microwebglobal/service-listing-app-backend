@@ -32,9 +32,34 @@ const generateRegistrationLink = async (enquiry) => {
   }
 };
 
+// Extract token payload
+const extractTokenPayload = (token) => {
+  try {
+    const decoded = jwt.verify(
+      token,
+      config.development.registration.secretKey
+    );
+    return {
+      enquiry_id: decoded.eid,
+      user_id: decoded.uid,
+    };
+  } catch (error) {
+    if (error.name === "JsonWebTokenError") {
+      throw new Error("Invalid registration link");
+    }
+    if (error.name === "TokenExpiredError") {
+      throw new Error("Registration link has expired");
+    }
+    throw error;
+  }
+};
+
 const validateRegistrationLink = async (token) => {
   try {
-    const decoded = jwt.verify(token, config.registration.secretKey);
+    const decoded = jwt.verify(
+      token,
+      config.development.registration.secretKey
+    );
 
     const expandedData = {
       enquiry_id: decoded.eid,
@@ -193,4 +218,5 @@ module.exports = {
   generatePasswordLink,
   generateEmailValidationLink,
   generateRejectionLink,
+  extractTokenPayload,
 };

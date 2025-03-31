@@ -23,6 +23,7 @@ const MailService = require("../utils/mail.js");
 const {
   generateRegistrationLink,
   generatePasswordLink,
+  extractTokenPayload,
 } = require("../utils/helpers.js");
 
 class ServiceProviderController {
@@ -67,6 +68,33 @@ class ServiceProviderController {
                 model: User,
               },
             ],
+          },
+        ],
+      });
+
+      if (!provider) {
+        return res.status(404).json({ error: "Provider not found" });
+      }
+
+      res.status(200).json(provider);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Get provider by registration token
+  static async getProviderByToken(req, res, next) {
+    try {
+      const { user_id } = extractTokenPayload(req.params.token);
+      if (!user_id) {
+        return res.status(400).json({ error: "Invalid token" });
+      }
+
+      const provider = await ServiceProvider.findOne({
+        where: { user_id },
+        include: [
+          {
+            model: ServiceProviderEmployee,
           },
         ],
       });
