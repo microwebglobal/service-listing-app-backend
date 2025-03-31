@@ -4,7 +4,11 @@ const CustomerProfileController = require("../controllers/customerProfileControl
 // const { authenticate, authorize } = require('../middleware/auth'); // Import auth middleware
 
 // Customer profile routes
-router.get("/", CustomerProfileController.getAllProfiles);
+router.get("/customers/all", CustomerProfileController.getAllCustomers);
+router.put(
+  "/customer/status/:id",
+  CustomerProfileController.updateCustomerProfileStatus
+);
 router.get("/:id", CustomerProfileController.getProfileById);
 router.get(
   "/customer-profiles/user/:uId",
