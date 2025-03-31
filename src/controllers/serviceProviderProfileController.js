@@ -1,17 +1,17 @@
 // controllers/serviceProviderProfileController.js
 
-const { ServiceProviderProfile } = require('../models');
+const { ServiceProviderProfile, User } = require("../models");
 
 class ServiceProviderProfileController {
   // Fetch all service providers
   static async getAllProviders(req, res, next) {
     try {
       const providers = await ServiceProviderProfile.findAll({
-        order: [['sp_id', 'DESC']],
+        order: [["sp_id", "DESC"]],
       });
       res.status(200).json(providers);
     } catch (error) {
-        next(error);
+      next(error);
     }
   }
 
@@ -20,10 +20,11 @@ class ServiceProviderProfileController {
     const { u_id } = req.params;
     try {
       const profile = await ServiceProviderProfile.findOne({ where: { u_id } });
-      if (!profile) return res.status(404).json({ message: 'Profile not found' });
+      if (!profile)
+        return res.status(404).json({ message: "Profile not found" });
       res.status(200).json(profile);
     } catch (error) {
-        next(error);
+      next(error);
     }
   }
 
@@ -34,7 +35,7 @@ class ServiceProviderProfileController {
       const provider = await ServiceProviderProfile.create(req.body);
       res.status(201).json(provider);
     } catch (error) {
-        next(error);
+      next(error);
     }
   }
 
@@ -45,11 +46,12 @@ class ServiceProviderProfileController {
       const [updated] = await ServiceProviderProfile.update(req.body, {
         where: { sp_id: id },
       });
-      if (!updated) return res.status(404).json({ message: 'Provider not found' });
+      if (!updated)
+        return res.status(404).json({ message: "Provider not found" });
       const updatedProfile = await ServiceProviderProfile.findByPk(id);
       res.status(200).json(updatedProfile);
     } catch (error) {
-        next(error);
+      next(error);
     }
   }
 
@@ -60,10 +62,34 @@ class ServiceProviderProfileController {
       const deleted = await ServiceProviderProfile.destroy({
         where: { sp_id: id },
       });
-      if (!deleted) return res.status(404).json({ message: 'Provider not found' });
-      res.status(200).json({ message: 'Provider deleted successfully' });
+      if (!deleted)
+        return res.status(404).json({ message: "Provider not found" });
+      res.status(200).json({ message: "Provider deleted successfully" });
     } catch (error) {
-        next(error);
+      next(error);
+    }
+  }
+
+  static async settleProviderAccPayables(req, res, next) {
+    try {
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const user = await User.findOne({
+        where: { u_id: req.user.id },
+      });
+
+      await user.update({
+        acc_balance: 0,
+        balance_updated_at: Date.now(),
+      });
+
+      return res
+        .status(200)
+        .json({ message: "Account balance settled sucessfully" });
+    } catch (error) {
+      next(error);
     }
   }
 }
