@@ -180,7 +180,12 @@ class BookingController {
     }
   }
 
-  static async assignServiceProvider(bookingId, cityId, transaction) {
+  static async assignServiceProvider(
+    bookingId,
+    cityId,
+    transaction,
+    newAttemptNo
+  ) {
     try {
       // Check if auto-assignment is enabled
       const autoAssignmentSetting = await SystemSettings.findOne({
@@ -260,7 +265,7 @@ class BookingController {
           provider_type: providerType,
           random_number: randomNumber,
           daily_booking_count: dailyBookingCount,
-          attempt_number: 1,
+          attempt_number: newAttemptNo || 1,
           distance_score: 7.8,
           rating_score: 1.2,
           workload_score: 5.3,
