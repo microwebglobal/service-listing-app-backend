@@ -966,6 +966,8 @@ class BookingController {
         },
       });
 
+      console.log(bookingItem.unit_price);
+
       if (!bookingItem) {
         return res.status(404).json({ message: "Item not found in cart" });
       }
@@ -973,7 +975,8 @@ class BookingController {
       if (quantity === 0) {
         await bookingItem.destroy();
       } else {
-        const newTotalPrice = bookingItem.unit_price * quantity;
+        const newTotalPrice =
+          parseFloat(bookingItem.unit_price) * parseFloat(quantity);
         await bookingItem.update({
           quantity,
           total_price: newTotalPrice,
@@ -986,7 +989,7 @@ class BookingController {
       });
 
       const subtotal = allItems.reduce(
-        (sum, item) => sum + item.total_price,
+        (sum, item) => sum + parseFloat(item.total_price),
         0
       );
 
@@ -998,6 +1001,9 @@ class BookingController {
       const taxAmount = Number(subtotalNum * 0.18);
       const tipAmount = Number(payment?.tip_amount) || 0;
       const totalAmount = subtotalNum * 1.18 + tipAmount;
+
+      console.log(subtotalNum);
+      console.log(totalAmount);
 
       await payment.update({
         subtotal: subtotalNum.toFixed(2),
