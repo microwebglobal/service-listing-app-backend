@@ -39,10 +39,10 @@ module.exports = (sequelize, DataTypes) => {
       },
       item_id: {
         type: DataTypes.STRING,
-        allowNull: false,
+        allowNull: true,
       },
       item_type: {
-        type: DataTypes.ENUM("service_item", "package_item"),
+        type: DataTypes.ENUM("service_item", "package_item", "custom_item"),
         allowNull: false,
       },
       quantity: {
