@@ -138,10 +138,10 @@ module.exports = {
       },
       item_id: {
         type: Sequelize.STRING,
-        allowNull: false,
+        allowNull: true,
       },
       item_type: {
-        type: Sequelize.ENUM("service_item", "package_item"),
+        type: Sequelize.ENUM("service_item", "package_item", "custom_item"),
         allowNull: false,
       },
       quantity: {
