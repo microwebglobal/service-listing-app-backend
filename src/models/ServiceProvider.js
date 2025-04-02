@@ -97,6 +97,11 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
         unique: true,
       },
+      alternate_number: {
+        type: DataTypes.STRING(15),
+        allowNull: true,
+        unique: true,
+      },
       emergency_contact_name: {
         type: DataTypes.STRING(100),
         allowNull: true,
@@ -117,6 +122,10 @@ module.exports = (sequelize, DataTypes) => {
       exact_address: {
         type: DataTypes.TEXT,
         allowNull: false,
+      },
+      nationality: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
       },
       service_radius: {
         type: DataTypes.FLOAT,
