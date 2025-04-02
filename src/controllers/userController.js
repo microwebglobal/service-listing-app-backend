@@ -19,7 +19,7 @@ class UserController {
     } catch (error) {
       next(error);
     }
-  }
+  } 
 
   static async updateProfile(req, res, next) {
     try {
