@@ -812,7 +812,7 @@ class AdminBookingController {
         where: {
           cancelled_by: "customer",
         },
-        include: [{ model: BookingPayment }],
+        include: [{ model: BookingPayment }, { model: User, as: "customer" }],
       });
 
       if (!bookings || bookings.length === 0) {
@@ -858,7 +858,17 @@ class AdminBookingController {
 
       let bookingStatus;
       let remainingBalance;
+      let remainingPenaltyBalance = parseFloat(booking.penalty_amount);
       let accountBalance;
+
+      if (type === "wave_off") {
+        accountBalance =
+          parseFloat(booking.customer.acc_balance) + parseFloat(penaltyAmount);
+        bookingStatus = "pending";
+
+        remainingPenaltyBalance =
+          parseFloat(booking.penalty_amount) - parseFloat(penaltyAmount);
+      }
 
       if (type === "advance") {
         if (
@@ -898,7 +908,10 @@ class AdminBookingController {
       await booking.customer.update({ acc_balance: accountBalance });
 
       // Update booking penalty status
-      await booking.update({ penalty_status: bookingStatus });
+      await booking.update({
+        penalty_status: bookingStatus,
+        penalty_amount: remainingPenaltyBalance,
+      });
 
       return res.status(200).json({ message: "Success" });
     } catch (error) {
