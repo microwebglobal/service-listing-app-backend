@@ -18,7 +18,7 @@ module.exports = {
         },
         onUpdate: "CASCADE",
         onDelete: "CASCADE",
-        unique: true
+        unique: true,
       },
       business_type: {
         type: Sequelize.ENUM("individual", "business"),
@@ -57,11 +57,11 @@ module.exports = {
         allowNull: true,
       },
       status: {
-        type: Sequelize.ENUM("pending", "approved", "rejected","completed"),
+        type: Sequelize.ENUM("pending", "approved", "rejected", "completed"),
         defaultValue: "pending",
       },
       gender: {
-        type: Sequelize.ENUM("Male","Female","Other"),
+        type: Sequelize.ENUM("Male", "Female", "Other"),
         allowNull: true,
       },
       registration_link: {
@@ -83,30 +83,32 @@ module.exports = {
     });
 
     await queryInterface.addIndex(
-      'service_provider_enquiries',
-      ['business_name'],
+      "service_provider_enquiries",
+      ["business_name"],
       {
         unique: true,
         where: {
-          business_type: 'business'
+          business_type: "business",
         },
-        name: 'unique_business_name'
+        name: "unique_business_name",
       }
     );
 
-    await queryInterface.addIndex(
-      'service_provider_enquiries',
-      ['user_id'],
-      {
-        unique: true,
-        name: 'unique_user_enquiry'
-      }
-    );
+    await queryInterface.addIndex("service_provider_enquiries", ["user_id"], {
+      unique: true,
+      name: "unique_user_enquiry",
+    });
   },
 
   async down(queryInterface, Sequelize) {
-    await queryInterface.removeIndex('service_provider_enquiries', 'unique_business_name');
-    await queryInterface.removeIndex('service_provider_enquiries', 'unique_user_enquiry');
+    await queryInterface.removeIndex(
+      "service_provider_enquiries",
+      "unique_business_name"
+    );
+    await queryInterface.removeIndex(
+      "service_provider_enquiries",
+      "unique_user_enquiry"
+    );
     await queryInterface.dropTable("service_provider_enquiries");
   },
 };
