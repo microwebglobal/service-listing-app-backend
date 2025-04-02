@@ -15,6 +15,7 @@ const {
   ProviderServiceCity,
   ServiceCategory,
   ServiceCommission,
+  SystemSettings,
   ServiceProviderEmployee,
   sequelize,
 } = require("../models");
@@ -384,9 +385,18 @@ class ProviderBookingController {
         throw createError(400, "OTP has expired");
       }
 
+      const globalItemCommiton = await SystemSettings.findOne({
+        where: {
+          key: "booking_custom_item_commition_rate",
+        },
+      });
+
+      let globalCommiton = parseFloat(globalItemCommiton.value);
+
       // Process and insert add-ons into booking_items table
       let totalAmount = 0;
       let totalCommition = 0;
+      let commition = 0;
 
       if (addOns && addOns.length > 0) {
         const bookingItems = addOns.map((addOn) => {
@@ -401,10 +411,18 @@ class ProviderBookingController {
             where: { city_id: booking.city_id, item_id: addOn.item_id },
           });
 
-          const commition =
-            (parseFloat(serviceCommition?.commission_rate) / 100) * unit_price;
+          if (serviceCommition) {
+            commition =
+              (parseFloat(serviceCommition?.commission_rate) / 100) *
+              unit_price;
+          }
+          if (globalCommiton > 0) {
+            commition = (unit_price * globalCommiton) / 100;
+          }
 
           totalCommition = totalCommition + commition;
+
+          console.log(totalCommition);
 
           return {
             booking_id: booking.booking_id,
@@ -441,14 +459,13 @@ class ProviderBookingController {
         tax_amount: taxAmount,
         total_amount: totalWithTax,
         advance_payment: 0,
-        tip_amount: 0, // Set default tip amount
+        tip_amount: 0,
         service_commition: totalCommition || 0,
-        transaction_id: null, // Will be set during actual payment
-        payment_date: null, // Will be set during actual payment
-        payment_response: null, // Will be set during actual payment
+        transaction_id: null,
+        payment_date: null,
+        payment_response: null,
       });
 
-      // Clear OTP details from the booking after verification
       await booking.update({
         otp: null,
         otp_expires: null,

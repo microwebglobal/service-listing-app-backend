@@ -84,7 +84,20 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING(100),
         allowNull: true,
       },
+      tax_id: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+      },
+      business_start_date: {
+        type: DataTypes.DATEONLY,
+        allowNull: true,
+      },
       whatsapp_number: {
+        type: DataTypes.STRING(15),
+        allowNull: true,
+        unique: true,
+      },
+      alternate_number: {
         type: DataTypes.STRING(15),
         allowNull: true,
         unique: true,
@@ -105,6 +118,14 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.GEOMETRY("POINT"),
         allowNull: false,
         comment: "Main operating location",
+      },
+      exact_address: {
+        type: DataTypes.TEXT,
+        allowNull: false,
+      },
+      nationality: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
       },
       service_radius: {
         type: DataTypes.FLOAT,

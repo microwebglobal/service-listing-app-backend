@@ -223,6 +223,11 @@ class AdminPayoutsController {
       next(error);
     }
   }
+
+  static async adminSettleCustomerPenaltyAmount(req, res, next) {
+    try {
+    } catch (error) {}
+  }
 }
 
 module.exports = AdminPayoutsController;

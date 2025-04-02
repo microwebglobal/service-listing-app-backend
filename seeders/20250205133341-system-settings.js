@@ -96,6 +96,16 @@ module.exports = {
         created_at: new Date(),
         updated_at: new Date(),
       },
+      {
+        category: "booking",
+        key: "booking_custom_item_commition_rate",
+        value: JSON.stringify(10),
+        data_type: "number",
+        description: "Service commition rate for customed booking items",
+        is_encrypted: false,
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
     ]);
 
     // Seed default booking assignment settings
