@@ -280,14 +280,19 @@ class MailService {
     );
   }
 
-  static getProviderRejectTemplate(userName, reason, reRegistrationLink) {
+  static getProviderRejectTemplate(
+    userName,
+    reason,
+    fields,
+    reRegistrationLink
+  ) {
     return `
         <!DOCTYPE html>
         <html>
         <head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Enquiry Approved</title>
+            <title>Enquiry Rejected</title>
             <style>
                 .button {
                     display: inline-block;
@@ -314,8 +319,15 @@ class MailService {
             <div class="container">
                 <h2>Enquiry Approved!</h2>
                 <p>Hello ${userName},</p>
-                <p>We're pleased to inform you that your service provider enquiry has been rejected.</p>
+                <p>We're sorry to inform you that your service provider enquiry has been rejected.</p>
                 <p>Reason: ${reason}</p>
+                ${
+                  fields && fields.length > 0
+                    ? `<p>Affected Submissions: ${fields
+                        .map((field) => field.label)
+                        .join(", ")}</p>`
+                    : ""
+                }
                 <p>Please click the button below to complete your registration:</p>
                 <p>
                     <a href="${reRegistrationLink}" class="button">Complete Registration</a>
@@ -332,10 +344,16 @@ class MailService {
         `;
   }
 
-  static async sendProviderRejectEmail(user, reason, reRegistrationLink) {
+  static async sendProviderRejectEmail(
+    user,
+    reason,
+    fields,
+    reRegistrationLink
+  ) {
     const template = this.getProviderRejectTemplate(
       user.name,
       reason,
+      fields,
       reRegistrationLink
     );
     return this.sendMail(

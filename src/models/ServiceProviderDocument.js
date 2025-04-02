@@ -24,6 +24,7 @@ module.exports = (sequelize, DataTypes) => {
       },
       document_type: {
         type: DataTypes.ENUM(
+          "logo",
           "id_proof",
           "address_proof",
           "qualification_proof",

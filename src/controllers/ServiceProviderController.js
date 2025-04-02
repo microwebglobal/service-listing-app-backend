@@ -23,6 +23,8 @@ const MailService = require("../utils/mail.js");
 const {
   generateRegistrationLink,
   generatePasswordLink,
+  extractTokenPayload,
+  generateReRgistrationLink,
 } = require("../utils/helpers.js");
 
 class ServiceProviderController {
@@ -67,6 +69,33 @@ class ServiceProviderController {
                 model: User,
               },
             ],
+          },
+        ],
+      });
+
+      if (!provider) {
+        return res.status(404).json({ error: "Provider not found" });
+      }
+
+      res.status(200).json(provider);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Get provider by registration token
+  static async getProviderByToken(req, res, next) {
+    try {
+      const { user_id } = extractTokenPayload(req.params.token);
+      if (!user_id) {
+        return res.status(400).json({ error: "Invalid token" });
+      }
+
+      const provider = await ServiceProvider.findOne({
+        where: { user_id },
+        include: [
+          {
+            model: ServiceProviderEmployee,
           },
         ],
       });
@@ -463,7 +492,7 @@ class ServiceProviderController {
     console.log(req.body);
 
     try {
-      const { status, rejection_reason } = req.body;
+      const { status, rejection_reason, rejected_fields } = req.body;
       const providerId = req.params.id;
 
       // Validate status
@@ -526,7 +555,7 @@ class ServiceProviderController {
 
         if (provider.enquiry) {
           try {
-            const newRegistrationLink = await generateRegistrationLink(
+            const newRegistrationLink = await generateReRgistrationLink(
               provider.enquiry
             );
 
@@ -573,6 +602,7 @@ class ServiceProviderController {
               await MailService.sendProviderRejectEmail(
                 provider.User,
                 rejection_reason,
+                rejected_fields,
                 newRegistrationLink
               );
             } catch (emailError) {
