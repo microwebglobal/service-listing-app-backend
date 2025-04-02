@@ -19,6 +19,7 @@ module.exports = {
           "ST_GeomFromText",
           "POINT(103.8198 1.3521)"
         ),
+        exact_address: "test adress",
         service_radius: 50,
         availability_type: "full_time",
         availability_hours: JSON.stringify({

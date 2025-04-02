@@ -45,6 +45,14 @@ module.exports = {
         type: Sequelize.STRING(100),
         allowNull: true,
       },
+      tax_id: {
+        type: Sequelize.STRING(100),
+        allowNull: true,
+      },
+      business_start_date: {
+        type: Sequelize.DATEONLY,
+        allowNull: true,
+      },
       whatsapp_number: {
         type: Sequelize.STRING(15),
         allowNull: true,
@@ -64,6 +72,10 @@ module.exports = {
       },
       primary_location: {
         type: Sequelize.GEOMETRY("POINT"),
+        allowNull: false,
+      },
+      exact_address: {
+        type: Sequelize.TEXT,
         allowNull: false,
       },
       service_radius: {

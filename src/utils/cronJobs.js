@@ -2,22 +2,15 @@ const cron = require("node-cron");
 const moment = require("moment-timezone");
 const { AssignmentHistory, Booking, sequelize } = require("../models");
 const BookingController = require("../controllers/BookingController");
+const AdminPayoutsController = require("../controllers/AdminPayoutsController");
 const { Op } = require("sequelize");
 
-let isJobActive = false; // Flag to control whether the cron job is active or paused
-
-let reassignmentCronJob = cron.schedule("*/10 * * * *", async () => {
-  if (!isJobActive) {
-    console.log("Cron job is paused, skipping execution.");
-    return; // Skip the cron job if it's paused
-  }
-
-  // Your original cron job logic
+cron.schedule("* * * * * *", async () => {
   const currentTimeLocal = moment().tz("Asia/Colombo");
 
   const tenMinutesAgo = currentTimeLocal
     .clone()
-    .subtract(10, "minutes")
+    .subtract(1, "minutes")
     .format("YYYY-MM-DD HH:mm:ss.sSSSZ");
 
   const tenMinutesAgoDate = moment(
@@ -28,53 +21,51 @@ let reassignmentCronJob = cron.schedule("*/10 * * * *", async () => {
   const unacceptedBookings = await AssignmentHistory.findAll({
     where: {
       status: "pending",
-      created_at: {
-        [Op.lt]: tenMinutesAgoDate,
-      },
     },
     include: Booking,
   });
 
-  // console.log("Unaccepted bookings:", unacceptedBookings);
-
   for (let assignment of unacceptedBookings) {
     const transaction = await sequelize.transaction();
     try {
-      // console.log(`Reassigning provider for booking ${assignment.booking_id}...`);
+      const newAttemptNo = (assignment.attempt_no || 0) + 1;
 
-      await assignment.update({ status: "timeout" }, { transaction });
-
-      const newAssignedProvider = await BookingController.assignServiceProvider(
-        assignment.booking_id,
-        assignment?.Booking?.city_id,
-        transaction
+      await assignment.update(
+        { status: "timeout", attempt_no: newAttemptNo },
+        { transaction }
       );
 
-      if (newAssignedProvider) {
-        console.log(`New provider assigned:`);
+      if (assignment.attempt_no < 10) {
+        const newAssignedProvider =
+          await BookingController.assignServiceProvider(
+            assignment.booking_id,
+            assignment?.Booking?.city_id,
+            transaction,
+            newAttemptNo
+          );
+      } else {
+        await assignment.update({ status: "cancelled" }, { transaction });
       }
 
       await transaction.commit();
     } catch (error) {
       await transaction.rollback();
+      console.error("Reassignment failed:", error);
     }
   }
 });
 
-console.log("Reassignment cron job started.");
+cron.schedule("0 18 * * *", async () => {
+  try {
+    const today = moment().tz("Asia/Colombo").format("YYYY-MM-DD");
+    console.log(`Running daily payout summary for ${today}`);
 
-// Function to pause the cron job
-function stopCronJob() {
-  isJobActive = false;
-  console.log("Cron job paused.");
-}
+    await AdminPayoutsController.generateDailyPayoutSummary({
+      params: { date: today },
+    });
 
-// Function to resume the cron job
-function resumeCronJob() {
-  isJobActive = true;
-  console.log("Cron job resumed.");
-}
-
-// Example of stopping and resuming the cron job after a delay (for testing purposes)
-setTimeout(stopCronJob, 30000); // Stop after 30 seconds
-setTimeout(resumeCronJob, 60000); // Resume after 60 seconds
+    console.log("Daily payout summary completed.");
+  } catch (error) {
+    console.error("Error in daily payout cron job:", error);
+  }
+});
