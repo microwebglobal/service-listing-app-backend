@@ -317,7 +317,7 @@ class MailService {
         </head>
         <body>
             <div class="container">
-                <h2>Enquiry Approved!</h2>
+                <h2>Enquiry Rejected!</h2>
                 <p>Hello ${userName},</p>
                 <p>We're sorry to inform you that your service provider enquiry has been rejected.</p>
                 <p>Reason: ${reason}</p>

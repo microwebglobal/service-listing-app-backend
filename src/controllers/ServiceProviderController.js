@@ -94,8 +94,29 @@ class ServiceProviderController {
       const provider = await ServiceProvider.findOne({
         where: { user_id },
         include: [
+          { model: User },
+          {
+            model: ProviderServiceCategory,
+            as: "providerCategories",
+            include: {
+              model: ServiceCategory,
+
+              include: [{ model: SubCategory }],
+            },
+          },
+          {
+            model: ServiceCategory,
+            as: "serviceCategories",
+            include: [{ model: SubCategory }],
+          },
+          { model: City, as: "serviceCities" },
           {
             model: ServiceProviderEmployee,
+            include: [
+              {
+                model: User,
+              },
+            ],
           },
         ],
       });
@@ -556,7 +577,8 @@ class ServiceProviderController {
         if (provider.enquiry) {
           try {
             const newRegistrationLink = await generateReRgistrationLink(
-              provider.enquiry
+              provider.enquiry,
+              rejected_fields
             );
 
             await provider.enquiry.update(

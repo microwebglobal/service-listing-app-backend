@@ -3,8 +3,39 @@ const jwt = require("jsonwebtoken");
 const config = require("../config/config");
 
 // Generate registration link
-const generateReRgistrationLink = async (enquiry) => {
-  return generateRegistrationLink(enquiry) + "?reReg=true";
+const generateReRgistrationLink = async (enquiry, rejected_fields) => {
+  try {
+    let rejectedFields;
+    if (Array.isArray(rejected_fields) && rejected_fields.length > 0) {
+      rejectedFields = rejected_fields.map((field) => field.value);
+    }
+
+    const tokenData = {
+      eid: enquiry.enquiry_id,
+      uid: enquiry.user_id,
+      t: enquiry.business_type[0],
+      ts: Math.floor(Date.now() / 1000),
+      rf: rejectedFields,
+    };
+
+    const randomBytes = crypto.randomBytes(8).toString("base64url");
+    tokenData.n = randomBytes;
+
+    const token = jwt.sign(
+      tokenData,
+      config.development.registration.secretKey,
+      {
+        expiresIn: "7d",
+        algorithm: "HS256",
+        noTimestamp: true,
+      }
+    );
+
+    const registrationLink = `${process.env.FRONTEND_URL}/service-provider/register/${token}`;
+    return registrationLink;
+  } catch (error) {
+    throw new Error("Failed to generate registration link");
+  }
 };
 
 const generateRegistrationLink = async (enquiry) => {
