@@ -22,7 +22,7 @@ module.exports = {
         exact_address: "test adress",
         service_radius: 50,
         availability_type: "full_time",
-        availability_hours: {
+        availability_hours: JSON.stringify({
           monday: { start: "09:00", end: "18:00", isOpen: true },
           tuesday: { start: "09:00", end: "18:00", isOpen: true },
           wednesday: { start: "09:00", end: "18:00", isOpen: true },
@@ -30,7 +30,7 @@ module.exports = {
           friday: { start: "09:00", end: "18:00", isOpen: true },
           saturday: { start: "09:00", end: "18:00", isOpen: true },
           sunday: { start: "09:00", end: "18:00", isOpen: false },
-        },
+        }),
         years_experience: 10,
         specializations: ["Wall Painting", "Wall Cleaning"],
         qualification: "Certificate in interior designing",
