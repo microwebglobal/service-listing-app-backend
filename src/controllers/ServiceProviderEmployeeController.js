@@ -111,6 +111,7 @@ class ServiceProviderEmployeeController {
         email,
         mobile,
         dob,
+        whatsapp_number,
         nic,
         role,
         qualification,
@@ -139,6 +140,7 @@ class ServiceProviderEmployeeController {
           provider_id: req.params.providerId,
           user_id: user.u_id,
           role,
+          whatsapp_number,
           qualification,
           years_experience,
         },
@@ -173,6 +175,7 @@ class ServiceProviderEmployeeController {
         mobile,
         dob,
         nic,
+        whatsapp_number,
         role,
         qualification,
         years_experience,
@@ -195,7 +198,12 @@ class ServiceProviderEmployeeController {
       );
 
       // Update employee details
-      await employee.update({ role, qualification, years_experience });
+      await employee.update({
+        role,
+        whatsapp_number,
+        qualification,
+        years_experience,
+      });
 
       // Update categories if provided
       if (categories) {

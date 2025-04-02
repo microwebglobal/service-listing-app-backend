@@ -130,7 +130,7 @@ class CustomerBookingController {
 
       const penaltyAmount = parseFloat(penalty.replace(/[^0-9.]/g, "")) || 0;
 
-      const roundedPenaltyAmount = penaltyAmount.toFixed(2);
+      const roundedPenaltyAmount = -penaltyAmount.toFixed(2);
 
       const user = await User.findOne({
         where: { u_id: req.user.id },

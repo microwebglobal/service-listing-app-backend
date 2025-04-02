@@ -43,6 +43,10 @@ router.get(
   roleCheck("admin"),
   ServiceProviderController.getAllProviders
 );
+router.get(
+  "/provider/token/:token",
+  ServiceProviderController.getProviderByToken
+);
 router.get("/provider/user/:id", ServiceProviderController.getProviderByUserId);
 router.post(
   "/provider/register",

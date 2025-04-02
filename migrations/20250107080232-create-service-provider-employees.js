@@ -42,6 +42,11 @@ module.exports = {
         type: Sequelize.INTEGER,
         allowNull: false,
       },
+      whatsapp_number: {
+        type: Sequelize.STRING(15),
+        allowNull: true,
+        unique: true,
+      },
       status: {
         type: Sequelize.ENUM("active", "inactive"),
         defaultValue: "active",

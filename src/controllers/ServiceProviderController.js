@@ -23,6 +23,8 @@ const MailService = require("../utils/mail.js");
 const {
   generateRegistrationLink,
   generatePasswordLink,
+  extractTokenPayload,
+  generateReRgistrationLink,
 } = require("../utils/helpers.js");
 
 class ServiceProviderController {
@@ -67,6 +69,33 @@ class ServiceProviderController {
                 model: User,
               },
             ],
+          },
+        ],
+      });
+
+      if (!provider) {
+        return res.status(404).json({ error: "Provider not found" });
+      }
+
+      res.status(200).json(provider);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Get provider by registration token
+  static async getProviderByToken(req, res, next) {
+    try {
+      const { user_id } = extractTokenPayload(req.params.token);
+      if (!user_id) {
+        return res.status(400).json({ error: "Invalid token" });
+      }
+
+      const provider = await ServiceProvider.findOne({
+        where: { user_id },
+        include: [
+          {
+            model: ServiceProviderEmployee,
           },
         ],
       });
@@ -134,6 +163,9 @@ class ServiceProviderController {
         enquiry_id,
         business_registration_number,
         service_radius,
+        exact_address, //newly added filed
+        business_start_date, //newly added fileds
+        tax_id, //newly added fileds
         availability_type,
         availability_hours,
         specializations,
@@ -147,7 +179,8 @@ class ServiceProviderController {
         employees,
         whatsapp_number,
         emergency_contact_name,
-        alternate_number,
+        alternate_number, //newly added filed
+        nationality, //newly added filed
         reference_number,
         reference_name,
         aadhar_number,
@@ -259,9 +292,13 @@ class ServiceProviderController {
         years_experience: Number(enquiry.years_experience) || 0,
         specializations: processedSpecializations,
         qualification: certificates_awards,
+        exact_address,
+        tax_id,
+        business_start_date,
         whatsapp_number,
         emergency_contact_name,
         alternate_number,
+        nationality,
         reference_number,
         reference_name,
         aadhar_number,
@@ -325,6 +362,7 @@ class ServiceProviderController {
                   user_id: user.u_id,
                   provider_id: provider.provider_id,
                   role: employee.designation,
+                  whatsapp_number: employee?.whatsapp_number,
                   qualification: employee.qualification,
                   years_experience: 5,
                   status: "inactive",
@@ -526,7 +564,7 @@ class ServiceProviderController {
 
         if (provider.enquiry) {
           try {
-            const newRegistrationLink = await generateRegistrationLink(
+            const newRegistrationLink = await generateReRgistrationLink(
               provider.enquiry
             );
 
@@ -1153,7 +1191,6 @@ class ServiceProviderController {
         return res.status(404).json({ error: "Provider not found" });
       }
 
-      // Ensure availability_hours is properly parsed if it's a JSON string
       let parsedAvailabilityHours = availability_hours;
       if (typeof availability_hours === "string") {
         try {
@@ -1166,7 +1203,6 @@ class ServiceProviderController {
         }
       }
 
-      // Update only the availability_hours field
       await provider.update({ availability_hours: parsedAvailabilityHours });
 
       res.status(200).json({
