@@ -56,54 +56,72 @@ class AuthController {
       next(error);
     }
   }
-
   async customerVerifyOTP(req, res, next) {
     try {
-      const { mobile, otp } = req.body;
+        const { mobile, otp } = req.body;
 
-      if (!mobile || !otp) {
-        throw createError(400, "Mobile and OTP are required");
-      }
+        if (!mobile || !otp) {
+            throw createError(400, "Mobile and OTP are required");
+        }
 
-      const user = await User.findOne({
-        where: {
-          mobile,
-          role: "customer",
-          otp,
-          otp_expires: {
-            [Op.gt]: new Date(),
-          },
-        },
-      });
+        let firstTimeLogin = false;
 
-      if (!user) {
-        throw createError(402, "Invalid or expired OTP");
-      }
+        // Check if the mobile number exists
+        let user = await User.findOne({
+            where: { mobile, role: "customer" }
+        });
 
-      await user.update({
-        otp: null,
-        otp_expires: null,
-        last_login: new Date(),
-      });
+        if (!user) {
+            // If user doesn't exist, create a new one
+            user = await User.create({
+                mobile,
+                role: "customer",
+                name: `User-${mobile}`, // Default name format "User-<mobile>"
+                last_login: new Date(),
+                otp, // Save OTP for first-time login
+                otp_expires: new Date(Date.now() + 5 * 60 * 1000) // OTP valid for 5 min
+            });
 
-      const tokens = this.generateTokens(user);
-      this.setTokenCookies(res, tokens);
+            firstTimeLogin = true; // Mark as first-time login
+        } else {
+            // If the name is in the format "User-<mobile>", it's a first-time login
+            if (user.name.startsWith('User-')) {
+                firstTimeLogin = true;
+            }
+        }
 
-      res.json({
-        success: true,
-        user: {
-          id: user.u_id,
-          name: user.name,
-          mobile: user.mobile,
-          role: user.role,
-          email: user.email,
-          photo: user.photo,
-        },
-      });
+        // Validate OTP
+        if (!user.otp || user.otp !== otp || user.otp_expires < new Date()) {
+            throw createError(402, "Invalid or expired OTP");
+        }
+
+        // Update user details after successful OTP verification
+        await user.update({
+            otp: null,
+            otp_expires: null,
+            last_login: new Date(),
+        });
+
+        const tokens = this.generateTokens(user);
+        this.setTokenCookies(res, tokens);
+
+        res.json({
+            success: true,
+            first_time_login: firstTimeLogin,
+            user: {
+                id: user.u_id,
+                name: user.name,
+                mobile: user.mobile,
+                role: user.role,
+                email: user.email,
+                photo: user.photo,
+            },
+        });
+
     } catch (error) {
-      next(error);
+        next(error);
     }
-  }
+}
 
   async adminLogin(req, res, next) {
     try {
@@ -201,11 +219,13 @@ class AuthController {
   }
 
   async refreshToken(req, res, next) {
+    console.log("refreshToken");
     try {
       const { refreshToken } = req.cookies;
 
       if (!refreshToken) {
-        throw createError(401, "Refresh token required");
+        console.log("No refresh token, first login");
+        return res.json({ success: false, message: "first login" });
       }
 
       const payload = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
