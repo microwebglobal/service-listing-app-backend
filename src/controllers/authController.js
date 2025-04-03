@@ -1,4 +1,4 @@
-const { User, ServiceProvider } = require("../models");
+const { User, ServiceProvider, ServiceProviderEmployee } = require("../models");
 const createError = require("http-errors");
 const jwt = require("jsonwebtoken");
 const { Op } = require("sequelize");
@@ -65,21 +65,31 @@ class AuthController {
         throw createError(400, "Mobile and OTP are required");
       }
 
-      const user = await User.findOne({
-        where: {
-          mobile,
-          role: "customer",
-          otp,
-          otp_expires: {
-            [Op.gt]: new Date(),
-          },
-        },
+      let firstTimeLogin = false;
+      
+      let user = await User.findOne({
+        where: { mobile, role: "customer" }
       });
 
       if (!user) {
-        throw createError(402, "Invalid or expired OTP");
+        user = await User.create({
+          mobile,
+          role: "customer",
+          name: 'User-${mobile}',
+          last_login: null,
+          otp,
+          otp_expires: new Date(Date.now() + 5 * 60 * 1000)
+        });
+
+        firstTimeLogin = true;
+      } else if (!user.last_login) {
+        firstTimeLogin = true;
       }
 
+      if (!user.otp || user.otp !== otp || user.otp_expires < new Date()) {
+        throw createError(402, "Invalid or expired OTP");
+      }
+      
       await user.update({
         otp: null,
         otp_expires: null,
@@ -91,6 +101,7 @@ class AuthController {
 
       res.json({
         success: true,
+        need_profile_setup: firstTimeLogin,
         user: {
           id: user.u_id,
           name: user.name,
@@ -100,6 +111,7 @@ class AuthController {
           photo: user.photo,
         },
       });
+
     } catch (error) {
       next(error);
     }
@@ -175,6 +187,10 @@ class AuthController {
         throw createError(403, "Account is not active");
       }
 
+      const employee = await ServiceProviderEmployee.findOne({
+        where: { user_id: user?.u_id },
+      });
+
       const provider = await ServiceProvider.findOne({
         where: { user_id: user?.u_id },
       });
@@ -189,6 +205,7 @@ class AuthController {
         user: {
           id: user.u_id,
           provider: provider?.provider_id,
+          employee: employee?.employee_id,
           name: user.name,
           email: user.email,
           role: user.role,
@@ -201,11 +218,13 @@ class AuthController {
   }
 
   async refreshToken(req, res, next) {
+    console.log("refreshToken");
     try {
       const { refreshToken } = req.cookies;
 
       if (!refreshToken) {
-        throw createError(401, "Refresh token required");
+        console.log("No refresh token, first login");
+        return res.json({ success: false, message: "first login" });
       }
 
       const payload = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);

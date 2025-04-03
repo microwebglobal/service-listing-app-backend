@@ -48,6 +48,11 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
+      whatsapp_number: {
+        type: DataTypes.STRING(15),
+        allowNull: true,
+        unique: true,
+      },
       status: {
         type: DataTypes.ENUM("active", "inactive", "on_work"),
         defaultValue: "active",
