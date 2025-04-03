@@ -363,75 +363,60 @@ class ServiceProviderController {
 
       // Handle employees
       if (parsedData.employees && Array.isArray(parsedData.employees)) {
+        // Fetch user IDs of employees before deleting
+        const employeeUsers = await ServiceProviderEmployee.findAll({
+          where: { provider_id: provider.provider_id },
+          attributes: ["user_id"],
+          transaction: t,
+        });
+
+        const userIdsToDelete = employeeUsers.map((emp) => emp.user_id);
+
+        // Delete all existing employees for this provider
+        await ServiceProviderEmployee.destroy({
+          where: { provider_id: provider.provider_id },
+          transaction: t,
+        });
+
+        // Delete user accounts of removed employees
+        if (userIdsToDelete.length > 0) {
+          await User.destroy({
+            where: { u_id: userIdsToDelete },
+            transaction: t,
+          });
+        }
+
+        // Insert new employees
         await Promise.all(
           parsedData.employees.map(async (employee) => {
             try {
-              const existingUser = await User.findOne({
-                where: { email: employee.email },
-                transaction: t,
-              });
+              const user = await User.create(
+                {
+                  name: employee.name,
+                  mobile: employee.phone,
+                  email: employee.email,
+                  tokenVersion: 1,
+                  gender: employee.gender,
+                  account_status: "pending",
+                  role: "business_employee",
+                },
+                { transaction: t }
+              );
 
-              let user;
-              if (existingUser) {
-                await existingUser.update(
-                  {
-                    name: employee.name,
-                    mobile: employee.phone,
-                    gender: employee.gender,
-                  },
-                  { transaction: t }
-                );
-                user = existingUser;
-              } else {
-                user = await User.create(
-                  {
-                    name: employee.name,
-                    mobile: employee.phone,
-                    email: employee.email,
-                    tokenVersion: 1,
-                    gender: employee.gender,
-                    account_status: "pending",
-                    role: "business_employee",
-                  },
-                  { transaction: t }
-                );
-              }
-
-              const existingEmployee = await ServiceProviderEmployee.findOne({
-                where: {
+              await ServiceProviderEmployee.create(
+                {
                   user_id: user.u_id,
                   provider_id: provider.provider_id,
+                  role: employee.designation,
+                  whatsapp_number: employee?.whatsapp_number,
+                  qualification: employee.qualification,
+                  years_experience: Number(employee.years_experience) || 0,
+                  status: "inactive",
                 },
-                transaction: t,
-              });
-
-              if (existingEmployee) {
-                await existingEmployee.update(
-                  {
-                    role: employee.designation,
-                    whatsapp_number: employee?.whatsapp_number,
-                    qualification: employee.qualification,
-                    years_experience: 5,
-                    status: "inactive",
-                  },
-                  { transaction: t }
-                );
-              } else {
-                await ServiceProviderEmployee.create(
-                  {
-                    user_id: user.u_id,
-                    provider_id: provider.provider_id,
-                    role: employee.designation,
-                    whatsapp_number: employee?.whatsapp_number,
-                    qualification: employee.qualification,
-                    years_experience: 5,
-                    status: "inactive",
-                  },
-                  { transaction: t }
-                );
-              }
+                { transaction: t }
+              );
             } catch (error) {
-              console.error("Error processing employee:", error);
+              console.error("Error creating employee:", error);
               throw error;
             }
           })
