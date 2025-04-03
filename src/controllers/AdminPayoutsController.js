@@ -224,9 +224,27 @@ class AdminPayoutsController {
     }
   }
 
-  static async adminSettleCustomerPenaltyAmount(req, res, next) {
+  static async adminSettleCustomerAccount(req, res, next) {
     try {
-    } catch (error) {}
+      const userId = req.params.id;
+      const { amount } = req.body;
+
+      const user = await findOne({
+        where: {
+          u_id: userId,
+        },
+      });
+
+      const accBalance = parseFloat(user.acc_balance);
+      const remainingBalance = accBalance - parseFloat(amount);
+
+      await user.update({
+        acc_balance: remainingBalance,
+        balance_updated_at: Date.now(),
+      });
+    } catch (error) {
+      next(error);
+    }
   }
 }
 
