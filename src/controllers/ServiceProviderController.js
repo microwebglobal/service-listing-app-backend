@@ -200,7 +200,8 @@ class ServiceProviderController {
         employees,
         whatsapp_number,
         emergency_contact_name,
-        alternate_number,
+        alternate_number, //newly added filed
+        nationality, //newly added filed
         reference_number,
         reference_name,
         aadhar_number,
@@ -318,6 +319,7 @@ class ServiceProviderController {
         whatsapp_number,
         emergency_contact_name,
         alternate_number,
+        nationality,
         reference_number,
         reference_name,
         aadhar_number,

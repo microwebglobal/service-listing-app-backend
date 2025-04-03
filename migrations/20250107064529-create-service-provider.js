@@ -58,6 +58,11 @@ module.exports = {
         allowNull: true,
         unique: true,
       },
+      alternate_number: {
+        type: Sequelize.STRING(15),
+        allowNull: true,
+        unique: true,
+      },
       emergency_contact_name: {
         type: Sequelize.STRING(100),
         allowNull: true,
@@ -77,6 +82,10 @@ module.exports = {
       exact_address: {
         type: Sequelize.TEXT,
         allowNull: false,
+      },
+      nationality: {
+        type: Sequelize.STRING(100),
+        allowNull: true,
       },
       service_radius: {
         type: Sequelize.FLOAT,
