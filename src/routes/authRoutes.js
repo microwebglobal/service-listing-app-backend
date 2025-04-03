@@ -20,6 +20,5 @@ router.post('/refresh', authController.refreshToken);
 // Common Routes
 router.post("/logout", authController.logout);
 
-router.post("/refresh", authController.refreshToken);
-
+router.post('/refresh', authController.refreshToken);
 module.exports = router;
