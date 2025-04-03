@@ -1099,6 +1099,7 @@ class ServiceProviderController {
                   status: employee.status,
                   qualification: employee.qualification,
                   years_experience: employee.years_experience,
+                  whatsapp_number: employee?.whatsapp_number,
                 },
                 {
                   where: {
