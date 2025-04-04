@@ -309,12 +309,6 @@ class ServiceProviderEnquiryController {
         message: "Individual enquiry created successfully",
         enquiry_id: enquiry.enquiry_id,
       });
-
-      try {
-        await MailService.sendEnquiryReceivedEmail(user, "individual");
-      } catch (emailError) {
-        console.error("Error sending enquiry email:", emailError);
-      }
     } catch (error) {
       await t.rollback();
       console.error("Individual enquiry creation error:", {
