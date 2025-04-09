@@ -319,7 +319,7 @@ class ServiceProviderController {
         business_start_date,
         whatsapp_number,
         emergency_contact_name,
-        alternate_number,
+        alternate_number: alternate_number === "" ? null : alternate_number,
         nationality,
         reference_number,
         reference_name,
