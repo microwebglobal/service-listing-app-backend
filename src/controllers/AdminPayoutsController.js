@@ -227,20 +227,32 @@ class AdminPayoutsController {
   static async adminSettleCustomerAccount(req, res, next) {
     try {
       const userId = req.params.id;
-      const { amount } = req.body;
+      const { settleAmount } = req.body;
 
-      const user = await findOne({
-        where: {
-          u_id: userId,
-        },
+      if (!settleAmount || isNaN(settleAmount) || settleAmount <= 0) {
+        return res.status(400).json({ error: "Invalid amount" });
+      }
+
+      const user = await User.findOne({
+        where: { u_id: userId },
       });
 
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
       const accBalance = parseFloat(user.acc_balance);
-      const remainingBalance = accBalance - parseFloat(amount);
+
+      const remainingBalance = accBalance + parseFloat(settleAmount);
 
       await user.update({
         acc_balance: remainingBalance,
-        balance_updated_at: Date.now(),
+        balance_updated_at: new Date(),
+      });
+
+      return res.status(200).json({
+        message: "Balance updated successfully",
+        new_balance: remainingBalance,
       });
     } catch (error) {
       next(error);
