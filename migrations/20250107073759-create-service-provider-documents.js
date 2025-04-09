@@ -22,7 +22,7 @@ module.exports = {
       },
       document_type: {
         type: Sequelize.ENUM(
-          "logo"
+          "logo",
           "id_proof",
           "address_proof",
           "qualification_proof",
