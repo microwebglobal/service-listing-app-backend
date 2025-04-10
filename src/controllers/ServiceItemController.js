@@ -1,6 +1,11 @@
 const {
   ServiceItem,
   CitySpecificPricing,
+  SubCategory,
+  Service,
+  ServiceType,
+  CategoryCities,
+  ServiceCategory,
   SpecialPricing,
   CitySpecificBuffertime,
   ServiceCommission,
@@ -370,6 +375,67 @@ class ServiceItemController {
       }
 
       res.status(200).json({ message: "Service item deleted successfully" });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getServiceItemByCity(req, res, next) {
+    try {
+      const { cityId } = req.params;
+
+      if (!cityId) {
+        return res.status(400).json({ error: "city_id is required" });
+      }
+
+      const categories = await ServiceCategory.findAll({
+        include: [
+          {
+            model: SubCategory,
+            include: [
+              {
+                model: ServiceType,
+                include: [
+                  {
+                    model: Service,
+                    include: [
+                      {
+                        model: ServiceItem,
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            model: CategoryCities,
+            as: "categoryMappings",
+            where: {
+              city_id: cityId,
+              status: "active",
+            },
+            required: true,
+          },
+        ],
+        order: [["display_order", "ASC"]],
+      });
+
+      const serviceItems = [];
+
+      for (const category of categories) {
+        for (const subCategory of category.SubCategories || []) {
+          for (const serviceType of subCategory.ServiceTypes || []) {
+            for (const service of serviceType.Services || []) {
+              for (const item of service.ServiceItems || []) {
+                serviceItems.push(item);
+              }
+            }
+          }
+        }
+      }
+
+      return res.status(200).json(serviceItems);
     } catch (error) {
       next(error);
     }
