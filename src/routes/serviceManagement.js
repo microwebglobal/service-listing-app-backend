@@ -67,7 +67,11 @@ router.post(
   roleCheck("admin"),
   SubCategoryController.createSubCategory
 );
-router.put('/subcategories/:id', upload.single('image'), SubCategoryController.updateSubCategory);
+router.put(
+  "/subcategories/:id",
+  upload.single("image"),
+  SubCategoryController.updateSubCategory
+);
 
 router.delete(
   "/subcategories/:id",
@@ -144,6 +148,10 @@ router.get("/items/:id", ServiceItemController.getServiceItem);
 router.get(
   "/items/serv/:serviceId",
   ServiceItemController.getServiceItemByService
+);
+router.get(
+  "/city/:cityId/service-items", //route to get all service items belongs to city
+  ServiceItemController.getServiceItemByCity
 );
 router.put(
   "/items/:id",
