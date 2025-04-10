@@ -150,7 +150,7 @@ router.get(
   ServiceItemController.getServiceItemByService
 );
 router.get(
-  "/city/:cityId/service-items", //route to get all service items belongs to city
+  "/city/:cityName/service-items", //route to get all service items belongs to city
   ServiceItemController.getServiceItemByCity
 );
 router.put(

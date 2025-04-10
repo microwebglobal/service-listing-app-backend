@@ -3,6 +3,7 @@ const {
   CitySpecificPricing,
   SubCategory,
   Service,
+  City,
   ServiceType,
   CategoryCities,
   ServiceCategory,
@@ -12,7 +13,7 @@ const {
 } = require("../models");
 
 const IdGenerator = require("../utils/helper");
-const { Op } = require("sequelize");
+const { Op, where } = require("sequelize");
 
 class ServiceItemController {
   static async createServiceItem(req, res, next) {
@@ -382,11 +383,25 @@ class ServiceItemController {
 
   static async getServiceItemByCity(req, res, next) {
     try {
-      const { cityId } = req.params;
+      const { cityName } = req.params;
 
-      if (!cityId) {
-        return res.status(400).json({ error: "city_id is required" });
+      if (!cityName) {
+        return res.status(400).json({ error: "cityName is required" });
       }
+
+      const city = await City.findOne({
+        where: {
+          name: {
+            [Op.iLike]: cityName,
+          },
+        },
+      });
+
+      if (!city) {
+        return res.status(400).json({ error: "City not found" });
+      }
+
+      const cityId = city.city_id;
 
       const categories = await ServiceCategory.findAll({
         include: [
