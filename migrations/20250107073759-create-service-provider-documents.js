@@ -32,7 +32,7 @@ module.exports = {
           "insurance",
           "service_certificate",
           "agreement",
-          "terms_acceptance"
+          "terms_acceptance",
         ),
         allowNull: false,
       },
