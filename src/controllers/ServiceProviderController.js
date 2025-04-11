@@ -426,7 +426,10 @@ class ServiceProviderController {
                     user_id: user.u_id,
                     provider_id: provider.provider_id,
                     role: employee.designation,
-                    whatsapp_number: employee?.whatsapp_number,
+                    whatsapp_number:
+                      employee?.whatsapp_number === ""
+                        ? null
+                        : employee?.whatsapp_number,
                     qualification: employee.qualification,
                     years_experience: 5,
                     status: "inactive",
