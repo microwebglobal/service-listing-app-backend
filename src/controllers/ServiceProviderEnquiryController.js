@@ -194,6 +194,7 @@ class ServiceProviderEnquiryController {
       });
 
       if (error.name === "SequelizeUniqueConstraintError") {
+        console.log("Error:", error);
         return res.status(409).json({
           error: "Duplicate entry",
           details: error.errors.map((e) => e.message),
@@ -309,12 +310,6 @@ class ServiceProviderEnquiryController {
         message: "Individual enquiry created successfully",
         enquiry_id: enquiry.enquiry_id,
       });
-
-      try {
-        await MailService.sendEnquiryReceivedEmail(user, "individual");
-      } catch (emailError) {
-        console.error("Error sending enquiry email:", emailError);
-      }
     } catch (error) {
       await t.rollback();
       console.error("Individual enquiry creation error:", {

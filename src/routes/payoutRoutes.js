@@ -30,4 +30,11 @@ router.put(
   ServiceProviderProfileController.settleProviderAccPayables
 );
 
+//admin settle customer acc balance
+router.put(
+  "/customer/account/settle/:id",
+  authMiddleware,
+  AdminPayoutsController.adminSettleCustomerAccount
+);
+
 module.exports = router;

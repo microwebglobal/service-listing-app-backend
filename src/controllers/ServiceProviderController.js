@@ -94,8 +94,29 @@ class ServiceProviderController {
       const provider = await ServiceProvider.findOne({
         where: { user_id },
         include: [
+          { model: User },
+          {
+            model: ProviderServiceCategory,
+            as: "providerCategories",
+            include: {
+              model: ServiceCategory,
+
+              include: [{ model: SubCategory }],
+            },
+          },
+          {
+            model: ServiceCategory,
+            as: "serviceCategories",
+            include: [{ model: SubCategory }],
+          },
+          { model: City, as: "serviceCities" },
           {
             model: ServiceProviderEmployee,
+            include: [
+              {
+                model: User,
+              },
+            ],
           },
         ],
       });
@@ -153,6 +174,7 @@ class ServiceProviderController {
     }
   }
 
+  // Register a new service provider or update an existing one
   static async registerProvider(req, res, next) {
     console.log(req.body);
     let t;
@@ -163,9 +185,9 @@ class ServiceProviderController {
         enquiry_id,
         business_registration_number,
         service_radius,
-        exact_address, //newly added filed
-        business_start_date, //newly added fileds
-        tax_id, //newly added fileds
+        exact_address,
+        business_start_date,
+        tax_id,
         availability_type,
         availability_hours,
         specializations,
@@ -179,8 +201,8 @@ class ServiceProviderController {
         employees,
         whatsapp_number,
         emergency_contact_name,
-        alternate_number, //newly added filed
-        nationality, //newly added filed
+        alternate_number,
+        nationality,
         reference_number,
         reference_name,
         aadhar_number,
@@ -297,7 +319,7 @@ class ServiceProviderController {
         business_start_date,
         whatsapp_number,
         emergency_contact_name,
-        alternate_number,
+        alternate_number: alternate_number === "" ? null : alternate_number,
         nationality,
         reference_number,
         reference_name,
@@ -339,42 +361,102 @@ class ServiceProviderController {
         });
       }
 
-      // Handle employees
+      // Handle employees - NEW IMPROVED VERSION
       if (parsedData.employees && Array.isArray(parsedData.employees)) {
-        await Promise.all(
-          parsedData.employees.map(async (employee) => {
+        try {
+          for (const [index, employee] of parsedData.employees.entries()) {
             try {
-              const user = await User.create(
-                {
-                  name: employee.name,
-                  mobile: employee.phone,
-                  email: employee.email,
-                  tokenVersion: 1,
-                  gender: employee.gender,
-                  account_status: "pending",
-                  role: "business_employee",
-                },
-                { transaction: t }
-              );
+              const existingUser = await User.findOne({
+                where: { email: employee.email, mobile: employee.phone },
+                transaction: t,
+              });
 
-              await ServiceProviderEmployee.create(
-                {
+              let user;
+              if (existingUser) {
+                await existingUser.update(
+                  {
+                    name: employee.name,
+                    mobile: employee.phone,
+                    gender: employee.gender,
+                  },
+                  { transaction: t }
+                );
+                user = existingUser;
+              } else {
+                user = await User.create(
+                  {
+                    name: employee.name,
+                    mobile: employee.phone,
+                    email: employee.email,
+                    tokenVersion: 1,
+                    gender: employee.gender,
+                    account_status: "pending",
+                    role: "business_employee",
+                  },
+                  { transaction: t }
+                );
+              }
+
+              const existingEmployee = await ServiceProviderEmployee.findOne({
+                where: {
                   user_id: user.u_id,
                   provider_id: provider.provider_id,
-                  role: employee.designation,
-                  whatsapp_number: employee?.whatsapp_number,
-                  qualification: employee.qualification,
-                  years_experience: 5,
-                  status: "inactive",
                 },
-                { transaction: t }
-              );
+                transaction: t,
+              });
+
+              if (existingEmployee) {
+                await existingEmployee.update(
+                  {
+                    role: employee.designation,
+                    whatsapp_number:
+                      employee?.whatsapp_number === ""
+                        ? null
+                        : employee?.whatsapp_number,
+                    qualification: employee.qualification,
+                    years_experience: 5,
+                    status: "inactive",
+                  },
+                  { transaction: t }
+                );
+              } else {
+                await ServiceProviderEmployee.create(
+                  {
+                    user_id: user.u_id,
+                    provider_id: provider.provider_id,
+                    role: employee.designation,
+                    whatsapp_number:
+                      employee?.whatsapp_number === ""
+                        ? null
+                        : employee?.whatsapp_number,
+                    qualification: employee.qualification,
+                    years_experience: 5,
+                    status: "inactive",
+                  },
+                  { transaction: t }
+                );
+              }
             } catch (error) {
-              console.error("Error creating employee:", error);
-              throw error; // This will trigger transaction rollback
+              console.error("Error processing employee:", error);
+              await t.rollback();
+              return res.status(400).json({
+                error: "Employee validation failed",
+                details: error.message,
+                type: error.name,
+                validation: error.errors?.map((e) => ({
+                  field: `employee[${index}].${e.path}`,
+                  value: e.value,
+                  details: error.original?.detail || error.original?.message,
+                  message: `Employee ${employee.name} ${e.message}`,
+                })),
+              });
             }
-          })
-        );
+          }
+        } catch (error) {
+          console.error("Unexpected error in employee processing:", error);
+          await t.rollback();
+          throw error;
+        }
       }
 
       // Handle categories
@@ -382,17 +464,35 @@ class ServiceProviderController {
         await Promise.all(
           parsedData.categories.map(async (category) => {
             try {
-              await ProviderServiceCategory.create(
-                {
+              const existingCategory = await ProviderServiceCategory.findOne({
+                where: {
                   provider_id: provider.provider_id,
                   category_id: category.id,
-                  experience_years: Number(category.experience_years) || 0,
-                  is_primary: Boolean(category.is_primary),
                 },
-                { transaction: t }
-              );
+                transaction: t,
+              });
+
+              if (existingCategory) {
+                await existingCategory.update(
+                  {
+                    experience_years: Number(category.experience_years) || 0,
+                    is_primary: Boolean(category.is_primary),
+                  },
+                  { transaction: t }
+                );
+              } else {
+                await ProviderServiceCategory.create(
+                  {
+                    provider_id: provider.provider_id,
+                    category_id: category.id,
+                    experience_years: Number(category.experience_years) || 0,
+                    is_primary: Boolean(category.is_primary),
+                  },
+                  { transaction: t }
+                );
+              }
             } catch (error) {
-              console.error("Error creating category:", error);
+              console.error("Error processing category:", error);
               throw error;
             }
           })
@@ -404,17 +504,32 @@ class ServiceProviderController {
         await Promise.all(
           parsedData.cities.map(async (city) => {
             try {
-              await ProviderServiceCity.create(
-                {
-                  provider_id: provider.provider_id,
-                  city_id: city.id,
-                  service_radius: Number(city.service_radius) || 0,
-                  is_primary: Boolean(city.is_primary),
-                },
-                { transaction: t }
-              );
+              const existingCity = await ProviderServiceCity.findOne({
+                where: { provider_id: provider.provider_id, city_id: city.id },
+                transaction: t,
+              });
+
+              if (existingCity) {
+                await existingCity.update(
+                  {
+                    service_radius: Number(city.service_radius) || 0,
+                    is_primary: Boolean(city.is_primary),
+                  },
+                  { transaction: t }
+                );
+              } else {
+                await ProviderServiceCity.create(
+                  {
+                    provider_id: provider.provider_id,
+                    city_id: city.id,
+                    service_radius: Number(city.service_radius) || 0,
+                    is_primary: Boolean(city.is_primary),
+                  },
+                  { transaction: t }
+                );
+              }
             } catch (error) {
-              console.error("Error creating city:", error);
+              console.error("Error processing city:", error);
               throw error;
             }
           })
@@ -425,26 +540,43 @@ class ServiceProviderController {
       if (req.files) {
         const documentPromises = Object.keys(req.files).map((fieldName) => {
           const files = req.files[fieldName];
-          console.log(req.files);
           const filesArray = Array.isArray(files) ? files : [files];
 
           return Promise.all(
             filesArray.map(async (file) => {
-              console.log(file);
               if (file && file.path) {
                 try {
-                  await ServiceProviderDocument.create(
-                    {
-                      provider_id: provider.provider_id,
-                      document_type: file.fieldname,
-                      document_url: file.path,
-                      verification_status: "pending",
-                    },
-                    { transaction: t }
-                  );
+                  const existingDocument =
+                    await ServiceProviderDocument.findOne({
+                      where: {
+                        provider_id: provider.provider_id,
+                        document_type: file.fieldname,
+                      },
+                      transaction: t,
+                    });
+
+                  if (existingDocument) {
+                    await existingDocument.update(
+                      {
+                        document_url: file.path,
+                        verification_status: "pending",
+                      },
+                      { transaction: t }
+                    );
+                  } else {
+                    await ServiceProviderDocument.create(
+                      {
+                        provider_id: provider.provider_id,
+                        document_type: file.fieldname,
+                        document_url: file.path,
+                        verification_status: "pending",
+                      },
+                      { transaction: t }
+                    );
+                  }
                 } catch (error) {
                   console.error(
-                    `Error inserting document for field: ${fieldName}`,
+                    `Error processing document for field: ${fieldName}`,
                     error
                   );
                   throw error;
@@ -489,6 +621,8 @@ class ServiceProviderController {
         type: error.name,
         validation: error.errors?.map((e) => ({
           field: e.path,
+          value: e.value,
+          details: error.original?.detail || error.original?.message,
           message: e.message,
         })),
       });
@@ -565,7 +699,8 @@ class ServiceProviderController {
         if (provider.enquiry) {
           try {
             const newRegistrationLink = await generateReRgistrationLink(
-              provider.enquiry
+              provider.enquiry,
+              rejected_fields
             );
 
             await provider.enquiry.update(
@@ -907,6 +1042,8 @@ class ServiceProviderController {
       const providerId = req.params.id;
       const updateData = req.body;
 
+      console.log("updateData:", updateData);
+
       const provider = await ServiceProvider.findByPk(providerId, {
         include: [
           { model: User },
@@ -955,6 +1092,15 @@ class ServiceProviderController {
         Object.keys(req.files).forEach((fieldName) => {
           updateData[fieldName] = req.files[fieldName][0].path;
         });
+      }
+
+      // Handle empty WhatsApp number and alt number
+      if (
+        updateData.whatsapp_number === "" ||
+        updateData.alternate_number === ""
+      ) {
+        updateData.whatsapp_number = null;
+        updateData.alternate_number = null;
       }
 
       await provider.update(updateData, { transaction });
@@ -1099,6 +1245,10 @@ class ServiceProviderController {
                   status: employee.status,
                   qualification: employee.qualification,
                   years_experience: employee.years_experience,
+                  whatsapp_number:
+                    employee?.whatsapp_number === ""
+                      ? null
+                      : employee?.whatsapp_number,
                 },
                 {
                   where: {

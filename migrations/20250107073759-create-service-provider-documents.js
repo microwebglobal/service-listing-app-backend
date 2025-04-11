@@ -22,6 +22,7 @@ module.exports = {
       },
       document_type: {
         type: Sequelize.ENUM(
+          "logo",
           "id_proof",
           "address_proof",
           "qualification_proof",
@@ -32,7 +33,6 @@ module.exports = {
           "service_certificate",
           "agreement",
           "terms_acceptance",
-          "logo"
         ),
         allowNull: false,
       },

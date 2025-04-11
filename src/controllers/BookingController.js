@@ -647,6 +647,9 @@ class BookingController {
       let totalAmount = 0;
       let totalAdvanceAmount = 0;
       let totalServiceCommition = 0;
+      let serviceCommitionRate = 0;
+      let advanceAmount = 0;
+
       for (const item of items) {
         const currentPrice = await BookingController.getCurrentPrice(
           item.itemId,
@@ -654,21 +657,50 @@ class BookingController {
           cityId
         );
 
-        const bookedItem = await ServiceItem.findOne({
-          where: { item_id: item.itemId },
-          attributes: ["advance_percentage", "is_home_visit"],
-        });
+        console.log(item.itemType);
 
-        const serviceCommiton = await ServiceCommission.findOne({
-          where: { city_id: cityId, item_id: item.itemId },
-        });
+        if (item.itemType === "package_item") {
+          const packageItem = await PackageItem.findOne({
+            where: { item_id: item.itemId },
+          });
 
-        const serviceCommitionRate =
-          parseFloat(serviceCommiton?.commission_rate) / 100;
+          const packageSection = await PackageSection.findOne({
+            where: { section_id: packageItem?.section_id },
+          });
 
-        const advancePercentage = bookedItem?.advance_percentage;
+          const bookedPackage = await Package.findOne({
+            where: { package_id: packageSection?.package_id },
+          });
 
-        const advanceAmount = currentPrice * (advancePercentage / 100);
+          const advancePercentage = parseFloat(
+            bookedPackage?.advance_percentage
+          );
+
+          advanceAmount = currentPrice * (advancePercentage / 100);
+
+          const serviceCommiton = await ServiceCommission.findOne({
+            where: { city_id: cityId, item_id: bookedPackage?.package_id },
+          });
+
+          serviceCommitionRate =
+            parseFloat(serviceCommiton?.commission_rate) / 100;
+        } else if (item.itemType === "service_item") {
+          const bookedItem = await ServiceItem.findOne({
+            where: { item_id: item.itemId },
+            attributes: ["advance_percentage", "is_home_visit"],
+          });
+
+          const advancePercentage = bookedItem?.advance_percentage;
+
+          advanceAmount = currentPrice * (advancePercentage / 100);
+
+          const serviceCommiton = await ServiceCommission.findOne({
+            where: { city_id: cityId, item_id: item.itemId },
+          });
+
+          serviceCommitionRate =
+            parseFloat(serviceCommiton?.commission_rate) / 100;
+        }
 
         const totalPrice = currentPrice * item.quantity;
         totalAmount += totalPrice;
@@ -681,6 +713,9 @@ class BookingController {
         console.log(serviceCommitionRate);
         console.log(serviceCommitionAmount);
         console.log(totalServiceCommition);
+
+        console.log("serviceCommitionRate", serviceCommitionRate);
+        console.log("advanceAmount", advanceAmount);
 
         await BookingItem.create({
           booking_id: booking.booking_id,

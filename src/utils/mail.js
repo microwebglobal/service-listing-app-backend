@@ -60,12 +60,15 @@ class MailService {
                     word-break: break-all;
                     color: #007bff;
                 }
+                .name {
+                    text-transform: capitalize;
+                }
             </style>
         </head>
         <body>
             <div class="container">
                 <h2>Welcome to Our Platform!</h2>
-                <p>Hello ${userName},</p>
+                <p>Hello <span class="name">${userName}</span>,</p>
                 <p>Your service provider account has been approved. Please set up your password using the link below:</p>
                 <p>
                     <a href="${passwordLink}" class="button">Set Up Password</a>
@@ -98,12 +101,15 @@ class MailService {
                     margin: 0 auto;
                     padding: 20px;
                 }
+                .name {
+                    text-transform: capitalize;
+                }
             </style>
         </head>
         <body>
             <div class="container">
                 <h2>Registration Successful!</h2>
-                <p>Hello ${userName},</p>
+                <p>Hello <span class="name">${userName}</span>,</p>
                 <p>Thank you for registering as a service provider. Your registration has been received and is currently under review.</p>
                 <p>Our team will review your application and get back to you shortly. Once approved, you will receive another email with instructions to set up your password.</p>
                 <p>Best regards,<br>Your Platform Team</p>
@@ -146,12 +152,15 @@ class MailService {
                     margin: 0 auto;
                     padding: 20px;
                 }
+                .name {
+                    text-transform: capitalize;
+                }
             </style>
         </head>
         <body>
             <div class="container">
                 <h2>Enquiry Received</h2>
-                <p>Hello ${userName},</p>
+                <p>Hello <span class="name">${userName}</span>,</p>
                 <p>Thank you for your interest in becoming a ${businessType} service provider. We have received your enquiry and our team will review it shortly.</p>
                 <p>You will receive another email once your enquiry has been reviewed with further instructions.</p>
                 <p>Best regards,<br>Your Platform Team</p>
@@ -189,12 +198,15 @@ class MailService {
                     word-break: break-all;
                     color: #007bff;
                 }
+                .name {
+                    text-transform: capitalize;
+                }
             </style>
         </head>
         <body>
             <div class="container">
                 <h2>Enquiry Approved!</h2>
-                <p>Hello ${userName},</p>
+                <p>Hello <span class="name">${userName}</span>,</p>
                 <p>We're pleased to inform you that your service provider enquiry has been approved.</p>
                 <p>Please click the button below to complete your registration:</p>
                 <p>
@@ -234,12 +246,15 @@ class MailService {
                     font-style: italic;
                     color: #d9534f;
                 }
+                .name {
+                    text-transform: capitalize;
+                }
             </style>
         </head>
         <body>
             <div class="container">
                 <h2>Enquiry Rejected</h2>
-                <p>Hello ${userName},</p>
+                <p>Hello <span class="name">${userName}</span>,</p>
                 <p>We regret to inform you that your service provider enquiry has been rejected.</p>
                 <p><strong>Reason:</strong> <span class="reason">${reason}</span></p>
                 <p>If you believe this was a mistake or need further clarification, please contact our support team.</p>
@@ -313,12 +328,15 @@ class MailService {
                     word-break: break-all;
                     color: #007bff;
                 }
+                .name {
+                    text-transform: capitalize;
+                }
             </style>
         </head>
         <body>
             <div class="container">
-                <h2>Enquiry Approved!</h2>
-                <p>Hello ${userName},</p>
+                <h2>Enquiry Rejected!</h2>
+                <p>Hello <span class="name">${userName}</span>,</p>
                 <p>We're sorry to inform you that your service provider enquiry has been rejected.</p>
                 <p>Reason: ${reason}</p>
                 ${
