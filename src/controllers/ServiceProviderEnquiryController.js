@@ -194,6 +194,7 @@ class ServiceProviderEnquiryController {
       });
 
       if (error.name === "SequelizeUniqueConstraintError") {
+        console.log("Error:", error);
         return res.status(409).json({
           error: "Duplicate entry",
           details: error.errors.map((e) => e.message),

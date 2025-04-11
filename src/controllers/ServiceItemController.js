@@ -130,6 +130,8 @@ class ServiceItemController {
         where: { item_id: req.params.id },
       });
 
+      console.log(req.body);
+
       if (!updated) {
         return res.status(404).json({ message: "Service item not found" });
       }

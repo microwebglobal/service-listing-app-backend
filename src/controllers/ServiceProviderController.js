@@ -364,10 +364,11 @@ class ServiceProviderController {
       // Handle employees
       if (parsedData.employees && Array.isArray(parsedData.employees)) {
         await Promise.all(
-          parsedData.employees.map(async (employee) => {
+          parsedData.employees.map(async (employee, index) => {
+            console.log(employee);
             try {
               const existingUser = await User.findOne({
-                where: { email: employee.email },
+                where: { email: employee.email, mobile: employee.phone },
                 transaction: t,
               });
 
@@ -435,6 +436,17 @@ class ServiceProviderController {
               }
             } catch (error) {
               console.error("Error processing employee:", error);
+              return res.status(500).json({
+                error: "Provider registration failed",
+                details: error.message,
+                type: error.name,
+                validation: error.errors?.map((e) => ({
+                  field: `employee[${index}].${e.path}`,
+                  value: e.value,
+                  details: error.original?.detail || error.original?.message,
+                  message: `Employee ${employee.name} ${e.message}`,
+                })),
+              });
               throw error;
             }
           })
@@ -603,6 +615,8 @@ class ServiceProviderController {
         type: error.name,
         validation: error.errors?.map((e) => ({
           field: e.path,
+          value: e.value,
+          details: error.original?.detail || error.original?.message,
           message: e.message,
         })),
       });

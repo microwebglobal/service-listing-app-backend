@@ -18,7 +18,7 @@ const {
   ServiceCategory,
   sequelize,
 } = require("../models");
-const { Op } = require("sequelize");
+const { Op, where } = require("sequelize");
 const createError = require("http-errors");
 const { differenceInMinutes } = require("date-fns");
 
@@ -38,6 +38,11 @@ class CustomerBookingController {
                 as: "serviceItem",
                 required: false,
               },
+              {
+                model: PackageItem,
+                as: "packageItem",
+                required: false,
+              },
             ],
           },
         ],
@@ -53,42 +58,63 @@ class CustomerBookingController {
         `${booking.booking_date}T${booking.start_time}`
       );
 
-      // Find the minimum grace period among all service items
-      let minGracePeriod = Math.min(
-        ...booking.BookingItems.map(
-          (item) => parseFloat(item.serviceItem.grace_period) || 0
-        )
-      );
-
+      let minGracePeriod = 0;
       let penaltyAmount = 0;
+      let penaltyPercentage = 0;
 
-      if (minGracePeriod > 0) {
-        // Calculate total minutes between booking start and created date
-        const totalMinutes = differenceInMinutes(bookingStartDate, createdDate);
+      for (const item of booking.BookingItems) {
+        if (item.item_type === "package_item") {
+          const packageSection = await PackageSection.findOne({
+            where: {
+              section_id: item?.packageItem?.section_id,
+            },
+          });
 
-        // Compute grace time in minutes
-        const graceTimeInMinutes = Math.floor(
-          (totalMinutes / 100) * minGracePeriod
-        );
+          const bookedPackage = await Package.findOne({
+            where: {
+              package_id: packageSection?.package_id,
+            },
+          });
 
-        // Calculate grace expiry time
-        const graceExpiryTime = new Date(
-          createdDate.getTime() + graceTimeInMinutes * 60 * 1000
-        );
+          minGracePeriod = parseFloat(bookedPackage?.grace_period || 0);
+          penaltyPercentage = parseFloat(
+            bookedPackage?.penalty_percentage || 0
+          );
+        } else {
+          minGracePeriod = Math.min(
+            ...booking.BookingItems.map((i) =>
+              parseFloat(i.serviceItem?.grace_period || 0)
+            )
+          );
 
-        console.log(`Total Minutes: ${totalMinutes}`);
-        console.log(`Min Grace Period: ${minGracePeriod}%`);
-        console.log(`Grace Time (Minutes): ${graceTimeInMinutes}`);
-        console.log(`Grace Expiry Time: ${graceExpiryTime}`);
+          penaltyPercentage = parseFloat(
+            item.serviceItem?.penalty_percentage || 0
+          );
+        }
 
-        // If now is past the grace expiry time, apply penalty
-        if (now > graceExpiryTime) {
-          booking.BookingItems.forEach((item) => {
-            const penaltyPercentage =
-              parseFloat(item.serviceItem.penalty_percentage) || 0;
+        if (minGracePeriod > 0) {
+          const totalMinutes = differenceInMinutes(
+            bookingStartDate,
+            createdDate
+          );
+
+          const graceTimeInMinutes = Math.floor(
+            (totalMinutes / 100) * minGracePeriod
+          );
+
+          const graceExpiryTime = new Date(
+            createdDate.getTime() + graceTimeInMinutes * 60 * 1000
+          );
+
+          console.log(`Total Minutes: ${totalMinutes}`);
+          console.log(`Min Grace Period: ${minGracePeriod}%`);
+          console.log(`Grace Time (Minutes): ${graceTimeInMinutes}`);
+          console.log(`Grace Expiry Time: ${graceExpiryTime}`);
+
+          if (now > graceExpiryTime) {
             const totalPrice = parseFloat(item.total_price);
             penaltyAmount += (penaltyPercentage / 100) * totalPrice;
-          });
+          }
         }
       }
 
