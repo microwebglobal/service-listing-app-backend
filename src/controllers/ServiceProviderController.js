@@ -444,7 +444,7 @@ class ServiceProviderController {
                 details: error.message,
                 type: error.name,
                 validation: error.errors?.map((e) => ({
-                  field: `employee[${index}].${e.path}`,
+                  field: `employees[${index}].${e.path}`,
                   value: e.value,
                   details: error.original?.detail || error.original?.message,
                   message: `Employee ${employee.name} ${e.message}`,
