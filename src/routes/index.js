@@ -17,6 +17,7 @@ const Addresses = require("./addresses");
 const AdminBookingRoutes = require("./adminbookingRoutes");
 const SystemSettings = require("./systemSettings");
 const PayoutRoutes = require("./payoutRoutes");
+const NotificationRoutes = require("./notificationRoutes");
 // Import middlewares
 
 // Health check route
@@ -45,6 +46,7 @@ router.use("/auth", AuthRoutes);
 router.use("/admin", AdminBookingRoutes);
 router.use("/", SystemSettings);
 router.use("/payout", PayoutRoutes);
+router.use("/notification", NotificationRoutes);
 
 // Protected routes
 router.use(
