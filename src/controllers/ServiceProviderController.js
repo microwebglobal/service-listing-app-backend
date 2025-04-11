@@ -1039,6 +1039,8 @@ class ServiceProviderController {
       const providerId = req.params.id;
       const updateData = req.body;
 
+      console.log("updateData:", updateData);
+
       const provider = await ServiceProvider.findByPk(providerId, {
         include: [
           { model: User },
@@ -1087,6 +1089,15 @@ class ServiceProviderController {
         Object.keys(req.files).forEach((fieldName) => {
           updateData[fieldName] = req.files[fieldName][0].path;
         });
+      }
+
+      // Handle empty WhatsApp number and alt number
+      if (
+        updateData.whatsapp_number === "" ||
+        updateData.alternate_number === ""
+      ) {
+        updateData.whatsapp_number = null;
+        updateData.alternate_number = null;
       }
 
       await provider.update(updateData, { transaction });
@@ -1231,7 +1242,10 @@ class ServiceProviderController {
                   status: employee.status,
                   qualification: employee.qualification,
                   years_experience: employee.years_experience,
-                  whatsapp_number: employee?.whatsapp_number,
+                  whatsapp_number:
+                    employee?.whatsapp_number === ""
+                      ? null
+                      : employee?.whatsapp_number,
                 },
                 {
                   where: {
