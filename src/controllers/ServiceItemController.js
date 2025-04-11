@@ -326,7 +326,7 @@ class ServiceItemController {
 
       if (!items || items.length === 0) {
         return res
-          .status(404)
+          .status(200)
           .json({ message: "No service items found for the given service" });
       }
 
