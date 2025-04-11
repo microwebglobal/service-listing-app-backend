@@ -317,7 +317,7 @@ class ServiceProviderController {
         exact_address,
         tax_id,
         business_start_date,
-        whatsapp_number,
+        whatsapp_number: whatsapp_number === "" ? null : whatsapp_number,
         emergency_contact_name,
         alternate_number: alternate_number === "" ? null : alternate_number,
         nationality,
