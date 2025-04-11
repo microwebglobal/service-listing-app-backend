@@ -185,9 +185,9 @@ class ServiceProviderController {
         enquiry_id,
         business_registration_number,
         service_radius,
-        exact_address, //newly added filed
-        business_start_date, //newly added fileds
-        tax_id, //newly added fileds
+        exact_address,
+        business_start_date,
+        tax_id,
         availability_type,
         availability_hours,
         specializations,
@@ -201,8 +201,8 @@ class ServiceProviderController {
         employees,
         whatsapp_number,
         emergency_contact_name,
-        alternate_number, //newly added filed
-        nationality, //newly added filed
+        alternate_number,
+        nationality,
         reference_number,
         reference_name,
         aadhar_number,
@@ -361,11 +361,10 @@ class ServiceProviderController {
         });
       }
 
-      // Handle employees
+      // Handle employees - NEW IMPROVED VERSION
       if (parsedData.employees && Array.isArray(parsedData.employees)) {
-        await Promise.all(
-          parsedData.employees.map(async (employee, index) => {
-            console.log(employee);
+        try {
+          for (const [index, employee] of parsedData.employees.entries()) {
             try {
               const existingUser = await User.findOne({
                 where: { email: employee.email, mobile: employee.phone },
@@ -439,8 +438,9 @@ class ServiceProviderController {
               }
             } catch (error) {
               console.error("Error processing employee:", error);
-              return res.status(500).json({
-                error: "Provider registration failed",
+              await t.rollback();
+              return res.status(400).json({
+                error: "Employee validation failed",
                 details: error.message,
                 type: error.name,
                 validation: error.errors?.map((e) => ({
@@ -450,10 +450,13 @@ class ServiceProviderController {
                   message: `Employee ${employee.name} ${e.message}`,
                 })),
               });
-              throw error;
             }
-          })
-        );
+          }
+        } catch (error) {
+          console.error("Unexpected error in employee processing:", error);
+          await t.rollback();
+          throw error;
+        }
       }
 
       // Handle categories
