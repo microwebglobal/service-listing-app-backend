@@ -185,9 +185,9 @@ class ServiceProviderController {
         enquiry_id,
         business_registration_number,
         service_radius,
-        exact_address, //newly added filed
-        business_start_date, //newly added fileds
-        tax_id, //newly added fileds
+        exact_address,
+        business_start_date,
+        tax_id,
         availability_type,
         availability_hours,
         specializations,
@@ -201,8 +201,8 @@ class ServiceProviderController {
         employees,
         whatsapp_number,
         emergency_contact_name,
-        alternate_number, //newly added filed
-        nationality, //newly added filed
+        alternate_number,
+        nationality,
         reference_number,
         reference_name,
         aadhar_number,
@@ -317,7 +317,7 @@ class ServiceProviderController {
         exact_address,
         tax_id,
         business_start_date,
-        whatsapp_number,
+        whatsapp_number: whatsapp_number === "" ? null : whatsapp_number,
         emergency_contact_name,
         alternate_number: alternate_number === "" ? null : alternate_number,
         nationality,
@@ -361,13 +361,13 @@ class ServiceProviderController {
         });
       }
 
-      // Handle employees
+      // Handle employees - NEW IMPROVED VERSION
       if (parsedData.employees && Array.isArray(parsedData.employees)) {
-        await Promise.all(
-          parsedData.employees.map(async (employee) => {
+        try {
+          for (const [index, employee] of parsedData.employees.entries()) {
             try {
               const existingUser = await User.findOne({
-                where: { email: employee.email },
+                where: { email: employee.email, mobile: employee.phone },
                 transaction: t,
               });
 
@@ -425,7 +425,10 @@ class ServiceProviderController {
                     user_id: user.u_id,
                     provider_id: provider.provider_id,
                     role: employee.designation,
-                    whatsapp_number: employee?.whatsapp_number,
+                    whatsapp_number:
+                      employee?.whatsapp_number === ""
+                        ? null
+                        : employee?.whatsapp_number,
                     qualification: employee.qualification,
                     years_experience: 5,
                     status: "inactive",
@@ -435,10 +438,25 @@ class ServiceProviderController {
               }
             } catch (error) {
               console.error("Error processing employee:", error);
-              throw error;
+              await t.rollback();
+              return res.status(400).json({
+                error: "Employee validation failed",
+                details: error.message,
+                type: error.name,
+                validation: error.errors?.map((e) => ({
+                  field: `employees[${index}].${e.path}`,
+                  value: e.value,
+                  details: error.original?.detail || error.original?.message,
+                  message: `Employee ${employee.name} ${e.message}`,
+                })),
+              });
             }
-          })
-        );
+          }
+        } catch (error) {
+          console.error("Unexpected error in employee processing:", error);
+          await t.rollback();
+          throw error;
+        }
       }
 
       // Handle categories
@@ -603,6 +621,8 @@ class ServiceProviderController {
         type: error.name,
         validation: error.errors?.map((e) => ({
           field: e.path,
+          value: e.value,
+          details: error.original?.detail || error.original?.message,
           message: e.message,
         })),
       });
@@ -1022,6 +1042,8 @@ class ServiceProviderController {
       const providerId = req.params.id;
       const updateData = req.body;
 
+      console.log("updateData:", updateData);
+
       const provider = await ServiceProvider.findByPk(providerId, {
         include: [
           { model: User },
@@ -1070,6 +1092,15 @@ class ServiceProviderController {
         Object.keys(req.files).forEach((fieldName) => {
           updateData[fieldName] = req.files[fieldName][0].path;
         });
+      }
+
+      // Handle empty WhatsApp number and alt number
+      if (
+        updateData.whatsapp_number === "" ||
+        updateData.alternate_number === ""
+      ) {
+        updateData.whatsapp_number = null;
+        updateData.alternate_number = null;
       }
 
       await provider.update(updateData, { transaction });
@@ -1214,7 +1245,10 @@ class ServiceProviderController {
                   status: employee.status,
                   qualification: employee.qualification,
                   years_experience: employee.years_experience,
-                  whatsapp_number: employee?.whatsapp_number,
+                  whatsapp_number:
+                    employee?.whatsapp_number === ""
+                      ? null
+                      : employee?.whatsapp_number,
                 },
                 {
                   where: {

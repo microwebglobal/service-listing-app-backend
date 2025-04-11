@@ -1,13 +1,19 @@
 const {
   ServiceItem,
   CitySpecificPricing,
+  SubCategory,
+  Service,
+  City,
+  ServiceType,
+  CategoryCities,
+  ServiceCategory,
   SpecialPricing,
   CitySpecificBuffertime,
   ServiceCommission,
 } = require("../models");
 
 const IdGenerator = require("../utils/helper");
-const { Op } = require("sequelize");
+const { Op, where } = require("sequelize");
 
 class ServiceItemController {
   static async createServiceItem(req, res, next) {
@@ -123,6 +129,8 @@ class ServiceItemController {
       const [updated] = await ServiceItem.update(updateData, {
         where: { item_id: req.params.id },
       });
+
+      console.log(req.body);
 
       if (!updated) {
         return res.status(404).json({ message: "Service item not found" });
@@ -318,7 +326,7 @@ class ServiceItemController {
 
       if (!items || items.length === 0) {
         return res
-          .status(404)
+          .status(200)
           .json({ message: "No service items found for the given service" });
       }
 
@@ -370,6 +378,81 @@ class ServiceItemController {
       }
 
       res.status(200).json({ message: "Service item deleted successfully" });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getServiceItemByCity(req, res, next) {
+    try {
+      const { cityName } = req.params;
+
+      if (!cityName) {
+        return res.status(400).json({ error: "cityName is required" });
+      }
+
+      const city = await City.findOne({
+        where: {
+          name: {
+            [Op.iLike]: cityName,
+          },
+        },
+      });
+
+      if (!city) {
+        return res.status(400).json({ error: "City not found" });
+      }
+
+      const cityId = city.city_id;
+
+      const categories = await ServiceCategory.findAll({
+        include: [
+          {
+            model: SubCategory,
+            include: [
+              {
+                model: ServiceType,
+                include: [
+                  {
+                    model: Service,
+                    include: [
+                      {
+                        model: ServiceItem,
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            model: CategoryCities,
+            as: "categoryMappings",
+            where: {
+              city_id: cityId,
+              status: "active",
+            },
+            required: true,
+          },
+        ],
+        order: [["display_order", "ASC"]],
+      });
+
+      const serviceItems = [];
+
+      for (const category of categories) {
+        for (const subCategory of category.SubCategories || []) {
+          for (const serviceType of subCategory.ServiceTypes || []) {
+            for (const service of serviceType.Services || []) {
+              for (const item of service.ServiceItems || []) {
+                serviceItems.push(item);
+              }
+            }
+          }
+        }
+      }
+
+      return res.status(200).json(serviceItems);
     } catch (error) {
       next(error);
     }

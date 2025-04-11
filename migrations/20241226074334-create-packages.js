@@ -38,6 +38,16 @@ module.exports = {
         type: Sequelize.INTEGER,
         defaultValue: 0,
       },
+      grace_period: {
+        type: Sequelize.DECIMAL(5, 2),
+      },
+      penalty_percentage: {
+        type: Sequelize.DECIMAL(5, 2),
+      },
+      advance_percentage: {
+        type: Sequelize.DECIMAL(5, 2),
+        allowNull: false,
+      },
       icon_url: Sequelize.STRING(255),
       created_at: {
         type: Sequelize.DATE,
