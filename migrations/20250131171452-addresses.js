@@ -2,6 +2,8 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
+    await queryInterface.sequelize.query('CREATE EXTENSION IF NOT EXISTS postgis;');
+    
     await queryInterface.createTable("addresses", {
       id: {
         type: Sequelize.INTEGER,
@@ -43,13 +45,9 @@ module.exports = {
         type: Sequelize.STRING,
         allowNull: false,
       },
-      latitude: {
-        type: Sequelize.DECIMAL(10, 8),
-        allowNull: false,
-      },
-      longitude: {
-        type: Sequelize.DECIMAL(11, 8),
-        allowNull: false,
+      location: {
+        type: Sequelize.GEOGRAPHY('POINT', 4326),
+        allowNull: true,
       },
       is_primary: {
         type: Sequelize.BOOLEAN,
@@ -67,7 +65,6 @@ module.exports = {
       },
     });
 
-    // Add index for primary address constraint
     await queryInterface.addIndex('addresses', {
       fields: ['userId', 'is_primary'],
       unique: true,
@@ -76,6 +73,10 @@ module.exports = {
       },
       name: 'unique_primary_address_per_user'
     });
+
+    await queryInterface.sequelize.query(
+      'CREATE INDEX idx_addresses_location ON addresses USING GIST (location);'
+    );
   },
 
   down: async (queryInterface, Sequelize) => {
