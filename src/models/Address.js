@@ -39,13 +39,9 @@ module.exports = (sequelize, DataTypes) => {
           type: DataTypes.STRING,
           allowNull: false,
         },
-        latitude: {
-          type: DataTypes.DECIMAL(10, 8),
-          allowNull: false,
-        },
-        longitude: {
-          type: DataTypes.DECIMAL(11, 8),
-          allowNull: false,
+        location: {
+          type: DataTypes.GEOGRAPHY('POINT', 4326),
+          allowNull: true,
         },
         is_primary: {
           type: DataTypes.BOOLEAN,
@@ -71,6 +67,22 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: 'userId',
         targetKey: 'u_id'
       });
+    };
+    
+    
+    Address.prototype.setLocation = function(latitude, longitude) {
+      this.location = sequelize.fn('ST_SetSRID', 
+                     sequelize.fn('ST_MakePoint', longitude, latitude), 
+                     4326);
+    };
+    
+    Address.prototype.getCoordinates = function() {
+      if (!this.location || !this.location.coordinates) return null;
+      const point = this.location.coordinates;
+      return {
+        latitude: point[1],
+        longitude: point[0]
+      };
     };
   
     return Address;
