@@ -43,7 +43,7 @@ module.exports = {
           key: "u_id",
         },
         onUpdate: "CASCADE",
-        onDelete: "RESTRICT",
+        onDelete: "CASCADE",
       },
       provider_id: {
         type: Sequelize.INTEGER,
@@ -53,7 +53,7 @@ module.exports = {
           key: "provider_id",
         },
         onUpdate: "CASCADE",
-        onDelete: "RESTRICT",
+        onDelete: "CASCADE",
       },
       employee_id: {
         type: Sequelize.INTEGER,
@@ -159,7 +159,7 @@ module.exports = {
         defaultValue: Sequelize.literal("CURRENT_TIMESTAMP"),
       },
     });
-    
+
     // Add indexes
     await queryInterface.addIndex("bookings", ["user_id"]);
     await queryInterface.addIndex("bookings", ["provider_id"]);
@@ -167,13 +167,19 @@ module.exports = {
     await queryInterface.addIndex("bookings", ["status"]);
     await queryInterface.addIndex("bookings", ["booking_date"]);
   },
-  
+
   down: async (queryInterface, Sequelize) => {
     await queryInterface.dropTable("bookings");
-    
+
     // Drop the ENUM types
-    await queryInterface.sequelize.query(`DROP TYPE IF EXISTS "enum_bookings_status";`);
-    await queryInterface.sequelize.query(`DROP TYPE IF EXISTS "enum_bookings_cancelled_by";`);
-    await queryInterface.sequelize.query(`DROP TYPE IF EXISTS "enum_bookings_penalty_status";`);
+    await queryInterface.sequelize.query(
+      `DROP TYPE IF EXISTS "enum_bookings_status";`
+    );
+    await queryInterface.sequelize.query(
+      `DROP TYPE IF EXISTS "enum_bookings_cancelled_by";`
+    );
+    await queryInterface.sequelize.query(
+      `DROP TYPE IF EXISTS "enum_bookings_penalty_status";`
+    );
   },
 };

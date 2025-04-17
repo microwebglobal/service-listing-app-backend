@@ -16,7 +16,7 @@ module.exports = {
           key: "booking_id",
         },
         onUpdate: "CASCADE",
-        onDelete: "RESTRICT",
+        onDelete: "CASCADE",
       },
       subtotal: {
         type: Sequelize.DECIMAL(10, 2),

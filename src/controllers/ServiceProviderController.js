@@ -13,6 +13,7 @@ const {
   ServiceItem,
   PackageItem,
   PackageSection,
+  DailyPayoutLogs,
   ServiceProviderEnquiry,
   ServiceProviderEmployee,
   ServiceProviderDocument,

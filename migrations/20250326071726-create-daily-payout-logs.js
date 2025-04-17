@@ -17,7 +17,7 @@ module.exports = {
           key: "provider_id",
         },
         onUpdate: "CASCADE",
-        onDelete: "RESTRICT",
+        onDelete: "CASCADE",
       },
       payout_amount: {
         type: Sequelize.DECIMAL,
