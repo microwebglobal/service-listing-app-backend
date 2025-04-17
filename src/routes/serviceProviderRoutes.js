@@ -35,6 +35,10 @@ router.put(
   roleCheck("admin"),
   ServiceProviderEnquiryController.rejectEnquiry
 );
+router.delete(
+  "/enquiry/:id",
+  ServiceProviderEnquiryController.deleteEnquiryRecord
+);
 
 // Provider routes
 router.get(
@@ -73,6 +77,11 @@ router.put(
 router.put(
   "/provider/availability/:id",
   ServiceProviderController.updateProviderAvailability
+);
+
+router.delete(
+  "/provider/:id",
+  ServiceProviderController.deleteServiceProviderRecord
 );
 
 //provider document routes

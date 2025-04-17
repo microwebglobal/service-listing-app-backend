@@ -422,6 +422,22 @@ class ServiceProviderEnquiryController {
       next(error);
     }
   }
+
+  static async deleteEnquiryRecord(req, res, next) {
+    try {
+      const enquirie = await ServiceProviderEnquiry.findByPk(req.params.id);
+
+      if (!enquirie) {
+        return res.status(404).json({ error: "Enquiry not found" });
+      }
+
+      await enquirie.destroy();
+
+      return res.status(200).json({ message: "Enquiry deleted successfully" });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = ServiceProviderEnquiryController;

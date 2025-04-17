@@ -1364,6 +1364,25 @@ class ServiceProviderController {
       next(error);
     }
   }
+
+  static async deleteServiceProviderRecord(req, res, next) {
+    try {
+      const serviceProvider = await ServiceProvider.findByPk(req.params.id);
+
+      if (!serviceProvider) {
+        return res.status(404).json({ error: "Service provider not found" });
+      }
+
+      await serviceProvider.destroy();
+
+      return res
+        .status(200)
+        .json({ message: "Service provider deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting service provider:", error);
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  }
 }
 
 module.exports = ServiceProviderController;
