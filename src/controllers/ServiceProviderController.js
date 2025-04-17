@@ -632,6 +632,7 @@ class ServiceProviderController {
 
   static async updateProviderStatus(req, res, next) {
     const transaction = await sequelize.transaction();
+    const passwordLinks = [];
 
     console.log(req.body);
 
@@ -811,6 +812,12 @@ class ServiceProviderController {
 
                 const passwordLink = await generatePasswordLink(updatedUser);
                 console.log("Paswordlinkfor Employee ", passwordLink);
+                passwordLinks.push({
+                  id: updatedUser.u_id,
+                  name: updatedUser?.name,
+                  link: passwordLink,
+                  type: "business_employee",
+                });
                 await MailService.sendPasswordSetupEmail(
                   updatedUser,
                   passwordLink
@@ -852,6 +859,12 @@ class ServiceProviderController {
       );
 
       const passwordLink = await generatePasswordLink(provider.User);
+      passwordLinks.push({
+        id: provider?.User?.u_id,
+        name: provider?.User?.name,
+        link: passwordLink,
+        type: "provider",
+      });
       console.log("Paswordlinkfor Business Provider", passwordLink);
       await MailService.sendPasswordSetupEmail(provider.User, passwordLink);
 
@@ -859,6 +872,7 @@ class ServiceProviderController {
       res.status(200).json({
         message: "Provider status updated successfully",
         provider_id: providerId,
+        password_links: passwordLinks,
         new_status: status,
       });
     } catch (error) {
@@ -870,7 +884,6 @@ class ServiceProviderController {
         details: error.original?.detail || error.original?.message,
       });
 
-      // Handle specific error types
       if (error.name === "SequelizeValidationError") {
         return res.status(400).json({
           error: "Validation error",
