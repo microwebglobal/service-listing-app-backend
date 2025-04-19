@@ -3,6 +3,8 @@ const {
   PackageSection,
   PackageItem,
   ServiceType,
+  CitySpecificBuffertime,
+  ServiceCommission,
   sequelize,
 } = require("../models");
 const IdGenerator = require("../utils/helper");
@@ -17,6 +19,12 @@ class PackageController {
           {
             model: ServiceType,
             attributes: ["name", "description"],
+          },
+          {
+            model: CitySpecificBuffertime,
+          },
+          {
+            model: ServiceCommission,
           },
           {
             model: PackageSection,
@@ -65,9 +73,9 @@ class PackageController {
 
   static async createPackage(req, res, next) {
     const transaction = await sequelize.transaction();
-
+    console.log(req.body);
     try {
-      const {
+      let {
         name,
         description,
         type_id,
@@ -77,7 +85,30 @@ class PackageController {
         penalty_percentage,
         advance_percentage,
         sections,
+        bufferTime,
+        commitionRate,
       } = req.body;
+
+      // parse
+      if (typeof bufferTime === "string") {
+        try {
+          bufferTime = JSON.parse(bufferTime);
+        } catch (e) {
+          bufferTime = [];
+        }
+      }
+
+      if (typeof commitionRate === "string") {
+        try {
+          commitionRate = JSON.parse(commitionRate);
+        } catch (e) {
+          commitionRate = [];
+        }
+      }
+
+      // logger
+      console.log("Parsed bufferTime:", bufferTime);
+      console.log("Parsed commitionRate:", commitionRate);
 
       // Validate required fields
       if (!name || !type_id || (!duration_hours && !duration_minutes)) {
@@ -138,6 +169,39 @@ class PackageController {
         "package_id",
         existingIds
       );
+
+      if (bufferTime?.length > 0) {
+        await Promise.all(
+          bufferTime.map(async (time) => {
+            return CitySpecificBuffertime.create(
+              {
+                item_id: newPackageID,
+                item_type: "package",
+                city_id: time.city_id,
+                buffer_hours: Math.floor(time.buffer_hours),
+                buffer_minutes: Math.floor(time.buffer_minutes),
+              },
+              { transaction }
+            );
+          })
+        );
+      }
+
+      if (commitionRate?.length > 0) {
+        await Promise.all(
+          commitionRate.map(async (commition) => {
+            return ServiceCommission.create(
+              {
+                city_id: commition.city_id,
+                item_id: newPackageID,
+                item_type: "package",
+                commission_rate: commition.rate,
+              },
+              { transaction }
+            );
+          })
+        );
+      }
 
       // Create package
       const newPackage = await Package.create(
@@ -282,7 +346,7 @@ class PackageController {
 
     try {
       const { id } = req.params;
-      const {
+      let {
         name,
         description,
         type_id,
@@ -292,7 +356,28 @@ class PackageController {
         penalty_percentage,
         advance_percentage,
         sections,
+        bufferTime,
+        commitionRate,
       } = req.body;
+
+      if (typeof bufferTime === "string") {
+        try {
+          bufferTime = JSON.parse(bufferTime);
+        } catch (e) {
+          bufferTime = [];
+        }
+      }
+
+      if (typeof commitionRate === "string") {
+        try {
+          commitionRate = JSON.parse(commitionRate);
+        } catch (e) {
+          commitionRate = [];
+        }
+      }
+
+      console.log("Parsed bufferTime:", bufferTime);
+      console.log("Parsed commitionRate:", commitionRate);
 
       // Validate package existence
       const pkg = await Package.findByPk(id);
@@ -337,6 +422,61 @@ class PackageController {
         await pkg.update({ icon_url: iconUrl }, { transaction });
       }
 
+      if (bufferTime?.length >= 0) {
+        // Delete existing buffer time
+        await CitySpecificBuffertime.destroy(
+          {
+            where: {
+              item_id: id,
+              item_type: "package",
+            },
+          },
+          { transaction }
+        );
+
+        // Create new buffer time entries if provided
+        if (bufferTime.length > 0) {
+          await Promise.all(
+            bufferTime.map(async (time) => {
+              return CitySpecificBuffertime.create(
+                {
+                  item_id: id,
+                  item_type: "package",
+                  city_id: time.city_id,
+                  buffer_hours: Math.floor(time.buffer_hours),
+                  buffer_minutes: Math.floor(time.buffer_minutes),
+                },
+                { transaction }
+              );
+            })
+          );
+        }
+      }
+
+      //Handle Commition rates updates
+      if (commitionRate?.length >= 0) {
+        // Delete existing pricing
+        await ServiceCommission.destroy({
+          where: {
+            item_id: id,
+            item_type: "package",
+          },
+        });
+
+        // Create new pricing entries if provided
+        if (commitionRate.length > 0) {
+          await Promise.all(
+            commitionRate.map(async (commition) => {
+              return ServiceCommission.create({
+                city_id: commition.city_id,
+                item_id: id,
+                item_type: "package",
+                commission_rate: commition.rate,
+              });
+            })
+          );
+        }
+      }
       // Update basic package info
       await pkg.update(
         {
@@ -345,9 +485,6 @@ class PackageController {
           type_id,
           duration_hours,
           duration_minutes,
-          grace_period,
-          penalty_percentage,
-          advance_percentage,
         },
         { transaction }
       );
@@ -575,6 +712,12 @@ class PackageController {
           {
             model: ServiceType,
             attributes: ["name", "description"],
+          },
+          {
+            model: CitySpecificBuffertime,
+          },
+          {
+            model: ServiceCommission,
           },
           {
             model: PackageSection,
