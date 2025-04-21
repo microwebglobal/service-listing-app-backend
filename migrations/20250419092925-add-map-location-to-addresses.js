@@ -2,13 +2,9 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.addColumn("addresses", "map_location", {
-      type: Sequelize.GEOMETRY("POINT"),
-      allowNull: false,
-      defaultValue: {
-        type: "Point",
-        coordinates: [72.8777, 19.076],
-      },
+    await queryInterface.addColumn("addresses", "location", {
+      type: Sequelize.GEOGRAPHY("POINT", 4326),
+      allowNull: true,
     });
   },
 
