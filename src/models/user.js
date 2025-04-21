@@ -6,7 +6,10 @@ const bcrypt = require("bcryptjs");
 module.exports = (sequelize, DataTypes) => {
   class User extends Model {
     static associate(models) {
-      this.hasOne(models.ServiceProvider, { foreignKey: "user_id" });
+      this.hasOne(models.ServiceProvider, {
+        foreignKey: "user_id",
+        onDelete: "CASCADE",
+      });
       this.hasOne(models.ServiceProviderEnquiry, { foreignKey: "user_id" });
     }
 

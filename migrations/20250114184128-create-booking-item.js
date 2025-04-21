@@ -18,7 +18,7 @@ module.exports = {
           key: "u_id",
         },
         onUpdate: "CASCADE",
-        onDelete: "RESTRICT",
+        onDelete: "CASCADE",
       },
       provider_id: {
         type: Sequelize.INTEGER,
@@ -28,7 +28,7 @@ module.exports = {
           key: "provider_id",
         },
         onUpdate: "CASCADE",
-        onDelete: "RESTRICT",
+        onDelete: "CASCADE",
       },
       city_id: {
         type: Sequelize.STRING,
@@ -38,7 +38,7 @@ module.exports = {
           key: "city_id",
         },
         onUpdate: "CASCADE",
-        onDelete: "RESTRICT",
+        onDelete: "CASCADE",
       },
       booking_date: {
         type: Sequelize.DATEONLY,

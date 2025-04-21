@@ -19,21 +19,17 @@ router.get("/packages/:id", PackageController.getPackageById);
 
 router.post(
   "/packages",
-  [...adminAuth, upload.single("icon")],
+  [...adminAuth, upload.any()],
   PackageController.createPackage
 );
 
 router.put(
   "/packages/:id",
-  [...adminAuth, upload.single("icon")],
+  [...adminAuth, upload.any()],
   PackageController.updatePackage
 );
 
-router.delete(
-  "/packages/:id",
-  adminAuth,
-  PackageController.deletePackage
-);
+router.delete("/packages/:id", adminAuth, PackageController.deletePackage);
 
 // Package Section routes
 router.get(
@@ -43,13 +39,13 @@ router.get(
 
 router.post(
   "/sections",
-  [...adminAuth, upload.single("icon")],
+  [...adminAuth, upload.any()],
   PackageSectionController.createSection
 );
 
 router.put(
   "/sections/:id",
-  [...adminAuth, upload.single("icon")],
+  [...adminAuth, upload.any()],
   PackageSectionController.updateSection
 );
 
@@ -60,10 +56,7 @@ router.delete(
 );
 
 // Package Item routes
-router.get(
-  "/package-items/package/:id",
-  PackageItemController.getPackageItems
-);
+router.get("/package-items/package/:id", PackageItemController.getPackageItems);
 
 router.get(
   "/package-items/section/:sectionId",
@@ -72,13 +65,13 @@ router.get(
 
 router.post(
   "/package-items",
-  [...adminAuth, upload.single("icon")],
+  [...adminAuth, upload.any()],
   PackageItemController.createPackageItem
 );
 
 router.put(
   "/package-items/:id",
-  [...adminAuth, upload.single("icon")],
+  [...adminAuth, upload.any()],
   PackageItemController.updatePackageItem
 );
 

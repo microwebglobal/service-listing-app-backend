@@ -13,6 +13,7 @@ const {
   ServiceItem,
   PackageItem,
   PackageSection,
+  DailyPayoutLogs,
   ServiceProviderEnquiry,
   ServiceProviderEmployee,
   ServiceProviderDocument,
@@ -631,6 +632,7 @@ class ServiceProviderController {
 
   static async updateProviderStatus(req, res, next) {
     const transaction = await sequelize.transaction();
+    const passwordLinks = [];
 
     console.log(req.body);
 
@@ -810,6 +812,12 @@ class ServiceProviderController {
 
                 const passwordLink = await generatePasswordLink(updatedUser);
                 console.log("Paswordlinkfor Employee ", passwordLink);
+                passwordLinks.push({
+                  id: updatedUser.u_id,
+                  name: updatedUser?.name,
+                  link: passwordLink,
+                  type: "business_employee",
+                });
                 await MailService.sendPasswordSetupEmail(
                   updatedUser,
                   passwordLink
@@ -851,6 +859,12 @@ class ServiceProviderController {
       );
 
       const passwordLink = await generatePasswordLink(provider.User);
+      passwordLinks.push({
+        id: provider?.User?.u_id,
+        name: provider?.User?.name,
+        link: passwordLink,
+        type: "provider",
+      });
       console.log("Paswordlinkfor Business Provider", passwordLink);
       await MailService.sendPasswordSetupEmail(provider.User, passwordLink);
 
@@ -858,6 +872,7 @@ class ServiceProviderController {
       res.status(200).json({
         message: "Provider status updated successfully",
         provider_id: providerId,
+        password_links: passwordLinks,
         new_status: status,
       });
     } catch (error) {
@@ -869,7 +884,6 @@ class ServiceProviderController {
         details: error.original?.detail || error.original?.message,
       });
 
-      // Handle specific error types
       if (error.name === "SequelizeValidationError") {
         return res.status(400).json({
           error: "Validation error",
@@ -1362,6 +1376,25 @@ class ServiceProviderController {
     } catch (error) {
       console.error("Provider update error:", error);
       next(error);
+    }
+  }
+
+  static async deleteServiceProviderRecord(req, res, next) {
+    try {
+      const serviceProvider = await ServiceProvider.findByPk(req.params.id);
+
+      if (!serviceProvider) {
+        return res.status(404).json({ error: "Service provider not found" });
+      }
+
+      await serviceProvider.destroy();
+
+      return res
+        .status(200)
+        .json({ message: "Service provider deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting service provider:", error);
+      return res.status(500).json({ error: "Internal server error" });
     }
   }
 }

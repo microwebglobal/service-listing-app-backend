@@ -66,19 +66,19 @@ class AuthController {
       }
 
       let firstTimeLogin = false;
-      
+
       let user = await User.findOne({
-        where: { mobile, role: "customer" }
+        where: { mobile, role: "customer" },
       });
 
       if (!user) {
         user = await User.create({
           mobile,
           role: "customer",
-          name: 'User-${mobile}',
+          name: "User-${mobile}",
           last_login: null,
           otp,
-          otp_expires: new Date(Date.now() + 5 * 60 * 1000)
+          otp_expires: new Date(Date.now() + 5 * 60 * 1000),
         });
 
         firstTimeLogin = true;
@@ -89,7 +89,7 @@ class AuthController {
       if (!user.otp || user.otp !== otp || user.otp_expires < new Date()) {
         throw createError(402, "Invalid or expired OTP");
       }
-      
+
       await user.update({
         otp: null,
         otp_expires: null,
@@ -111,7 +111,6 @@ class AuthController {
           photo: user.photo,
         },
       });
-
     } catch (error) {
       next(error);
     }

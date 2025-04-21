@@ -194,7 +194,7 @@ class ProviderBookingController {
   static async bookingSendOTP(req, res, next) {
     try {
       console.log(req.body);
-      const { mobile, bookingId } = req.body;
+      const { mobile, bookingId, userId } = req.body;
 
       if (!mobile) {
         throw createError(400, "Mobile number is required");
@@ -214,6 +214,22 @@ class ProviderBookingController {
 
       const otp = "123456";
 
+      // Get Socket.IO instance
+      const io = req.app.get("io");
+
+      const roomName = `booking-${userId}`;
+      const sockets = await io.in(roomName).fetchSockets();
+      console.log(`Active sockets in room ${roomName}:`, sockets.length);
+
+      // Emit to room
+      io.to(roomName).emit("otp-generated", {
+        bookingId,
+        otp,
+        mobile,
+        expiresIn: 300,
+      });
+
+      console.log(`OTP ${otp} sent to room ${roomName}`);
       console.log(`OTP for ${mobile}:`, otp);
 
       await booking.update({
@@ -272,7 +288,7 @@ class ProviderBookingController {
   static async bookingEditSendOTP(req, res, next) {
     try {
       console.log(req.body.addOns);
-      const { mobile, bookingId, addOns } = req.body;
+      const { mobile, bookingId, userId, addOns } = req.body;
 
       if (!mobile) {
         throw createError(400, "Mobile number is required");
@@ -341,6 +357,23 @@ class ProviderBookingController {
         2
       )}\nTotal Payable: ${subTotal.toFixed(2)}\n\nYour OTP is: ${otp}`;
 
+      // Get Socket.IO instance
+      const io = req.app.get("io");
+
+      const roomName = `booking-${userId}`;
+      const sockets = await io.in(roomName).fetchSockets();
+      console.log(`Active sockets in room ${roomName}:`, sockets.length);
+
+      // Emit to room
+      io.to(roomName).emit("otp-generated", {
+        bookingId,
+        customerMessage,
+        otp,
+        mobile,
+        expiresIn: 300,
+      });
+
+      console.log(`OTP ${otp} sent to room ${roomName}`);
       console.log(customerMessage);
 
       // Update booking with OTP
@@ -482,8 +515,9 @@ class ProviderBookingController {
 
   static async providerStopOngoingBooking(req, res, next) {
     try {
-      const { mobile, bookingId } = req.body;
+      const { mobile, bookingId, userId } = req.body;
 
+      console.log(req.body);
       if (!bookingId) {
         throw createError(400, "Booking Id is required");
       }
@@ -515,6 +549,23 @@ class ProviderBookingController {
       }
 
       const otp = "123456";
+
+      // Get Socket.IO instance
+      const io = req.app.get("io");
+
+      const roomName = `booking-${userId}`;
+      const sockets = await io.in(roomName).fetchSockets();
+      console.log(`Active sockets in room ${roomName}:`, sockets.length);
+
+      // Emit to room
+      io.to(roomName).emit("otp-generated", {
+        bookingId,
+        otp,
+        mobile,
+        expiresIn: 300,
+      });
+
+      console.log(`OTP ${otp} sent to room ${roomName}`);
 
       console.log(`OTP for ${mobile}:`, otp);
 
