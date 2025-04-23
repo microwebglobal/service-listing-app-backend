@@ -6,6 +6,7 @@ module.exports = (sequelize, DataTypes) => {
       DailyPayoutLogs.belongsTo(models.ServiceProvider, {
         foreignKey: "provider_id",
         as: "provider",
+        onDelete: 'CASCADE',
       });
     }
   }

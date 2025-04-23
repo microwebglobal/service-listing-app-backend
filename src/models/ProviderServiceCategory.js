@@ -21,6 +21,11 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: "item_id",
         allowNull: true,
       });
+
+      this.belongsTo(models.Package, {
+        foreignKey: "package_id",
+        allowNull: true,
+      });
     }
   }
 

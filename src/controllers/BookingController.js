@@ -27,6 +27,7 @@ const moment = require("moment");
 const IdGenerator = require("../utils/helper");
 const { sequelize } = require("../models");
 const { v4: uuidv4 } = require("uuid");
+const NotificationService = require("../services/NotificationService");
 
 class BookingController {
   static validateTimeSlot(time) {
@@ -290,6 +291,13 @@ class BookingController {
         }
       );
 
+      await NotificationService.createNotification({
+        userId: currentBooking.user_id,
+        type: "booking",
+        title: "Booking Confirmed",
+        message: `Your booking #${bookingId} has been confirmed.`,
+      });
+
       return selectedProvider;
     } catch (error) {
       console.error("Provider assignment error:", error);
@@ -488,8 +496,6 @@ class BookingController {
           // Continue without assignment if auto-assignment fails
         }
 
-        console;
-
         await transaction.commit();
 
         const updatedBooking = await Booking.findByPk(bookingId, {
@@ -504,6 +510,22 @@ class BookingController {
               ],
             },
           ],
+        });
+
+        //create notification for customer
+        await NotificationService.createNotification({
+          userId: booking.user_id,
+          type: "booking",
+          title: "Payment Confirmed",
+          message: `Your booking #${bookingId} Payment has been confirmed.`,
+        });
+
+        //create notification for service-provider
+        await NotificationService.createNotification({
+          userId: assignedProvider.user_id,
+          type: "booking",
+          title: "Booking Assigned",
+          message: `#${bookingId} Booking has been assigned to you please check and confirm.`,
         });
 
         return res.status(200).json({
@@ -1238,6 +1260,13 @@ class BookingController {
           transaction;
       }
       await transaction.commit();
+
+      await NotificationService.createNotification({
+        userId: booking.user_id,
+        type: "booking",
+        title: "Booking Accepted",
+        message: `Your booking #${booking.booking_id} has been accepted.`,
+      });
       res.status(200).json({ message: "Booking Acepted" });
     } catch (error) {
       await transaction.rollback();

@@ -1,42 +1,40 @@
-const { Op } = require('sequelize');
-const { Address, sequelize } = require('../models');
-const createError = require('http-errors');
+const { Op } = require("sequelize");
+const { Address, sequelize } = require("../models");
+const createError = require("http-errors");
 
 class AddressController {
   // Get all addresses for a user
   static async getUserAddresses(req, res, next) {
     try {
-      console.log('Getting addresses - User object:', req.user);
-      
+      console.log("Getting addresses - User object:", req.user);
+
       if (!req.user || !req.user.id) {
-        console.log('No user ID found in request');
-        throw createError(401, 'User not authenticated');
+        console.log("No user ID found in request");
+        throw createError(401, "User not authenticated");
       }
 
       // Try to find addresses
       const addresses = await Address.findAll({
-        where: { 
-          userId: req.user.id 
+        where: {
+          userId: req.user.id,
         },
-        logging: console.log // This will log the SQL query
+        logging: console.log, // This will log the SQL query
       });
-      
-      console.log('Found addresses:', addresses);
+
+      console.log("Found addresses:", addresses);
       res.status(200).json(addresses);
-      
     } catch (error) {
-      console.error('Full error details:', {
+      console.error("Full error details:", {
         error: error,
         message: error.message,
         name: error.name,
         sql: error.sql,
         stack: error.stack,
-        userId: req.user?.id
+        userId: req.user?.id,
       });
       next(error);
     }
   }
-
 
   // Get specific address by ID
   static async getAddressById(req, res, next) {
@@ -44,12 +42,12 @@ class AddressController {
       const address = await Address.findOne({
         where: {
           id: req.params.id,
-          userId: req.user.id 
-        }
+          userId: req.user.id,
+        },
       });
 
       if (!address) {
-        throw createError(404, 'Address not found');
+        throw createError(404, "Address not found");
       }
 
       res.status(200).json(address);
@@ -62,13 +60,13 @@ class AddressController {
   static async createAddress(req, res, next) {
     try {
       const existingAddresses = await Address.count({
-        where: { userId: req.user.id } 
+        where: { userId: req.user.id },
       });
 
       const address = await Address.create({
         ...req.body,
-        userId: req.user.id, 
-        is_primary: existingAddresses === 0
+        userId: req.user.id,
+        is_primary: existingAddresses === 0,
       });
 
       res.status(201).json(address);
@@ -83,12 +81,12 @@ class AddressController {
       const [updated] = await Address.update(req.body, {
         where: {
           id: req.params.id,
-          userId: req.user.id  
-        }
+          userId: req.user.id,
+        },
       });
 
       if (!updated) {
-        throw createError(404, 'Address not found');
+        throw createError(404, "Address not found");
       }
 
       const updatedAddress = await Address.findByPk(req.params.id);
@@ -104,21 +102,21 @@ class AddressController {
       const address = await Address.findOne({
         where: {
           id: req.params.id,
-          userId: req.user.id  
-        }
+          userId: req.user.id,
+        },
       });
 
       if (!address) {
-        throw createError(404, 'Address not found');
+        throw createError(404, "Address not found");
       }
 
       if (address.is_primary) {
         const nextAddress = await Address.findOne({
           where: {
-            userId: req.user.id,  
-            id: { [Op.ne]: req.params.id }
+            userId: req.user.id,
+            id: { [Op.ne]: req.params.id },
           },
-          order: [['createdAt', 'DESC']]
+          order: [["createdAt", "DESC"]],
         });
 
         if (nextAddress) {
@@ -127,7 +125,7 @@ class AddressController {
       }
 
       await address.destroy();
-      res.status(200).json({ message: 'Address deleted successfully' });
+      res.status(200).json({ message: "Address deleted successfully" });
     } catch (error) {
       next(error);
     }
@@ -140,8 +138,8 @@ class AddressController {
         await Address.update(
           { is_primary: false },
           {
-            where: { userId: req.user.id }, 
-            transaction: t
+            where: { userId: req.user.id },
+            transaction: t,
           }
         );
 
@@ -150,14 +148,14 @@ class AddressController {
           {
             where: {
               id: req.params.id,
-              userId: req.user.id  //
+              userId: req.user.id, //
             },
-            transaction: t
+            transaction: t,
           }
         );
 
         if (!updated) {
-          throw createError(404, 'Address not found');
+          throw createError(404, "Address not found");
         }
       });
 
@@ -165,6 +163,31 @@ class AddressController {
       res.status(200).json(updatedAddress);
     } catch (error) {
       next(error);
+    }
+  }
+
+  static async getUserAdressBelongsToCity(req, res, next) {
+    try {
+      const { cityName } = req.params;
+
+      if (!req.user || !req.user.id) {
+        console.log("No user ID found in request");
+        throw createError(401, "User not authenticated");
+      }
+
+      const addresses = await Address.findAll({
+        where: {
+          userId: req.user.id,
+          city: {
+            [Op.iLike]: cityName,
+          },
+        },
+        logging: console.log,
+      });
+
+      res.status(200).json(addresses);
+    } catch (error) {
+      next();
     }
   }
 }
