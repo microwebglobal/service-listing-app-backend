@@ -4,13 +4,17 @@ const {
   PackageItem,
   ServiceType,
   CitySpecificBuffertime,
+  CitySpecificPricing,
+  SpecialPricing,
   ServiceCommission,
   sequelize,
 } = require("../models");
 const IdGenerator = require("../utils/helper");
 const path = require("path");
+const { Op } = require("sequelize");
 const fs = require("fs");
 
+const currentDate = new Date();
 class PackageController {
   static async getAllPackages(req, res, next) {
     try {
@@ -31,6 +35,20 @@ class PackageController {
             include: [
               {
                 model: PackageItem,
+                include: [
+                  {
+                    model: CitySpecificPricing,
+                  },
+                  {
+                    model: SpecialPricing,
+                    where: {
+                      status: "active",
+                      start_date: { [Op.lte]: currentDate },
+                      end_date: { [Op.gte]: currentDate },
+                    },
+                    required: false,
+                  },
+                ],
               },
             ],
           },
@@ -721,7 +739,25 @@ class PackageController {
           },
           {
             model: PackageSection,
-            include: [PackageItem],
+            include: [
+              {
+                model: PackageItem,
+                include: [
+                  {
+                    model: CitySpecificPricing,
+                  },
+                  {
+                    model: SpecialPricing,
+                    where: {
+                      status: "active",
+                      start_date: { [Op.lte]: currentDate },
+                      end_date: { [Op.gte]: currentDate },
+                    },
+                    required: false,
+                  },
+                ],
+              },
+            ],
           },
         ],
         order: [
@@ -777,7 +813,25 @@ class PackageController {
           },
           {
             model: PackageSection,
-            include: [PackageItem],
+            include: [
+              {
+                model: PackageItem,
+                include: [
+                  {
+                    model: CitySpecificPricing,
+                  },
+                  {
+                    model: SpecialPricing,
+                    where: {
+                      status: "active",
+                      start_date: { [Op.lte]: currentDate },
+                      end_date: { [Op.gte]: currentDate },
+                    },
+                    required: false,
+                  },
+                ],
+              },
+            ],
             order: [["display_order", "ASC"]],
           },
         ],
