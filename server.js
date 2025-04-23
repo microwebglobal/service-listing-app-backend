@@ -13,11 +13,10 @@ const http = require("http");
 const { Server } = require("socket.io");
 
 const app = express();
-const server = http.createServer(app); // Create HTTP server
+const server = http.createServer(app);
 
 // Socket.IO configuration
 const io = new Server(server, {
-  // Attach to HTTP server, not Express app
   cors: {
     origin: process.env.FRONTEND_URL || [
       "http://localhost:3000",
@@ -60,7 +59,7 @@ io.on("connection", (socket) => {
   });
 });
 
-// Make io available app-wide
+// Make io available app wide
 app.set("io", io);
 
 // CORS configuration

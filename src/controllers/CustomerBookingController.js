@@ -21,6 +21,7 @@ const {
 const { Op, where } = require("sequelize");
 const createError = require("http-errors");
 const { differenceInMinutes } = require("date-fns");
+const NotificationService = require("../services/NotificationService");
 
 class CustomerBookingController {
   static async customerCancellBooking(req, res, next) {
@@ -204,6 +205,14 @@ class CustomerBookingController {
           transaction,
         }
       );
+
+      //notification for customer
+      await NotificationService.createNotification({
+        userId: booking.user_id,
+        type: "booking",
+        title: "Booking Cancelled",
+        message: `Your booking #${bookingId} has been cancelled sucessfully.`,
+      });
 
       await transaction.commit();
 
