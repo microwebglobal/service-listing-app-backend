@@ -97,6 +97,15 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 // Routes
 app.use("/api", routes);
 
+app.use(
+  "/uploads",
+  express.static(path.join(__dirname, "uploads"), {
+    setHeaders: (res) => {
+      res.setHeader("Access-Control-Allow-Origin", "*"); // 👈 allow all origins
+    },
+  })
+);
+
 // Error handling
 app.use((err, req, res, next) => {
   console.error(err.stack);
