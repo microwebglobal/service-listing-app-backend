@@ -13,6 +13,7 @@ const {
   ServiceItem,
   PackageItem,
   PackageSection,
+  DailyPayoutLogs,
   ServiceProviderEnquiry,
   ServiceProviderEmployee,
   ServiceProviderDocument,
@@ -631,6 +632,7 @@ class ServiceProviderController {
 
   static async updateProviderStatus(req, res, next) {
     const transaction = await sequelize.transaction();
+    const passwordLinks = [];
 
     console.log(req.body);
 
@@ -810,6 +812,12 @@ class ServiceProviderController {
 
                 const passwordLink = await generatePasswordLink(updatedUser);
                 console.log("Paswordlinkfor Employee ", passwordLink);
+                passwordLinks.push({
+                  id: updatedUser.u_id,
+                  name: updatedUser?.name,
+                  link: passwordLink,
+                  type: "business_employee",
+                });
                 await MailService.sendPasswordSetupEmail(
                   updatedUser,
                   passwordLink
@@ -851,6 +859,12 @@ class ServiceProviderController {
       );
 
       const passwordLink = await generatePasswordLink(provider.User);
+      passwordLinks.push({
+        id: provider?.User?.u_id,
+        name: provider?.User?.name,
+        link: passwordLink,
+        type: "provider",
+      });
       console.log("Paswordlinkfor Business Provider", passwordLink);
       await MailService.sendPasswordSetupEmail(provider.User, passwordLink);
 
@@ -858,6 +872,7 @@ class ServiceProviderController {
       res.status(200).json({
         message: "Provider status updated successfully",
         provider_id: providerId,
+        password_links: passwordLinks,
         new_status: status,
       });
     } catch (error) {
@@ -869,7 +884,6 @@ class ServiceProviderController {
         details: error.original?.detail || error.original?.message,
       });
 
-      // Handle specific error types
       if (error.name === "SequelizeValidationError") {
         return res.status(400).json({
           error: "Validation error",
@@ -885,13 +899,16 @@ class ServiceProviderController {
   }
 
   static async updateServiceCategories(req, res, next) {
-    console.log(req.body.categories[0].services);
-    const transaction = await sequelize.transaction();
+    let transaction;
     try {
+      transaction = await sequelize.transaction();
+
       const { categories } = req.body;
       const providerId = req.params.id;
 
-      const provider = await ServiceProvider.findByPk(providerId);
+      const provider = await ServiceProvider.findByPk(providerId, {
+        transaction,
+      });
 
       if (!provider) {
         await transaction.rollback();
@@ -905,9 +922,7 @@ class ServiceProviderController {
       });
 
       const categoryPromises = categories.map(async (category) => {
-        console.log("Processing category:", category.category_id, category);
-
-        const categoryData = {
+        const baseCategoryData = {
           provider_id: providerId,
           category_id: category.category_id,
           experience_years: Number(category.experience_years) || 0,
@@ -915,59 +930,80 @@ class ServiceProviderController {
           status: "active",
         };
 
-        if (category.services) {
-          return Promise.all(
-            category.services.map(async (service) => {
-              if (!service.service_id) {
-                console.error("Service is missing ID:", service);
-                return;
+        // Process services
+        const servicePromises = (category.services || []).map(
+          async (service) => {
+            if (!service.service_id) {
+              throw new Error("Service is missing ID");
+            }
+
+            const serviceData = {
+              ...baseCategoryData,
+              service_id: service.service_id,
+            };
+
+            // Process service items
+            const itemPromises = (service.items || []).map((item) => {
+              if (!item.item_id) {
+                throw new Error("Service item is missing ID");
               }
 
-              const serviceData = {
-                ...categoryData,
-                service_id: service.service_id,
+              const itemData = {
+                ...serviceData,
+                item_id: item.item_id,
+                price_adjustment: item.price_adjustment || 0,
               };
 
-              console.log("Inserting service:", serviceData);
+              return ProviderServiceCategory.create(itemData, { transaction });
+            });
 
-              if (service.items) {
-                return Promise.all(
-                  service.items.map((item) => {
-                    if (!item.item_id) {
-                      console.error("Item is missing ID:", item);
-                      return;
-                    }
+            return itemPromises.length > 0
+              ? Promise.all(itemPromises)
+              : ProviderServiceCategory.create(serviceData, { transaction });
+          }
+        );
 
-                    const itemData = {
-                      ...serviceData,
-                      item_id: item.item_id,
-                      price_adjustment: item.price_adjustment || 0,
-                    };
+        // Process packages
+        const packagePromises = (category.packages || []).map(async (pkg) => {
+          if (!pkg.package_id) {
+            throw new Error("Package is missing ID");
+          }
 
-                    console.log("Inserting item:", itemData);
+          const packageData = {
+            ...baseCategoryData,
+            package_id: pkg.package_id,
+          };
 
-                    return ProviderServiceCategory.create(itemData, {
-                      transaction,
-                    });
-                  })
-                );
-              }
+          // Process package items
+          const packageItemPromises = (pkg.items || []).map((item) => {
+            if (!item.item_id) {
+              throw new Error("Package item is missing ID");
+            }
 
-              return ProviderServiceCategory.create(serviceData, {
-                transaction,
-              });
-            })
-          );
-        }
+            const itemData = {
+              ...packageData,
+              item_id: item.item_id,
+              price_adjustment: item.price_adjustment || 0,
+            };
 
-        return ProviderServiceCategory.create(categoryData, { transaction });
+            return ProviderServiceCategory.create(itemData, { transaction });
+          });
+
+          return packageItemPromises.length > 0
+            ? Promise.all(packageItemPromises)
+            : ProviderServiceCategory.create(packageData, { transaction });
+        });
+
+        const allPromises = [...servicePromises, ...packagePromises];
+        return allPromises.length > 0
+          ? Promise.all(allPromises)
+          : ProviderServiceCategory.create(baseCategoryData, { transaction });
       });
 
-      await Promise.all(categoryPromises.flat());
-
+      await Promise.all(categoryPromises);
       await transaction.commit();
 
-      // Fetch updated permissions
+      // Fetch updated permissions with all relationships
       const updatedPermissions = await ProviderServiceCategory.findAll({
         where: { provider_id: providerId },
         include: [
@@ -983,17 +1019,33 @@ class ServiceProviderController {
             model: ServiceItem,
             attributes: ["item_id", "name"],
           },
+          {
+            model: Package,
+            attributes: ["package_id", "name"],
+          },
+        ],
+        order: [
+          ["category_id", "ASC"],
+          ["service_id", "ASC"],
+          ["package_id", "ASC"],
+          ["item_id", "ASC"],
         ],
       });
 
-      res.status(200).json({
+      return res.status(200).json({
         message: "Service categories updated successfully",
         provider_id: providerId,
         permissions: updatedPermissions,
       });
     } catch (error) {
-      await transaction.rollback();
-      next(error);
+      if (transaction && !transaction.finished) {
+        await transaction.rollback();
+      }
+      console.error("Error updating service categories:", error);
+      return res.status(500).json({
+        error: "Failed to update service categories",
+        details: error.message,
+      });
     }
   }
 
@@ -1362,6 +1414,25 @@ class ServiceProviderController {
     } catch (error) {
       console.error("Provider update error:", error);
       next(error);
+    }
+  }
+
+  static async deleteServiceProviderRecord(req, res, next) {
+    try {
+      const serviceProvider = await ServiceProvider.findByPk(req.params.id);
+
+      if (!serviceProvider) {
+        return res.status(404).json({ error: "Service provider not found" });
+      }
+
+      await serviceProvider.destroy();
+
+      return res
+        .status(200)
+        .json({ message: "Service provider deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting service provider:", error);
+      return res.status(500).json({ error: "Internal server error" });
     }
   }
 }

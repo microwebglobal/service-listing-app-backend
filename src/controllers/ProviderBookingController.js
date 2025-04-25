@@ -22,6 +22,7 @@ const {
 const { Op, where } = require("sequelize");
 const IdGenerator = require("../utils/helper");
 const createError = require("http-errors");
+const OTPHandler = require("../utils/otp.js");
 
 class ProviderBookingController {
   static async getBookingByProvider(req, res, next) {
@@ -194,7 +195,7 @@ class ProviderBookingController {
   static async bookingSendOTP(req, res, next) {
     try {
       console.log(req.body);
-      const { mobile, bookingId } = req.body;
+      const { mobile, bookingId, userId } = req.body;
 
       if (!mobile) {
         throw createError(400, "Mobile number is required");
@@ -212,8 +213,24 @@ class ProviderBookingController {
         throw createError(404, "Booking not found");
       }
 
-      const otp = "123456";
+      const otp = OTPHandler.generateOTP();
 
+      // Get Socket.IO instance
+      const io = req.app.get("io");
+
+      const roomName = `booking-${userId}`;
+      const sockets = await io.in(roomName).fetchSockets();
+      console.log(`Active sockets in room ${roomName}:`, sockets.length);
+
+      // Emit to room
+      io.to(roomName).emit("otp-generated", {
+        bookingId,
+        otp,
+        mobile,
+        expiresIn: 300,
+      });
+
+      console.log(`OTP ${otp} sent to room ${roomName}`);
       console.log(`OTP for ${mobile}:`, otp);
 
       await booking.update({
@@ -272,7 +289,7 @@ class ProviderBookingController {
   static async bookingEditSendOTP(req, res, next) {
     try {
       console.log(req.body.addOns);
-      const { mobile, bookingId, addOns } = req.body;
+      const { mobile, bookingId, userId, addOns } = req.body;
 
       if (!mobile) {
         throw createError(400, "Mobile number is required");
@@ -292,7 +309,7 @@ class ProviderBookingController {
       }
 
       // Generate OTP
-      const otp = "123456";
+      const otp = OTPHandler.generateOTP();
       console.log(`OTP for ${mobile}:`, otp);
 
       // Calculate total price and prepare item details
@@ -341,6 +358,23 @@ class ProviderBookingController {
         2
       )}\nTotal Payable: ${subTotal.toFixed(2)}\n\nYour OTP is: ${otp}`;
 
+      // Get Socket.IO instance
+      const io = req.app.get("io");
+
+      const roomName = `booking-${userId}`;
+      const sockets = await io.in(roomName).fetchSockets();
+      console.log(`Active sockets in room ${roomName}:`, sockets.length);
+
+      // Emit to room
+      io.to(roomName).emit("otp-generated", {
+        bookingId,
+        customerMessage,
+        otp,
+        mobile,
+        expiresIn: 300,
+      });
+
+      console.log(`OTP ${otp} sent to room ${roomName}`);
       console.log(customerMessage);
 
       // Update booking with OTP
@@ -482,8 +516,9 @@ class ProviderBookingController {
 
   static async providerStopOngoingBooking(req, res, next) {
     try {
-      const { mobile, bookingId } = req.body;
+      const { mobile, bookingId, userId } = req.body;
 
+      console.log(req.body);
       if (!bookingId) {
         throw createError(400, "Booking Id is required");
       }
@@ -514,7 +549,25 @@ class ProviderBookingController {
         throw createError(400, "Payment is not completed for this booking");
       }
 
-      const otp = "123456";
+      const otp = OTPHandler.generateOTP();
+      console.log("Otp: ", otp);
+
+      // Get Socket.IO instance
+      const io = req.app.get("io");
+
+      const roomName = `booking-${userId}`;
+      const sockets = await io.in(roomName).fetchSockets();
+      console.log(`Active sockets in room ${roomName}:`, sockets.length);
+
+      // Emit to room
+      io.to(roomName).emit("otp-generated", {
+        bookingId,
+        otp,
+        mobile,
+        expiresIn: 300,
+      });
+
+      console.log(`OTP ${otp} sent to room ${roomName}`);
 
       console.log(`OTP for ${mobile}:`, otp);
 

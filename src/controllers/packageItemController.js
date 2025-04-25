@@ -81,7 +81,7 @@ class PackageItemController {
 
   static async createPackageItem(req, res, next) {
     const transaction = await sequelize.transaction();
-
+    console.log(req.body);
     try {
       const {
         section_id,
@@ -138,8 +138,10 @@ class PackageItemController {
       }
 
       // Parse city_prices and specialPricing
-      const parsedCityPrices = this.parsePriceData(city_prices);
-      const parsedSpecialPricing = this.parseSpecialPricing(specialPricing);
+      const parsedCityPrices =
+        PackageItemController.parsePriceData(city_prices);
+      const parsedSpecialPricing =
+        PackageItemController.parseSpecialPricing(specialPricing);
       if (parsedSpecialPricing.error) {
         return res.status(400).json({
           status: "error",
@@ -238,7 +240,7 @@ class PackageItemController {
 
       res.status(201).json({
         status: "success",
-        data: this.transformItemResponse(createdItem),
+        data: PackageItemController.transformItemResponse(createdItem),
         message: "Package item created successfully",
       });
     } catch (error) {

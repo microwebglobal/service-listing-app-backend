@@ -11,6 +11,7 @@ module.exports = (sequelize, DataTypes) => {
       Booking.belongsTo(models.ServiceProvider, {
         foreignKey: "provider_id",
         as: "provider",
+        onDelete: "CASCADE",
       });
       Booking.belongsTo(models.ServiceProviderEmployee, {
         foreignKey: "employee_id",
@@ -21,9 +22,11 @@ module.exports = (sequelize, DataTypes) => {
       });
       Booking.hasMany(models.BookingItem, {
         foreignKey: "booking_id",
+        onDelete: "CASCADE",
       });
       Booking.hasOne(models.BookingPayment, {
         foreignKey: "booking_id",
+        onDelete: "CASCADE",
       });
     }
   }

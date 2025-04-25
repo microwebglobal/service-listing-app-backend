@@ -3,7 +3,10 @@ const { Model } = require("sequelize");
 module.exports = (sequelize, DataTypes) => {
   class ServiceProviderEmployee extends Model {
     static associate(models) {
-      this.belongsTo(models.ServiceProvider, { foreignKey: "provider_id" });
+      this.belongsTo(models.ServiceProvider, {
+        foreignKey: "provider_id",
+        onDelete: "CASCADE",
+      });
       this.belongsTo(models.User, { foreignKey: "user_id" });
       this.belongsToMany(models.ServiceCategory, {
         through: "employee_service_categories",

@@ -1,4 +1,4 @@
-const crypto = require('crypto');
+const crypto = require("crypto");
 
 class OTPHandler {
   constructor() {
@@ -7,10 +7,13 @@ class OTPHandler {
   }
 
   generateOTP() {
-    return crypto.randomInt(1000, 10000).toString().padStart(4, '0');
+    const otp = crypto.randomInt(1000, 10000).toString().padStart(4, "0");
+    console.log("OTP: ", otp);
+    return otp;
   }
 
-  async sendOTP(mobile) {  // Modified to accept mobile directly
+  async sendOTP(mobile) {
+    // Modified to accept mobile directly
     if (!mobile || !/^\d{10}$/.test(mobile)) {
       throw new Error("Invalid mobile number format");
     }
@@ -19,27 +22,30 @@ class OTPHandler {
     const existing = this.otpStore.get(mobile);
     if (existing && Date.now() < existing.expiresAt) {
       const waitTime = Math.ceil((existing.expiresAt - Date.now()) / 1000);
-      throw new Error(`Please wait ${waitTime} seconds before requesting a new OTP`);
+      throw new Error(
+        `Please wait ${waitTime} seconds before requesting a new OTP`
+      );
     }
 
     const otp = this.generateOTP();
-    
+
     // Store OTP with 5-minute expiration
     this.otpStore.set(mobile, {
       otp: otp,
-      expiresAt: Date.now() + (5 * 60 * 1000),
-      attempts: 0
+      expiresAt: Date.now() + 5 * 60 * 1000,
+      attempts: 0,
     });
 
     // In production, integrate with SMS service
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       console.log(`[DEV ONLY] OTP for ${mobile}: ${otp}`);
     }
 
     return otp;
   }
 
-  verifyOTP(mobile, otp) {  // Modified to be a utility function
+  verifyOTP(mobile, otp) {
+    // Modified to be a utility function
     const storedData = this.otpStore.get(mobile);
 
     if (!storedData) {
@@ -59,7 +65,9 @@ class OTPHandler {
     }
 
     if (storedData.otp !== otp) {
-      throw new Error(`Invalid OTP. ${3 - storedData.attempts} attempts remaining`);
+      throw new Error(
+        `Invalid OTP. ${3 - storedData.attempts} attempts remaining`
+      );
     }
 
     // OTP verified successfully

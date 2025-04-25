@@ -22,6 +22,10 @@ module.exports = (sequelize, DataTypes) => {
           key: "u_id",
         },
       },
+      title: {
+        type: DataTypes.STRING,
+        allowNull: false,
+      },
       message: {
         type: DataTypes.STRING,
       },

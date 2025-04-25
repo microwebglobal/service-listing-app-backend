@@ -16,6 +16,20 @@ module.exports = (sequelize, DataTypes) => {
           item_type: "package",
         },
       });
+      Package.hasMany(models.CitySpecificBuffertime, {
+        foreignKey: "item_id",
+        constraints: false,
+        scope: {
+          item_type: "package",
+        },
+      });
+      Package.hasMany(models.ServiceCommission, {
+        foreignKey: "item_id",
+        constraints: false,
+        scope: {
+          item_type: "package",
+        },
+      });
     }
   }
 
