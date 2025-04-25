@@ -318,7 +318,7 @@ class ServiceProviderController {
         exact_address,
         tax_id,
         business_start_date,
-        whatsapp_number,
+        whatsapp_number: whatsapp_number === "" ? null : whatsapp_number,
         emergency_contact_name,
         alternate_number: alternate_number === "" ? null : alternate_number,
         nationality,
@@ -445,7 +445,7 @@ class ServiceProviderController {
                 details: error.message,
                 type: error.name,
                 validation: error.errors?.map((e) => ({
-                  field: `employee[${index}].${e.path}`,
+                  field: `employees[${index}].${e.path}`,
                   value: e.value,
                   details: error.original?.detail || error.original?.message,
                   message: `Employee ${employee.name} ${e.message}`,
