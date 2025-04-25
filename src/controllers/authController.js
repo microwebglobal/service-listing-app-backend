@@ -3,6 +3,7 @@ const createError = require("http-errors");
 const jwt = require("jsonwebtoken");
 const { Op } = require("sequelize");
 const OTPHandler = require("../utils/otp");
+const MailService = require("../utils/mail");
 
 class AuthController {
   constructor() {
@@ -38,6 +39,10 @@ class AuthController {
       }
 
       const otp = OTPHandler.generateOTP();
+
+      if (user.email) {
+        await MailService.sendUserOtpEmail(user, otp);
+      }
 
       console.log(otp); //loggr to print otp
 

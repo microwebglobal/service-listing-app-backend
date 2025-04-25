@@ -44,6 +44,13 @@ class OTPHandler {
     return otp;
   }
 
+  async sendOtpByMail(email) {
+    // Modified to accept mobile directly
+    if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
+      throw new Error("Invalid email format");
+    }
+  }
+
   verifyOTP(mobile, otp) {
     // Modified to be a utility function
     const storedData = this.otpStore.get(mobile);
