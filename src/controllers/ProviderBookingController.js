@@ -22,6 +22,7 @@ const {
 const { Op, where } = require("sequelize");
 const IdGenerator = require("../utils/helper");
 const createError = require("http-errors");
+const OTPHandler = require("../utils/otp.js");
 
 class ProviderBookingController {
   static async getBookingByProvider(req, res, next) {
@@ -212,7 +213,7 @@ class ProviderBookingController {
         throw createError(404, "Booking not found");
       }
 
-      const otp = "123456";
+      const otp = OTPHandler.generateOTP();
 
       // Get Socket.IO instance
       const io = req.app.get("io");
@@ -308,7 +309,7 @@ class ProviderBookingController {
       }
 
       // Generate OTP
-      const otp = "123456";
+      const otp = OTPHandler.generateOTP();
       console.log(`OTP for ${mobile}:`, otp);
 
       // Calculate total price and prepare item details
@@ -548,7 +549,8 @@ class ProviderBookingController {
         throw createError(400, "Payment is not completed for this booking");
       }
 
-      const otp = "123456";
+      const otp = OTPHandler.generateOTP();
+      console.log("Otp: ", otp);
 
       // Get Socket.IO instance
       const io = req.app.get("io");

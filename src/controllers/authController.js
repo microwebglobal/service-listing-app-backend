@@ -2,6 +2,8 @@ const { User, ServiceProvider, ServiceProviderEmployee } = require("../models");
 const createError = require("http-errors");
 const jwt = require("jsonwebtoken");
 const { Op } = require("sequelize");
+const OTPHandler = require("../utils/otp");
+const MailService = require("../utils/mail");
 
 class AuthController {
   constructor() {
@@ -36,7 +38,11 @@ class AuthController {
         throw createError(403, "Account is not active");
       }
 
-      const otp = "123456";
+      const otp = OTPHandler.generateOTP();
+
+      if (user.email) {
+        await MailService.sendUserOtpEmail(user, otp);
+      }
 
       console.log(otp); //loggr to print otp
 
