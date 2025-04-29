@@ -291,12 +291,14 @@ class BookingController {
         }
       );
 
-      await NotificationService.createNotification({
-        userId: currentBooking.user_id,
-        type: "booking",
-        title: "Booking Confirmed",
-        message: `Your booking #${bookingId} has been confirmed.`,
-      });
+      if (currentBooking?.user_id) {
+        await NotificationService.createNotification({
+          userId: currentBooking.user_id,
+          type: "booking",
+          title: "Booking Confirmed",
+          message: `Your booking #${bookingId} has been confirmed.`,
+        });
+      }
 
       return selectedProvider;
     } catch (error) {
@@ -521,12 +523,14 @@ class BookingController {
         });
 
         //create notification for service-provider
-        await NotificationService.createNotification({
-          userId: assignedProvider.user_id,
-          type: "booking",
-          title: "Booking Assigned",
-          message: `#${bookingId} Booking has been assigned to you please check and confirm.`,
-        });
+        if (assignedProvider?.user_id) {
+          await NotificationService.createNotification({
+            userId: assignedProvider.user_id,
+            type: "booking",
+            title: "Booking Assigned",
+            message: `#${bookingId} Booking has been assigned to you please check and confirm.`,
+          });
+        }
 
         return res.status(200).json({
           success: true,
