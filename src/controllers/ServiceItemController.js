@@ -42,6 +42,7 @@ class ServiceItemController {
         penalty_percentage: req.body.penalty_percentage || null,
         advance_percentage: req.body.advance_percentage || 0,
         is_home_visit: req.body.is_home_visit,
+        is_featured: req.body.is_featured,
       });
 
       // Handle optional city-specific pricing
@@ -418,6 +419,84 @@ class ServiceItemController {
                     include: [
                       {
                         model: ServiceItem,
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            model: CategoryCities,
+            as: "categoryMappings",
+            where: {
+              city_id: cityId,
+              status: "active",
+            },
+            required: true,
+          },
+        ],
+        order: [["display_order", "ASC"]],
+      });
+
+      const serviceItems = [];
+
+      for (const category of categories) {
+        for (const subCategory of category.SubCategories || []) {
+          for (const serviceType of subCategory.ServiceTypes || []) {
+            for (const service of serviceType.Services || []) {
+              for (const item of service.ServiceItems || []) {
+                serviceItems.push(item);
+              }
+            }
+          }
+        }
+      }
+
+      return res.status(200).json(serviceItems);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getFeaturedServiceItemByCity(req, res, next) {
+    try {
+      const { cityName } = req.params;
+
+      if (!cityName) {
+        return res.status(400).json({ error: "cityName is required" });
+      }
+
+      const city = await City.findOne({
+        where: {
+          name: {
+            [Op.iLike]: cityName,
+          },
+        },
+      });
+
+      if (!city) {
+        return res.status(400).json({ error: "City not found" });
+      }
+
+      const cityId = city.city_id;
+
+      const categories = await ServiceCategory.findAll({
+        include: [
+          {
+            model: SubCategory,
+            include: [
+              {
+                model: ServiceType,
+                include: [
+                  {
+                    model: Service,
+                    include: [
+                      {
+                        model: ServiceItem,
+                        where: {
+                          is_featured: true,
+                        },
                       },
                     ],
                   },
