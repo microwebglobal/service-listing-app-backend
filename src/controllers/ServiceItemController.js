@@ -482,9 +482,11 @@ class ServiceItemController {
       const cityId = city.city_id;
 
       const categories = await ServiceCategory.findAll({
+        attributes: ["name", "slug"],
         include: [
           {
             model: SubCategory,
+            attributes: ["name", "slug"],
             include: [
               {
                 model: ServiceType,
@@ -524,7 +526,12 @@ class ServiceItemController {
           for (const serviceType of subCategory.ServiceTypes || []) {
             for (const service of serviceType.Services || []) {
               for (const item of service.ServiceItems || []) {
-                serviceItems.push(item);
+                serviceItems.push({
+                  ...item.toJSON(),
+                  category_slug: category.slug,
+                  subcategory_slug: subCategory.slug,
+                  full_url: `/${category.slug}/${subCategory.slug}`,
+                });
               }
             }
           }
