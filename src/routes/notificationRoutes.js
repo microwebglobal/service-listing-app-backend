@@ -15,6 +15,12 @@ router.get(
   NotificationController.filterNotifications
 );
 
+router.get(
+  "/settings",
+  authMiddleware,
+  NotificationController.getUserPrefferedNotificationMethods
+);
+
 router.delete(
   "/:id",
   authMiddleware,

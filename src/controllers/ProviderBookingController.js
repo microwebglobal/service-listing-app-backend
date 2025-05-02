@@ -23,6 +23,7 @@ const { Op, where } = require("sequelize");
 const IdGenerator = require("../utils/helper");
 const createError = require("http-errors");
 const OTPHandler = require("../utils/otp.js");
+const NotificationService = require("../services/NotificationService.js");
 
 class ProviderBookingController {
   static async getBookingByProvider(req, res, next) {
@@ -238,6 +239,13 @@ class ProviderBookingController {
         otp_expires: new Date(Date.now() + 5 * 60 * 1000),
       });
 
+      await NotificationService.createNotification({
+        userId: userId,
+        type: "booking",
+        title: "Your Booking Verification Code",
+        message: `Your One-Time Password (OTP) for starting the booking is ${otp}. This code is valid for 5 minutes. Please do not share it with anyone.`,
+      });
+
       res.json({
         success: true,
         message: "OTP sent successfully",
@@ -376,6 +384,13 @@ class ProviderBookingController {
 
       console.log(`OTP ${otp} sent to room ${roomName}`);
       console.log(customerMessage);
+
+      await NotificationService.createNotification({
+        userId: userId,
+        type: "booking",
+        title: "New Items Adding To Your Booking Verification Code",
+        message: `${customerMessage}`,
+      });
 
       // Update booking with OTP
       await booking.update({
@@ -570,6 +585,13 @@ class ProviderBookingController {
       console.log(`OTP ${otp} sent to room ${roomName}`);
 
       console.log(`OTP for ${mobile}:`, otp);
+
+      await NotificationService.createNotification({
+        userId: userId,
+        type: "booking",
+        title: "Booking Completion Verification Code",
+        message: `Your One-Time Password (OTP) for starting the booking is ${otp}. This code is valid for 5 minutes. Please do not share it with anyone.`,
+      });
 
       await booking.update({
         otp,

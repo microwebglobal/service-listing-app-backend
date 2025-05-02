@@ -1,4 +1,4 @@
-const { Notification } = require("../models");
+const { Notification, User } = require("../models");
 
 class NotificationController {
   // Get all notifications for a user
@@ -149,6 +149,22 @@ class NotificationController {
       return res
         .status(500)
         .json({ success: false, message: "Internal server error" });
+    }
+  }
+
+  static async getUserPrefferedNotificationMethods(req, res, next) {
+    try {
+      const userId = req.user.id;
+
+      const user = await User.findByPk(userId, {
+        attributes: ["notification_preference"],
+      });
+
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      res.json({ preferences: user.notification_preference });
+    } catch (error) {
+      next(error);
     }
   }
 }

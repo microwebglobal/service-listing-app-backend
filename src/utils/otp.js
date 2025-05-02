@@ -7,7 +7,7 @@ class OTPHandler {
   }
 
   generateOTP() {
-    const otp = crypto.randomInt(1000, 10000).toString().padStart(4, "0");
+    const otp = crypto.randomInt(1000, 10000).toString().padStart(6, "0");
     console.log("OTP: ", otp);
     return otp;
   }
