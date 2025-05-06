@@ -4,6 +4,7 @@ const BookingController = require("../controllers/BookingController");
 const { authMiddleware } = require("../middlewares/auth.middleware");
 const ProviderBookingController = require("../controllers/ProviderBookingController");
 const CustomerBookingController = require("../controllers/CustomerBookingController");
+const BookingAvailabilityService = require("../services/CheckBookingAvailabilityService");
 
 // Cart Management Routes
 router.post("/cart/add", authMiddleware, BookingController.addToCart);
@@ -70,4 +71,20 @@ router.put(
   CustomerBookingController.customerConfirmCancellBooking
 );
 
+router.post("/booking/availability", async (req, res, next) => {
+  try {
+    console.log(req.body);
+    const unavailableSlots =
+      await BookingAvailabilityService.checkAvailableSlots(req, res, next);
+    res.status(200).json({
+      success: true,
+      data: unavailableSlots,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
 module.exports = router;
