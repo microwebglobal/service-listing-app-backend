@@ -8,6 +8,10 @@ module.exports = {
       secretKey: process.env.REGISTRATION_SECRET_KEY || "your-secret-key",
       expiryDays: 7,
     },
+    phonePe: {
+      clientId: process.env.PHONEPE_CLIENT_ID,
+      clientSecret: process.env.PHONEPE_CLIENT_SECRET,
+    },
     password: process.env.DB_PASSWORD,
     database: process.env.DB_DATABASE,
     host: process.env.DB_HOST,

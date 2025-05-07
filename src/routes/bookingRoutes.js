@@ -71,6 +71,12 @@ router.put(
   CustomerBookingController.customerConfirmCancellBooking
 );
 
+router.post(
+  "/booking/payment/phone-pe/verify",
+  authMiddleware,
+  BookingController.verifyPhonePePayment
+);
+
 router.post("/booking/availability", async (req, res, next) => {
   try {
     console.log(req.body);
