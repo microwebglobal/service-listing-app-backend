@@ -4,6 +4,8 @@ const jwt = require("jsonwebtoken");
 const { Op } = require("sequelize");
 const OTPHandler = require("../utils/otp");
 const MailService = require("../utils/mail");
+const sendOtpToUser = require("../services/SendOtpService");
+const sendWhatsappOtp = require("../services/WhatsappNotificationService");
 
 class AuthController {
   constructor() {
@@ -15,9 +17,16 @@ class AuthController {
     this.refreshToken = this.refreshToken.bind(this);
   }
 
+  static formatToInternational = (number) => {
+    if (number.startsWith("0")) {
+      return "+94" + number.substring(1);
+    }
+    return number;
+  };
+
   async customerSendOTP(req, res, next) {
     try {
-      const { mobile } = req.body;
+      const { mobile, method } = req.body;
 
       if (!mobile) {
         throw createError(400, "Mobile number is required");
@@ -44,6 +53,13 @@ class AuthController {
         await MailService.sendUserOtpEmail(user, otp);
       }
 
+      if (method === "whatsapp") {
+        const number = await AuthController.formatToInternational(mobile);
+        await sendWhatsappOtp(number, 123455);
+      } else {
+        await sendOtpToUser(mobile, otp);
+      }
+
       console.log(otp); //loggr to print otp
 
       await user.update({
@@ -51,8 +67,6 @@ class AuthController {
         otp_expires: new Date(Date.now() + 5 * 60 * 1000),
         mobile_verified: true,
       });
-
-      // In production, send OTP via SMS here
 
       res.json({
         success: true,
