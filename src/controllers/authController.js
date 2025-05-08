@@ -4,6 +4,8 @@ const jwt = require("jsonwebtoken");
 const { Op } = require("sequelize");
 const OTPHandler = require("../utils/otp");
 const MailService = require("../utils/mail");
+const sendOtpToUser = require("../services/SendOtpService");
+const sendWhatsappOtp = require("../services/WhatsappNotificationService");
 
 class AuthController {
   constructor() {
@@ -44,6 +46,9 @@ class AuthController {
         await MailService.sendUserOtpEmail(user, otp);
       }
 
+      await sendOtpToUser(mobile, otp);
+      await sendWhatsappOtp("+94706888992", 123455);
+
       console.log(otp); //loggr to print otp
 
       await user.update({
@@ -51,8 +56,6 @@ class AuthController {
         otp_expires: new Date(Date.now() + 5 * 60 * 1000),
         mobile_verified: true,
       });
-
-      // In production, send OTP via SMS here
 
       res.json({
         success: true,
