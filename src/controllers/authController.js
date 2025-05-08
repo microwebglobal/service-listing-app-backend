@@ -17,9 +17,16 @@ class AuthController {
     this.refreshToken = this.refreshToken.bind(this);
   }
 
+  static formatToInternational = (number) => {
+    if (number.startsWith("0")) {
+      return "+94" + number.substring(1);
+    }
+    return number;
+  };
+
   async customerSendOTP(req, res, next) {
     try {
-      const { mobile } = req.body;
+      const { mobile, method } = req.body;
 
       if (!mobile) {
         throw createError(400, "Mobile number is required");
@@ -46,8 +53,12 @@ class AuthController {
         await MailService.sendUserOtpEmail(user, otp);
       }
 
-      await sendOtpToUser(mobile, otp);
-      await sendWhatsappOtp("+94706888992", 123455);
+      if (method === "whatsapp") {
+        const number = await AuthController.formatToInternational(mobile);
+        await sendWhatsappOtp(number, 123455);
+      } else {
+        await sendOtpToUser(mobile, otp);
+      }
 
       console.log(otp); //loggr to print otp
 
