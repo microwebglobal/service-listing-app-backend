@@ -9,6 +9,6 @@ module.exports = {
   },
 
   down: async (queryInterface, Sequelize) => {
-    await queryInterface.removeColumn("addresses", "map_location");
+    // await queryInterface.removeColumn("addresses", "map_location");
   },
 };

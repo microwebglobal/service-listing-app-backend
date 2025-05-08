@@ -590,7 +590,7 @@ class ProviderBookingController {
         userId: userId,
         type: "booking",
         title: "Booking Completion Verification Code",
-        message: `Your One-Time Password (OTP) for starting the booking is ${otp}. This code is valid for 5 minutes. Please do not share it with anyone.`,
+        message: `Your One-Time Password (OTP) to complete the booking is ${otp}. This code is valid for 5 minutes. Please do not share it with anyone.`,
       });
 
       await booking.update({
