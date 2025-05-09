@@ -432,12 +432,26 @@ class BookingController {
       if (paymentMethod === "card") {
         const merchantOrderId = `TXN_${bookingId}_${Date.now()}`;
 
-        const amount = 1000;
+        let rawAmount = 0;
+        if (paymentType === "advance") {
+          rawAmount = parseFloat(payment.advance_payment);
+        } else {
+          rawAmount = parseFloat(payment.total_amount);
+        }
+
+        if (isNaN(rawAmount) || rawAmount <= 0) {
+          return res
+            .status(400)
+            .json({ success: false, message: "Invalid amount" });
+        }
+
+        const convertedAmount = Math.round(rawAmount * 100);
+
         const redirectUrl = `http://localhost:3000/payment/${bookingId}/transaction/${merchantOrderId}`;
 
         const request = StandardCheckoutPayRequest.builder()
           .merchantOrderId(merchantOrderId)
-          .amount(amount)
+          .amount(convertedAmount)
           .redirectUrl(redirectUrl)
           .build();
 

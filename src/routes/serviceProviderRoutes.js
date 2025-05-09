@@ -163,4 +163,23 @@ router.get(
   ProviderBookingController.getProviderBookingPaymentHistory
 );
 
+//payouts
+router.get(
+  "/provider/payouts/daily",
+  authMiddleware,
+  ProviderBookingController.getProviderDailyPayouts
+);
+
+router.post(
+  "/provider/payouts/daily/process",
+  authMiddleware,
+  ProviderBookingController.processSettleProviderPayouts
+);
+
+router.post(
+  "/provider/payouts/daily/verify",
+  authMiddleware,
+  ProviderBookingController.verifyProviderDailyPayoutPayment
+);
+
 module.exports = router;
