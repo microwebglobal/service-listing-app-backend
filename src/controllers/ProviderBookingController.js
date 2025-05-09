@@ -23,6 +23,12 @@ const { Op, where } = require("sequelize");
 const IdGenerator = require("../utils/helper");
 const createError = require("http-errors");
 const OTPHandler = require("../utils/otp.js");
+const {
+  StandardCheckoutPayRequest,
+  OrderStatusResponse,
+} = require("pg-sdk-node");
+const { randomUUID } = require("crypto");
+const { client } = require("../utils/phonepeClient.js");
 const NotificationService = require("../services/NotificationService.js");
 
 class ProviderBookingController {
@@ -767,6 +773,248 @@ class ProviderBookingController {
       res.status(200).json({ payments });
     } catch (error) {
       next(error);
+    }
+  }
+
+  static async getProviderDailyPayouts(req, res, next) {
+    try {
+      const today = new Date().toISOString().split("T")[0];
+
+      if (!req.user || !req.user.id) {
+        console.log("No user ID found in request");
+        throw createError(401, "User not authenticated");
+      }
+
+      const provider = await ServiceProvider.findOne({
+        where: { user_id: req.user.id },
+      });
+
+      const bookings = await Booking.findAll({
+        where: {
+          booking_date: today,
+          status: "completed",
+          provider_id: provider.provider_id,
+        },
+        include: [
+          {
+            model: BookingItem,
+          },
+        ],
+      });
+
+      let dailyTotal = 0;
+
+      const result = await Promise.all(
+        bookings.map(async (booking) => {
+          let totalPayable = 0;
+
+          const bookingPayments = await BookingPayment.findAll({
+            where: { booking_id: booking.booking_id },
+          });
+
+          if (bookingPayments && bookingPayments.length > 0) {
+            bookingPayments.forEach((payment) => {
+              const serviceComm = parseFloat(payment.service_commition || 0);
+              const taxAmount = parseFloat(payment.tax_amount || 0);
+
+              if (payment.payment_method === "card") {
+                const totalAmount = parseFloat(payment.total_amount || 0);
+                totalPayable =
+                  totalPayable - (totalAmount - serviceComm - taxAmount);
+
+                console.log(totalPayable);
+              } else if (payment.payment_method === "cash") {
+                const advance = parseFloat(payment.advance_payment || 0);
+                if (advance > 0) {
+                  totalPayable =
+                    totalPayable - (advance - serviceComm - taxAmount);
+                } else {
+                  totalPayable += serviceComm + taxAmount;
+                }
+              }
+            });
+
+            dailyTotal += totalPayable;
+          }
+
+          return {
+            ...booking.toJSON(),
+            totalPayable: totalPayable.toFixed(2),
+          };
+        })
+      );
+
+      res.status(200).json({ result, dailyTotal: dailyTotal.toFixed(2) });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getProviderDuePayouts(req, res, next) {
+    try {
+      const today = new Date().toISOString().split("T")[0];
+
+      const bookings = await Booking.findAll({
+        where: {
+          booking_date: {
+            [Op.lt]: today,
+          },
+        },
+        include: [
+          {
+            model: BookingItem,
+          },
+        ],
+      });
+
+      let dueTotal = 0;
+
+      const result = await Promise.all(
+        bookings.map(async (booking) => {
+          let totalPayable = 0;
+
+          const bookingPayments = await BookingPayment.findAll({
+            where: { booking_id: booking.booking_id },
+          });
+
+          if (bookingPayments && bookingPayments.length > 0) {
+            bookingPayments.forEach((payment) => {
+              const serviceComm = parseFloat(payment.service_commition || 0);
+              const taxAmount = parseFloat(payment.tax_amount || 0);
+
+              if (payment.payment_method === "card") {
+                const totalAmount = parseFloat(payment.total_amount || 0);
+                totalPayable =
+                  totalPayable - (totalAmount - serviceComm - taxAmount);
+
+                console.log(totalPayable);
+              } else if (payment.payment_method === "cash") {
+                const advance = parseFloat(payment.advance_payment || 0);
+                if (advance > 0) {
+                  totalPayable =
+                    totalPayable - (advance - serviceComm - taxAmount);
+                } else {
+                  totalPayable += serviceComm + taxAmount;
+                }
+              }
+            });
+
+            dueTotal += dueTotal;
+          }
+
+          return {
+            ...booking.toJSON(),
+            totalPayable: totalPayable.toFixed(2),
+          };
+        })
+      );
+
+      res.status(200).json({ result, dueTotal: dueTotal.toFixed(2) });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async processSettleProviderPayouts(req, res, next) {
+    if (!req.user || !req.user.id) {
+      console.log("No user ID found in request");
+      throw createError(401, "User not authenticated");
+    }
+
+    const { amount } = req.body;
+
+    const rawAmount = parseFloat(amount);
+    if (isNaN(rawAmount) || rawAmount <= 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid amount" });
+    }
+
+    const convertedAmount = Math.round(rawAmount * 100);
+
+    const provider = await ServiceProvider.findOne({
+      where: { user_id: req.user.id },
+    });
+
+    try {
+      const merchantOrderId = `TXN_PAYOUT_${
+        provider.provider_id
+      }_${Date.now()}`;
+
+      const redirectUrl = `http://localhost:3000/payment/payout/${merchantOrderId}`;
+
+      const request = StandardCheckoutPayRequest.builder()
+        .merchantOrderId(merchantOrderId)
+        .amount(convertedAmount)
+        .redirectUrl(redirectUrl)
+        .build();
+
+      try {
+        const response = await client.pay(request);
+        const checkoutPageUrl = response.redirectUrl;
+        console.log("Redirect user to:", checkoutPageUrl);
+        return res.status(200).json({ success: true, checkoutPageUrl });
+      } catch (error) {
+        console.error("Payment initiation failed:", error);
+      }
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async verifyProviderDailyPayoutPayment(req, res, next) {
+    if (!req.user || !req.user.id) {
+      console.log("No user ID found in request");
+      return next(createError(401, "User not authenticated"));
+    }
+
+    try {
+      const { merchantOrderId, date } = req.body;
+
+      const today = new Date().toISOString().split("T")[0];
+      const statusResponse = await client.getOrderStatus(merchantOrderId);
+      const status = statusResponse.state;
+
+      if (status !== "COMPLETED") {
+        return res
+          .status(400)
+          .json({ success: false, message: "Payment not successful", status });
+      }
+
+      const provider = await ServiceProvider.findOne({
+        where: { user_id: req.user.id },
+      });
+
+      const bookings = await Booking.findAll({
+        where: {
+          provider_id: provider.provider_id,
+          booking_date: today,
+        },
+      });
+
+      for (const booking of bookings) {
+        const bookingPayments = await BookingPayment.findAll({
+          where: { booking_id: booking.booking_id },
+        });
+
+        for (const payment of bookingPayments) {
+          console.log(
+            `Updating payment ID ${payment.payment_id} with status 'paid_by_provider'`
+          );
+
+          payment.update({
+            commition_status: "paid_by_provider",
+          });
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "Commission paid successfully.",
+      });
+    } catch (error) {
+      console.error(error);
+      return next(error);
     }
   }
 }

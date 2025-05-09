@@ -55,7 +55,7 @@ class AuthController {
 
       if (method === "whatsapp") {
         const number = await AuthController.formatToInternational(mobile);
-        await sendWhatsappOtp(number, 123455);
+        await sendWhatsappOtp(number, otp);
       } else {
         await sendOtpToUser(mobile, otp);
       }
