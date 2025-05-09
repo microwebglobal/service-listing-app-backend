@@ -445,7 +445,7 @@ class BookingController {
           const response = await client.pay(request);
           const checkoutPageUrl = response.redirectUrl;
           console.log("Redirect user to:", checkoutPageUrl);
-          return res.status(200).json({ success: true, checkoutPageUrl });
+          return res.status(200).json({ success: true, checkoutPageUrl, merchantOrderId });
         } catch (error) {
           console.error("Payment initiation failed:", error);
         }
