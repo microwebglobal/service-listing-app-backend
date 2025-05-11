@@ -7,7 +7,18 @@ module.exports = {
     const hashedPassword = await bcrypt.hash("admin123", 10);
     const currentDate = new Date();
 
-    return queryInterface.bulkInsert("users", [
+    
+    const existingUsers = await queryInterface.sequelize.query(
+      'SELECT email, mobile FROM "users" WHERE email = \'\' OR mobile = \'0766644532\' OR mobile = \'0776677854\' OR mobile = \'0776877854\' OR mobile = \'0779877854\' OR mobile = \'0749877854\' OR mobile = \'0739877854\'',
+      { type: queryInterface.sequelize.QueryTypes.SELECT }
+    );
+
+   
+    const existingEmails = new Set(existingUsers.map(user => user.email));
+    const existingMobiles = new Set(existingUsers.map(user => user.mobile));
+
+    
+    const usersToInsert = [
       {
         name: "Test User",
         email: "",
@@ -95,7 +106,17 @@ module.exports = {
         last_updated: currentDate,
         created_at: currentDate,
       },
-    ]);
+    ].filter(user => {
+   
+      return !(existingEmails.has(user.email) || existingMobiles.has(user.mobile));
+    });
+
+    if (usersToInsert.length > 0) {
+      return queryInterface.bulkInsert("users", usersToInsert);
+    } else {
+      console.log('No new users to insert - all users already exist');
+      return Promise.resolve();
+    }
   },
 
   async down(queryInterface, Sequelize) {
