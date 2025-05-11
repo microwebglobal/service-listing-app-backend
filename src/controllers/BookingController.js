@@ -28,6 +28,12 @@ const IdGenerator = require("../utils/helper");
 const { sequelize } = require("../models");
 const { v4: uuidv4 } = require("uuid");
 const NotificationService = require("../services/NotificationService");
+const {
+  StandardCheckoutPayRequest,
+  OrderStatusResponse,
+} = require("pg-sdk-node");
+const { randomUUID } = require("crypto");
+const { client } = require("../utils/phonepeClient.js");
 
 class BookingController {
   static validateTimeSlot(time) {
@@ -291,12 +297,14 @@ class BookingController {
         }
       );
 
-      await NotificationService.createNotification({
-        userId: currentBooking.user_id,
-        type: "booking",
-        title: "Booking Confirmed",
-        message: `Your booking #${bookingId} has been confirmed.`,
-      });
+      if (currentBooking?.user_id) {
+        await NotificationService.createNotification({
+          userId: currentBooking.user_id,
+          type: "booking",
+          title: "Booking Confirmed",
+          message: `Your booking #${bookingId} has been confirmed.`,
+        });
+      }
 
       return selectedProvider;
     } catch (error) {
@@ -422,10 +430,39 @@ class BookingController {
       let isSuccess = false;
 
       if (paymentMethod === "card") {
-        if (!cardNumber || !expiry || !cvv) {
-          return res.status(400).json({ error: "Card details required" });
+        const merchantOrderId = `TXN_${bookingId}_${Date.now()}`;
+
+        let rawAmount = 0;
+        if (paymentType === "advance") {
+          rawAmount = parseFloat(payment.advance_payment);
+        } else {
+          rawAmount = parseFloat(payment.total_amount);
         }
-        isSuccess = Math.random() > 0.2; // 80% success rate for card
+
+        if (isNaN(rawAmount) || rawAmount <= 0) {
+          return res
+            .status(400)
+            .json({ success: false, message: "Invalid amount" });
+        }
+
+        const convertedAmount = Math.round(rawAmount * 100);
+
+        const redirectUrl = `http://localhost:3000/payment/${bookingId}/transaction/${merchantOrderId}`;
+
+        const request = StandardCheckoutPayRequest.builder()
+          .merchantOrderId(merchantOrderId)
+          .amount(convertedAmount)
+          .redirectUrl(redirectUrl)
+          .build();
+
+        try {
+          const response = await client.pay(request);
+          const checkoutPageUrl = response.redirectUrl;
+          console.log("Redirect user to:", checkoutPageUrl);
+          return res.status(200).json({ success: true, checkoutPageUrl });
+        } catch (error) {
+          console.error("Payment initiation failed:", error);
+        }
       } else if (paymentMethod === "cash") {
         isSuccess = true; // Cash payments always proceed
       } else if (paymentMethod === "net_banking") {
@@ -521,12 +558,14 @@ class BookingController {
         });
 
         //create notification for service-provider
-        await NotificationService.createNotification({
-          userId: assignedProvider.user_id,
-          type: "booking",
-          title: "Booking Assigned",
-          message: `#${bookingId} Booking has been assigned to you please check and confirm.`,
-        });
+        if (assignedProvider?.user_id) {
+          await NotificationService.createNotification({
+            userId: assignedProvider.user_id,
+            type: "booking",
+            title: "Booking Assigned",
+            message: `#${bookingId} Booking has been assigned to you please check and confirm.`,
+          });
+        }
 
         return res.status(200).json({
           success: true,
@@ -554,6 +593,113 @@ class BookingController {
         await transaction.rollback();
       }
       console.error("Payment Processing Error:", error);
+      next(error);
+    }
+  }
+
+  static async verifyPhonePePayment(req, res, next) {
+    const { bookingId, merchantOrderId } = req.body;
+    const transaction = await sequelize.transaction();
+
+    try {
+      const statusResponse = await client.getOrderStatus(merchantOrderId);
+      const status = statusResponse.state;
+
+      if (status !== "COMPLETED") {
+        return res
+          .status(400)
+          .json({ success: false, message: "Payment not successful", status });
+      }
+
+      const booking = await Booking.findOne({
+        where: { booking_id: bookingId },
+        include: [{ model: User, as: "customer" }],
+        transaction,
+      });
+
+      const payment = await BookingPayment.findOne({
+        where: { booking_id: bookingId },
+        transaction,
+      });
+
+      const accBalance = parseFloat(booking?.customer?.acc_balance);
+      const remainingBalance = 0;
+
+      // Update payment
+      await payment.update(
+        {
+          payment_method: "card",
+          payment_status: "completed",
+          transaction_id: merchantOrderId,
+        },
+        { transaction }
+      );
+
+      await booking.customer.update({
+        acc_balance: remainingBalance,
+      });
+
+      // Update booking
+      await booking.update(
+        {
+          status: "confirmed",
+        },
+        { transaction }
+      );
+
+      // Try automatic assignment if enabled
+      let assignedProvider = null;
+      try {
+        assignedProvider = await BookingController.assignServiceProvider(
+          bookingId,
+          booking.city_id,
+          transaction
+        );
+      } catch (assignError) {
+        console.error("Auto-assignment failed:", assignError);
+      }
+
+      await transaction.commit();
+
+      const updatedBooking = await Booking.findByPk(bookingId, {
+        include: [
+          { model: BookingItem },
+          { model: BookingPayment },
+          {
+            model: ServiceProvider,
+            as: "provider",
+            include: [{ model: User, attributes: ["name", "email", "mobile"] }],
+          },
+        ],
+      });
+
+      // Notifications
+      await NotificationService.createNotification({
+        userId: booking.user_id,
+        type: "booking",
+        title: "Payment Confirmed",
+        message: `Your booking #${bookingId} Payment has been confirmed.`,
+      });
+
+      if (assignedProvider?.user_id) {
+        await NotificationService.createNotification({
+          userId: assignedProvider.user_id,
+          type: "booking",
+          title: "Booking Assigned",
+          message: `#${bookingId} Booking has been assigned to you please check and confirm.`,
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "Booking confirmed",
+        booking: updatedBooking,
+      });
+    } catch (error) {
+      if (transaction.finished !== "commit") {
+        await transaction.rollback();
+      }
+      console.error("Payment verification failed:", error);
       next(error);
     }
   }

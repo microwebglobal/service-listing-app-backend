@@ -7,7 +7,7 @@ class OTPHandler {
   }
 
   generateOTP() {
-    const otp = crypto.randomInt(1000, 10000).toString().padStart(4, "0");
+    const otp = crypto.randomInt(1000, 10000).toString().padStart(6, "0");
     console.log("OTP: ", otp);
     return otp;
   }
@@ -42,6 +42,13 @@ class OTPHandler {
     }
 
     return otp;
+  }
+
+  async sendOtpByMail(email) {
+    // Modified to accept mobile directly
+    if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
+      throw new Error("Invalid email format");
+    }
   }
 
   verifyOTP(mobile, otp) {

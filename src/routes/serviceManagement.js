@@ -153,6 +153,10 @@ router.get(
   "/city/:cityName/service-items", //route to get all service items belongs to city
   ServiceItemController.getServiceItemByCity
 );
+router.get(
+  "/city/:cityName/featured-items", //route to get all featured items belongs to city
+  ServiceItemController.getFeaturedServiceItemByCity
+);
 router.put(
   "/items/:id",
   authMiddleware,

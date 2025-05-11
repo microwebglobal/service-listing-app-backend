@@ -376,6 +376,59 @@ class MailService {
       template
     );
   }
+
+  static getOtpTemplate(otp, name) {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Login OTP</title>
+        <style>
+          .container {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+          }
+          .otp-box {
+            font-size: 28px;
+            font-weight: bold;
+            background-color: #f2f2f2;
+            padding: 15px;
+            text-align: center;
+            border-radius: 8px;
+            letter-spacing: 6px;
+            margin: 20px 0;
+            color: #000;
+          }
+          .name {
+            text-transform: capitalize;
+            font-weight: bold;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h2>Login Verification Code</h2>
+          <p>Hello <span class="name">${name}</span>,</p>
+          <p>Use the following One-Time Password (OTP) to complete your login:</p>
+          <div class="otp-box">${otp}</div>
+          <p>This OTP is valid for a short time only. Please do not share this code with anyone for security reasons.</p>
+          <p>If you did not try to login, please ignore this email.</p>
+          <p>Best regards,<br>Your Platform Team</p>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
+  static async sendUserOtpEmail(user, otp) {
+    const template = this.getOtpTemplate(otp, user.name);
+    return this.sendMail(user.email, "User OTP Sent Sucessfully", template);
+  }
 }
 
 module.exports = MailService;
