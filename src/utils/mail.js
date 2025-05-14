@@ -14,22 +14,18 @@ const transporter = nodemailer.createTransport({
 });
 
 class MailService {
-  static async sendMail(to, subject, html) {
-    try {
-      const mailOptions = {
-        from: "no-reply@microwebglobal.com",
-        to,
-        subject,
-        html,
-      };
+  static sendMail(to, subject, html) {
+    const mailOptions = {
+      from: "no-reply@microwebglobal.com",
+      to,
+      subject,
+      html,
+    };
 
-      const info = await transporter.sendMail(mailOptions);
-      console.log("Email sent successfully:", info.messageId);
-      return info;
-    } catch (error) {
-      console.error("Error sending email:", error);
-      return null;
-    }
+    transporter
+      .sendMail(mailOptions)
+      .then((info) => console.log("Email sent successfully:", info.messageId))
+      .catch((error) => console.error("Error sending email:", error));
   }
 
   static getPasswordSetupTemplate(userName, passwordLink) {
