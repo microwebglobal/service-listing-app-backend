@@ -15,7 +15,7 @@ router.post("/admin/login", authController.adminLogin);
 // Service Provider Routes
 router.post("/provider/login", authController.providerLogin);
 
-router.post('/refresh', authController.refreshToken);
+router.post("/refresh", authController.refreshToken);
 
 // Common Routes
 router.post("/logout", authController.logout);

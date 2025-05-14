@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
 const createError = require("http-errors");
 const { User } = require("../models");
+const ProviderBookingController = require("../controllers/ProviderBookingController");
 
 require("dotenv").config();
 
@@ -45,7 +46,50 @@ const roleCheck = (...roles) => {
   };
 };
 
+const checkDuePayouts = async (req, res, next) => {
+  try {
+    const userId = req.user?.id;
+    console.log(userId);
+
+    if (!userId) return next();
+
+    const fakeRes = {
+      statusCode: 200,
+      data: null,
+      status(code) {
+        this.statusCode = code;
+        return this;
+      },
+      json(payload) {
+        this.data = payload;
+      },
+    };
+
+    req.params.provider_id = userId;
+
+    await ProviderBookingController.getProviderDuePayouts(req, fakeRes);
+
+    const totalDue = parseFloat(fakeRes.data?.totalDuePayable || 0);
+
+    console.log(totalDue);
+
+    const user = await User.findByPk(userId);
+    if (totalDue > 0 && user.account_status !== "suspended") {
+      user.account_status = "suspended";
+      await user.save();
+    }
+
+    req.user.account_status = user.account_status;
+
+    next();
+  } catch (err) {
+    console.error("Due Payout Check Failed:", err);
+    next(createError(500, "Error checking due payouts"));
+  }
+};
+
 module.exports = {
   authMiddleware,
   roleCheck,
+  checkDuePayouts,
 };

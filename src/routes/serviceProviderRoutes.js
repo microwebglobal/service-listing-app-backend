@@ -4,6 +4,7 @@ const upload = require("../middlewares/uploadMiddleware.js");
 const {
   authMiddleware,
   roleCheck,
+  checkDuePayouts,
 } = require("../middlewares/auth.middleware.js");
 const ServiceProviderEnquiryController = require("../controllers/ServiceProviderEnquiryController");
 const ServiceProviderController = require("../controllers/ServiceProviderController");
@@ -51,7 +52,12 @@ router.get(
   "/provider/token/:token",
   ServiceProviderController.getProviderByToken
 );
-router.get("/provider/user/:id", ServiceProviderController.getProviderByUserId);
+router.get(
+  "/provider/user/:id",
+  authMiddleware,
+  checkDuePayouts,
+  ServiceProviderController.getProviderByUserId
+);
 router.post(
   "/provider/register",
   upload.any(),
@@ -180,6 +186,12 @@ router.post(
   "/provider/payouts/daily/verify",
   authMiddleware,
   ProviderBookingController.verifyProviderDailyPayoutPayment
+);
+
+router.get(
+  "/provider/payouts/due",
+  authMiddleware,
+  ProviderBookingController.getProviderDuePayouts
 );
 
 module.exports = router;
