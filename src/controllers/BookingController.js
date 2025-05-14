@@ -459,7 +459,9 @@ class BookingController {
           const response = await client.pay(request);
           const checkoutPageUrl = response.redirectUrl;
           console.log("Redirect user to:", checkoutPageUrl);
-          return res.status(200).json({ success: true, checkoutPageUrl, merchantOrderId });
+          return res
+            .status(200)
+            .json({ success: true, checkoutPageUrl, merchantOrderId });
         } catch (error) {
           console.error("Payment initiation failed:", error);
         }
@@ -966,16 +968,21 @@ class BookingController {
           },
           { model: BookingPayment },
           { model: User, as: "customer" },
+          {
+            model: ServiceProvider,
+            as: "provider",
+            include: [{ model: User }],
+          },
         ],
       });
       if (!booking) {
         return res.status(404).json({ message: "No booking found" });
       }
 
-      if (booking?.BookingPayment?.payment_status === "completed") {
+      if (booking?.status === "completed") {
         return res
           .status(405)
-          .json({ message: "This Transaction Already Compleated" });
+          .json({ message: "This booking is Already Completed" });
       }
       res.status(200).json(booking);
     } catch (error) {
