@@ -809,7 +809,10 @@ class ProviderBookingController {
           let totalPayable = 0;
 
           const bookingPayments = await BookingPayment.findAll({
-            where: { booking_id: booking.booking_id },
+            where: {
+              booking_id: booking.booking_id,
+              commition_status: "pending",
+            },
           });
 
           if (bookingPayments && bookingPayments.length > 0) {
@@ -854,10 +857,15 @@ class ProviderBookingController {
     try {
       const today = new Date().toISOString().split("T")[0];
 
+      const provider = await ServiceProvider.findOne({
+        where: { user_id: req.user.id },
+      });
+
       const bookings = await Booking.findAll({
         where: {
           booking_date: { [Op.lt]: today },
           status: "completed",
+          provider_id: provider.provider_id,
         },
         include: [
           {
@@ -1013,6 +1021,7 @@ class ProviderBookingController {
         where: {
           provider_id: provider.provider_id,
           booking_date: today,
+          status: "completed",
         },
       });
 
@@ -1031,6 +1040,71 @@ class ProviderBookingController {
           });
         }
       }
+
+      return res.status(200).json({
+        success: true,
+        message: "Commission paid successfully.",
+      });
+    } catch (error) {
+      console.error(error);
+      return next(error);
+    }
+  }
+
+  static async verifyProviderDuePayoutPayment(req, res, next) {
+    if (!req.user || !req.user.id) {
+      console.log("No user ID found in request");
+      return next(createError(401, "User not authenticated"));
+    }
+
+    try {
+      const { merchantOrderId } = req.body;
+
+      console.log(merchantOrderId);
+
+      const today = new Date().toISOString().split("T")[0];
+      const statusResponse = await client.getOrderStatus(merchantOrderId);
+      const status = statusResponse.state;
+
+      if (status !== "COMPLETED") {
+        return res
+          .status(400)
+          .json({ success: false, message: "Payment not successful", status });
+      }
+
+      const provider = await ServiceProvider.findOne({
+        where: { user_id: req.user.id },
+        include: [{ model: User }],
+      });
+
+      const bookings = await Booking.findAll({
+        where: {
+          booking_date: { [Op.lt]: today },
+          status: "completed",
+          provider_id: provider.provider_id,
+        },
+        include: [
+          {
+            model: BookingItem,
+          },
+        ],
+      });
+
+      for (const booking of bookings) {
+        const bookingPayments = await BookingPayment.findAll({
+          where: { booking_id: booking.booking_id },
+        });
+
+        for (const payment of bookingPayments) {
+          console.log(
+            `Updating payment ID ${payment.payment_id} with status 'paid_by_provider'`
+          );
+
+          await payment.update({ commition_status: "paid_by_provider" });
+        }
+      }
+
+      await provider.User.update({ account_status: "active" });
 
       return res.status(200).json({
         success: true,

@@ -96,6 +96,16 @@ module.exports = (sequelize, DataTypes) => {
           key: "provider_id",
         },
       },
+      commition_status: {
+        type: DataTypes.ENUM(
+          "pending",
+          "paid_by_provider",
+          "settled",
+          "waved_off"
+        ),
+        allowNull: false,
+        defaultValue: "pending",
+      },
     },
     {
       sequelize,

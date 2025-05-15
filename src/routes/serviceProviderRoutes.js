@@ -194,4 +194,10 @@ router.get(
   ProviderBookingController.getProviderDuePayouts
 );
 
+router.post(
+  "/provider/payouts/due/verify",
+  authMiddleware,
+  ProviderBookingController.verifyProviderDuePayoutPayment
+);
+
 module.exports = router;
