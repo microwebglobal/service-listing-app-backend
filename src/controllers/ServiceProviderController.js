@@ -824,24 +824,41 @@ class ServiceProviderController {
                 );
               } catch (error) {
                 console.error("Error updating employee or user status:", error);
-                throw error; // Rollback the transaction if there's an error
+                throw error;
               }
             })
           );
         }
-      }
 
-      await User.update(
-        {
-          account_status: "active",
-        },
-        {
-          where: {
-            u_id: provider.User.u_id,
+        await User.update(
+          {
+            account_status: "active",
           },
-          transaction,
+          {
+            where: {
+              u_id: provider.User.u_id,
+            },
+            transaction,
+          }
+        );
+
+        if (providerDocuments && providerDocuments.length > 0) {
+          const documentIds = providerDocuments.map((doc) => doc.document_id);
+
+          await ServiceProviderDocument.update(
+            {
+              verification_status: "verified",
+              verification_notes: "document-verified",
+            },
+            {
+              where: {
+                document_id: documentIds,
+              },
+              transaction,
+            }
+          );
         }
-      );
+      }
 
       // For non-rejection status updates
       await provider.update(
@@ -1418,20 +1435,70 @@ class ServiceProviderController {
   }
 
   static async deleteServiceProviderRecord(req, res, next) {
+    const { id } = req.params;
+
+    const transaction = await sequelize.transaction();
+
     try {
-      const serviceProvider = await ServiceProvider.findByPk(req.params.id);
+      const serviceProvider = await ServiceProvider.findOne({
+        where: { provider_id: id },
+        include: [
+          { model: User },
+          {
+            model: ProviderServiceCategory,
+            as: "providerCategories",
+            include: {
+              model: ServiceCategory,
+              include: [{ model: SubCategory }],
+            },
+          },
+          {
+            model: ServiceCategory,
+            as: "serviceCategories",
+            include: [{ model: SubCategory }],
+          },
+          { model: City, as: "serviceCities" },
+          {
+            model: ServiceProviderEmployee,
+            include: [{ model: User }],
+          },
+        ],
+        transaction,
+      });
 
       if (!serviceProvider) {
+        await transaction.rollback();
         return res.status(404).json({ error: "Service provider not found" });
       }
 
-      await serviceProvider.destroy();
+      for (const emp of serviceProvider.ServiceProviderEmployees || []) {
+        if (emp.User) {
+          await emp.User.destroy({ transaction });
+        }
+        await emp.destroy({ transaction });
+      }
 
-      return res
-        .status(200)
-        .json({ message: "Service provider deleted successfully" });
+      for (const cat of serviceProvider.providerCategories || []) {
+        await cat.destroy({ transaction });
+      }
+
+      await serviceProvider.setServiceCities([], { transaction });
+
+      if (serviceProvider.User) {
+        await serviceProvider.User.destroy({ transaction });
+      }
+
+      await serviceProvider.destroy({ transaction });
+
+      await transaction.commit();
+
+      return res.status(200).json({
+        message:
+          "Service provider and all related records deleted successfully",
+      });
     } catch (error) {
       console.error("Error deleting service provider:", error);
+      await transaction.rollback();
       return res.status(500).json({ error: "Internal server error" });
     }
   }

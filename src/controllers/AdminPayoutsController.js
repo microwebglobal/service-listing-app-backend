@@ -40,7 +40,7 @@ class AdminPayoutsController {
       const paymentLogs = await DailyPayoutLogs.findAll({
         where: {
           date: {
-            [Op.eq]: parsedDate.toISOString().split("T")[0], // Converts date to YYYY-MM-DD format
+            [Op.eq]: parsedDate.toISOString().split("T")[0],
           },
         },
       });
@@ -133,18 +133,20 @@ class AdminPayoutsController {
               payment?.service_commition || 0
             );
 
+            const tax = parseFloat(payment?.tax_amount || 0);
+
             totalCommition += serviceCommission;
 
             if (payment.payment_method === "cash") {
               if (advancedAmount > 0) {
-                const payout = advancedAmount - serviceCommission;
+                const payout = advancedAmount - serviceCommission - tax;
                 totalPayout += payout;
               } else if (advancedAmount === 0) {
-                const payout = 0 - serviceCommission;
+                const payout = 0 - serviceCommission - tax;
                 totalPayout += payout;
               }
             } else {
-              const payout = payment.total_amount - serviceCommission;
+              const payout = payment.total_amount - serviceCommission - tax;
               totalPayout += payout;
             }
           });
@@ -211,6 +213,53 @@ class AdminPayoutsController {
 
       if (!serviceProvider || !serviceProvider.User) {
         return res.status(404).json({ error: "Service provider not found" });
+      }
+
+      const today = new Date().toISOString().split("T")[0];
+
+      const bookings = await Booking.findAll({
+        where: {
+          provider_id: providerId,
+          booking_date: today,
+          status: "completed",
+        },
+      });
+
+      for (const booking of bookings) {
+        const bookingPayments = await BookingPayment.findAll({
+          where: { booking_id: booking.booking_id },
+        });
+
+        for (const payment of bookingPayments) {
+          const totalAmount = parseFloat(payment.total_amount || 0);
+          const advancedAmount = parseFloat(payment.advance_payment || 0);
+          const taxAmount = parseFloat(payment.tax_amount || 0);
+          const serviceCommission = parseFloat(payment.service_commition || 0);
+
+          let payble = 0;
+
+          //payble minus mean should pay by provider
+          if (payment?.cash_collected_by === providerId) {
+            if (advancedAmount === 0) {
+              payble = -(serviceCommission + taxAmount);
+            } else {
+              payble = advancedAmount - serviceCommission - taxAmount;
+            }
+          } else {
+            payble = totalAmount - serviceCommission - taxAmount;
+          }
+
+          console.log(payment.payment_id, "|", payble);
+
+          if (payble > 0) {
+            console.log(
+              `Updating payment ID ${payment.payment_id} with status 'settled'`
+            );
+            await payment.update({
+              commition_status: "settled",
+            });
+          }
+        }
       }
 
       const accBalance = parseFloat(serviceProvider.User.acc_balance || 0);
