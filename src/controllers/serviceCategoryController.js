@@ -113,7 +113,7 @@ class ServiceCategoryController {
       });
 
       console.log(
-        category.SubCategories[0].ServiceTypes[0].Services[0].ServiceItems[0]
+        // category.SubCategories[0].ServiceTypes[0].Services[0].ServiceItems[0]
       );
 
       if (!category) {

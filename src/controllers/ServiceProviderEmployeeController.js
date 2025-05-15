@@ -109,6 +109,7 @@ class ServiceProviderEmployeeController {
       const {
         name,
         email,
+        gender,
         mobile,
         dob,
         whatsapp_number,
@@ -124,6 +125,7 @@ class ServiceProviderEmployeeController {
         {
           name,
           email,
+          gender,
           dob,
           nic,
           mobile,
@@ -172,6 +174,7 @@ class ServiceProviderEmployeeController {
       const {
         name,
         email,
+        gender,
         mobile,
         dob,
         nic,
@@ -193,7 +196,7 @@ class ServiceProviderEmployeeController {
 
       // Update user details
       await User.update(
-        { name, email, mobile, dob, nic },
+        { name, email, gender, mobile, dob, nic },
         { where: { u_id: employee.user_id } }
       );
 

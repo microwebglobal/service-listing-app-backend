@@ -596,7 +596,7 @@ class ProviderBookingController {
         userId: userId,
         type: "booking",
         title: "Booking Completion Verification Code",
-        message: `Your One-Time Password (OTP) for starting the booking is ${otp}. This code is valid for 5 minutes. Please do not share it with anyone.`,
+        message: `Your One-Time Password (OTP) to complete the booking is ${otp}. This code is valid for 5 minutes. Please do not share it with anyone.`,
       });
 
       await booking.update({
@@ -809,7 +809,10 @@ class ProviderBookingController {
           let totalPayable = 0;
 
           const bookingPayments = await BookingPayment.findAll({
-            where: { booking_id: booking.booking_id },
+            where: {
+              booking_id: booking.booking_id,
+              commition_status: "pending",
+            },
           });
 
           if (bookingPayments && bookingPayments.length > 0) {
@@ -854,11 +857,15 @@ class ProviderBookingController {
     try {
       const today = new Date().toISOString().split("T")[0];
 
+      const provider = await ServiceProvider.findOne({
+        where: { user_id: req.user.id },
+      });
+
       const bookings = await Booking.findAll({
         where: {
-          booking_date: {
-            [Op.lt]: today,
-          },
+          booking_date: { [Op.lt]: today },
+          status: "completed",
+          provider_id: provider.provider_id,
         },
         include: [
           {
@@ -868,48 +875,73 @@ class ProviderBookingController {
       });
 
       let dueTotal = 0;
+      const dueBookings = [];
 
-      const result = await Promise.all(
-        bookings.map(async (booking) => {
-          let totalPayable = 0;
+      for (const booking of bookings) {
+        const pendingPayments = await BookingPayment.findAll({
+          where: {
+            booking_id: booking.booking_id,
+            commition_status: "pending",
+          },
+        });
 
-          const bookingPayments = await BookingPayment.findAll({
-            where: { booking_id: booking.booking_id },
-          });
+        if (!pendingPayments.length) continue;
 
-          if (bookingPayments && bookingPayments.length > 0) {
-            bookingPayments.forEach((payment) => {
-              const serviceComm = parseFloat(payment.service_commition || 0);
-              const taxAmount = parseFloat(payment.tax_amount || 0);
+        let totalPayable = 0;
+        const paymentDetails = [];
 
-              if (payment.payment_method === "card") {
-                const totalAmount = parseFloat(payment.total_amount || 0);
-                totalPayable =
-                  totalPayable - (totalAmount - serviceComm - taxAmount);
+        for (const payment of pendingPayments) {
+          const serviceComm = parseFloat(payment.service_commition || 0);
+          const taxAmount = parseFloat(payment.tax_amount || 0);
+          const totalAmount = parseFloat(payment.total_amount || 0);
+          const advance = parseFloat(payment.advance_payment || 0);
 
-                console.log(totalPayable);
-              } else if (payment.payment_method === "cash") {
-                const advance = parseFloat(payment.advance_payment || 0);
-                if (advance > 0) {
-                  totalPayable =
-                    totalPayable - (advance - serviceComm - taxAmount);
-                } else {
-                  totalPayable += serviceComm + taxAmount;
-                }
-              }
-            });
+          let payable = 0;
 
-            dueTotal += dueTotal;
+          if (payment.payment_method === "card") {
+            payable = totalAmount - serviceComm - taxAmount;
+            totalPayable -= payable;
+          } else if (payment.payment_method === "cash") {
+            if (advance > 0) {
+              payable = advance - serviceComm - taxAmount;
+              totalPayable -= payable;
+            } else {
+              payable = serviceComm + taxAmount;
+              totalPayable += payable;
+            }
           }
 
-          return {
-            ...booking.toJSON(),
-            totalPayable: totalPayable.toFixed(2),
-          };
-        })
-      );
+          paymentDetails.push({
+            payment_id: payment.payment_id,
+            payment_method: payment.payment_method,
+            total_amount: totalAmount.toFixed(2),
+            service_commition: serviceComm.toFixed(2),
+            tax_amount: taxAmount.toFixed(2),
+            advance_payment: advance.toFixed(2),
+            payable: payable.toFixed(2),
+          });
+        }
 
-      res.status(200).json({ result, dueTotal: dueTotal.toFixed(2) });
+        dueTotal += totalPayable;
+
+        dueBookings.push({
+          booking_id: booking.booking_id,
+          booking_date: booking.booking_date,
+          customer_id: booking.customer_id,
+          items: booking.BookingItems.map((item) => ({
+            item_id: item.item_id,
+            service_name: item.service_name,
+            price: item.price,
+          })),
+          payments: paymentDetails,
+          totalPayable: totalPayable.toFixed(2),
+        });
+      }
+
+      res.status(200).json({
+        totalDuePayable: dueTotal.toFixed(2),
+        bookings: dueBookings,
+      });
     } catch (error) {
       next(error);
     }
@@ -989,6 +1021,7 @@ class ProviderBookingController {
         where: {
           provider_id: provider.provider_id,
           booking_date: today,
+          status: "completed",
         },
       });
 
@@ -1007,6 +1040,71 @@ class ProviderBookingController {
           });
         }
       }
+
+      return res.status(200).json({
+        success: true,
+        message: "Commission paid successfully.",
+      });
+    } catch (error) {
+      console.error(error);
+      return next(error);
+    }
+  }
+
+  static async verifyProviderDuePayoutPayment(req, res, next) {
+    if (!req.user || !req.user.id) {
+      console.log("No user ID found in request");
+      return next(createError(401, "User not authenticated"));
+    }
+
+    try {
+      const { merchantOrderId } = req.body;
+
+      console.log(merchantOrderId);
+
+      const today = new Date().toISOString().split("T")[0];
+      const statusResponse = await client.getOrderStatus(merchantOrderId);
+      const status = statusResponse.state;
+
+      if (status !== "COMPLETED") {
+        return res
+          .status(400)
+          .json({ success: false, message: "Payment not successful", status });
+      }
+
+      const provider = await ServiceProvider.findOne({
+        where: { user_id: req.user.id },
+        include: [{ model: User }],
+      });
+
+      const bookings = await Booking.findAll({
+        where: {
+          booking_date: { [Op.lt]: today },
+          status: "completed",
+          provider_id: provider.provider_id,
+        },
+        include: [
+          {
+            model: BookingItem,
+          },
+        ],
+      });
+
+      for (const booking of bookings) {
+        const bookingPayments = await BookingPayment.findAll({
+          where: { booking_id: booking.booking_id },
+        });
+
+        for (const payment of bookingPayments) {
+          console.log(
+            `Updating payment ID ${payment.payment_id} with status 'paid_by_provider'`
+          );
+
+          await payment.update({ commition_status: "paid_by_provider" });
+        }
+      }
+
+      await provider.User.update({ account_status: "active" });
 
       return res.status(200).json({
         success: true,
