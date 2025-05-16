@@ -10,10 +10,7 @@ router.put(
   CustomerProfileController.updateCustomerProfileStatus
 );
 router.get("/:id", CustomerProfileController.getProfileById);
-router.get(
-  "/customer-profiles/user/:uId",
-  CustomerProfileController.getProfileByUserId
-);
+router.get("/profile/user/:uId", CustomerProfileController.getProfileByUserId);
 router.post("/", CustomerProfileController.createProfile);
 router.put("/users/profile/:id", CustomerProfileController.updateProfile);
 router.patch(

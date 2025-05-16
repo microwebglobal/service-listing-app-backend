@@ -208,7 +208,7 @@ const generateEmailValidationLink = async (user) => {
       }
     );
 
-    const emailLink = `${process.env.FRONTEND_URL}/profile/customer/validate-email/${token}`;
+    const emailLink = `${process.env.FRONTEND_URL}/profile/validate-email/${token}`;
 
     return emailLink;
   } catch (error) {
