@@ -91,7 +91,7 @@ class ProviderBookingController {
       });
 
       if (!bookings || bookings.length === 0) {
-        throw createError(404, "No bookings found for this provider");
+        throw createError(204, "No bookings found for this provider");
       }
 
       // Process each booking to include `itemHierarchicalRel`

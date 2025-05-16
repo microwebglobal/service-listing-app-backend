@@ -1,7 +1,7 @@
-const { where } = require("sequelize");
 const {
   ServiceProvider,
   User,
+  Booking,
   City,
   ServiceCategory,
   SubCategory,
@@ -19,6 +19,7 @@ const {
   ServiceProviderDocument,
 } = require("../models");
 const { sequelize } = require("../models");
+const { Op, where } = require("sequelize");
 const MailService = require("../utils/mail.js");
 
 const {
@@ -1500,6 +1501,78 @@ class ServiceProviderController {
       console.error("Error deleting service provider:", error);
       await transaction.rollback();
       return res.status(500).json({ error: "Internal server error" });
+    }
+  }
+
+  static async getActivityOverview(req, res, next) {
+    try {
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      // Find service provider by logged-in user ID
+      const provider = await ServiceProvider.findOne({
+        where: { user_id: req.user.id },
+        include: [
+          { model: User },
+          { model: ServiceCategory, as: "serviceCategories" },
+          { model: City, as: "serviceCities" },
+          {
+            model: ServiceProviderEmployee,
+            include: [{ model: User }],
+          },
+        ],
+      });
+
+      if (!provider) {
+        return res.status(404).json({ message: "Service provider not found" });
+      }
+
+      const providerId = provider.provider_id;
+
+      const acceptedCount = await Booking.count({
+        where: {
+          provider_id: providerId,
+          status: "accepted",
+        },
+      });
+
+      const nextBooking = await Booking.findOne({
+        where: {
+          provider_id: providerId,
+          booking_date: { [Op.gte]: new Date() },
+          status: "accepted",
+        },
+        order: [["booking_date", "ASC"]],
+      });
+
+      const completedCount = await Booking.count({
+        where: {
+          provider_id: providerId,
+          status: "completed",
+        },
+      });
+
+      const categories = new Set();
+      if (provider.serviceCategories?.length) {
+        provider.serviceCategories.forEach((category) => {
+          if (category.category_id) {
+            categories.add(category.category_id);
+          }
+        });
+      }
+
+      const categoryCount = categories.size;
+
+      return res.status(200).json({
+        acceptedCount,
+        nextBooking,
+        completedCount,
+        categoryCount,
+      });
+    } catch (error) {
+      console.error("Activity Overview Error:", error);
+      next(error);
     }
   }
 }

@@ -200,4 +200,11 @@ router.post(
   ProviderBookingController.verifyProviderDuePayoutPayment
 );
 
+//profile overview
+router.get(
+  "/provider/profile/overview",
+  authMiddleware,
+  ServiceProviderController.getActivityOverview
+);
+
 module.exports = router;
