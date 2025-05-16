@@ -261,7 +261,7 @@ class AuthController {
       const tokens = this.generateTokens(user);
       this.setTokenCookies(res, tokens);
 
-      res.json({ success: true, User });
+      res.json({ success: true, user });
     } catch (error) {
       if (error.name === "JsonWebTokenError") {
         error = createError(401, "Invalid refresh token");
