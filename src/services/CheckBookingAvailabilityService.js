@@ -45,7 +45,7 @@ class BookingAvailabilityService {
         console.log(capacity);
       }
 
-      console.log(totalCapacity);
+      console.log("Provider", totalCapacity);
 
       // Get all bookings for these providers on the given date
       const bookings = await Booking.findAll({
